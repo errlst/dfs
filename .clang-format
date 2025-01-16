@@ -1,0 +1,4 @@
+IndentWidth: 4
+AlwaysBreakTemplateDeclarations: Yes
+IndentCaseLabels: true
+ColumnLimit: 0

@@ -1,0 +1,6 @@
+[
+{
+  "directory": "/home/jin/project/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-fvisibility=hidden", "-fvisibility-inlines-hidden", "-O3", "-std=c++23", "-DNDEBUG", "-o", "build/.objs/storage/linux/x86_64/release/src/storage/main.cpp.o", "src/storage/main.cpp"],
+  "file": "src/storage/main.cpp"
+}]
