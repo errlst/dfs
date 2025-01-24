@@ -1,0 +1,34 @@
+{
+  // base configure
+  "common": {
+    "base_path": "/home/jin/project/dfs/build/base_path/storage",
+    "log_level": 0
+  },
+
+  // network configure
+  "network": {
+    "heartbeat_timeout": 5000,
+    "heartbeat_interval": 1000
+  },
+
+  // storage configure
+  "storage_service": {
+    "id": 1,
+    "ip": "0.0.0.0",
+    "port": 8889,
+    "master_ip": "127.0.0.1",
+    "master_port": 8888,
+    "thread_count": 2,
+    "hot_paths": ["/home/jin/project/dfs/build/base_path/storage/hot"],
+    "warm_paths": ["/home/jin/project/dfs/build/base_path/storage/warm"],
+    "cold_paths": ["/home/jin/project/dfs/build/base_path/storage/cold"]
+  },
+
+  // migrate service
+  "migrate_service": {},
+
+  // monitor service
+  "monitor_service": {
+    "interval": 1000
+  }
+}

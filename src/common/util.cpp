@@ -1,0 +1,23 @@
+#include "util.h"
+#include <filesystem>
+#include <iostream>
+#include <print>
+
+auto check_directory(std::string_view path) -> void {
+    if (std::filesystem::exists(path)) {
+        if (!std::filesystem::is_directory(path)) {
+            std::cerr << path << " is not a directory\n";
+            exit(-1);
+        }
+    } else {
+        if (!std::filesystem::create_directories(path)) {
+            std::cerr << "failed to create directory: " << path << "\n";
+            exit(-1);
+        }
+    }
+}
+
+auto co_sleep_for(std::chrono::milliseconds ms) -> asio::awaitable<void> {
+    auto timer = asio::steady_timer{co_await asio::this_coro::executor, ms};
+    co_await timer.async_wait(asio::use_awaitable);
+}

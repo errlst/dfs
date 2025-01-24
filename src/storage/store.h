@@ -11,6 +11,7 @@
 class store_ctx_t {
   public:
     store_ctx_t(const std::string &path);
+
     ~store_ctx_t() = default;
 
     auto create_file(uint64_t file_id, uint64_t file_size) -> bool;
@@ -24,6 +25,8 @@ class store_ctx_t {
     auto read_file(uint64_t file_id, uint64_t offset, uint64_t size) -> std::optional<std::vector<uint8_t>>;
 
     auto left_bytes() -> uint64_t;
+
+    auto base_path() -> std::string;
 
   private:
     auto relative_path(uint16_t idx) -> std::string;
@@ -46,10 +49,13 @@ class store_ctx_t {
 class store_ctx_group_t {
   public:
     store_ctx_group_t(const std::string &name, const std::vector<std::string> &path);
+
     ~store_ctx_group_t() = default;
 
+    /* 创建文件 返回 file_id */
     auto create_file(uint64_t file_size) -> std::optional<uint64_t>;
 
+    /* append 写入文件 */
     auto write_file(uint64_t file_id, std::span<uint8_t> data) -> bool;
 
     // 返回：relpath
@@ -64,6 +70,9 @@ class store_ctx_group_t {
     auto next_path() -> std::string;
 
     auto valid() -> bool;
+
+    /* <path, avaliable, total> */
+    auto monitor_disk() -> std::vector<std::tuple<std::string, uint64_t, uint64_t>>;
 
   private:
     auto next_idx() -> uint16_t;

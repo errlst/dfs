@@ -1,3 +1,4 @@
 #include "global.h"
 
-storage_ctx_t g_storage_ctx;
+std::shared_ptr<log_t> g_log;
+nlohmann::json g_conf;

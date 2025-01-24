@@ -1,8 +1,7 @@
 #include "../common/loop.h"
-#include "../common/util.h"
 #include "./global.h"
-#include "./monitor_service.h"
-#include "./storage_service.h"
+#include "./master_service.h"
+#include "../common/util.h"
 #include <print>
 
 auto show_usage() -> void {
@@ -39,13 +38,11 @@ auto init_log() -> void {
 }
 
 auto main(int argc, char *argv[]) -> int {
-
-    init_conf("/home/jin/project/dfs/conf/storage.conf.json");
+    init_conf("/home/jin/project/dfs/conf/master.conf.json");
     init_log();
 
     auto loop = loop_t{};
-    loop.regist_service(monitor_service);
-    loop.regist_service(storage_service);
+    loop.regist_service(master_service);
     loop.run();
 
     return 0;
