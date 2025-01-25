@@ -13,9 +13,9 @@
 
   // storage configure
   "storage_service": {
-    "id": 1, // 从1开始计数
+    "id": 2,
     "ip": "0.0.0.0",
-    "port": 8889,
+    "port": 8890,
     "master_ip": "127.0.0.1",
     "master_port": 8888,
     "thread_count": 2,

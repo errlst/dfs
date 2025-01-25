@@ -81,6 +81,7 @@ auto log_t::do_log(log_level_e level, const std::source_location &loc, const std
         default:
             break;
     }
+    update_time();
     auto fmted_str = std::format("{} [{}] [{}] [{}:{}] {} {}\n", color,
                                  m_cached_time, log_level_str(level),
                                  loc.file_name(), loc.line(), RESET, message);

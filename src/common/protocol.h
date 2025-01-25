@@ -2,7 +2,7 @@
 #include <cstdint>
 #include <memory>
 
-constexpr uint16_t frame_valid_magic = 0x55aa;
+constexpr uint16_t FRAME_MAGIC = 0x55aa;
 
 /*
     所有 cmd 为指定两方使用
@@ -19,13 +19,9 @@ enum class proto_cmd_e : uint8_t {
 
     /*
         storage 注册到 master
+        如果成功，master 返回同组的其他 storage
     */
     sm_regist,
-
-    /*
-        新的 storage 注册到组
-    */
-    ms_new_regist,
 
     /*
         获取最大可使用剩余空间，只在 hot_store 中搜索
@@ -33,9 +29,9 @@ enum class proto_cmd_e : uint8_t {
     ms_max_free_space,
 
     /*
-        client 转为 storage
+        连接到同组的 storage
     */
-    ss_as_partner,
+    ss_im_storage,
 
     /*
         获取合适的 storage，用于创建文件
@@ -59,11 +55,11 @@ enum class proto_cmd_e : uint8_t {
 };
 
 struct proto_frame_t {
-    uint32_t magic : 16 = frame_valid_magic;
+    uint32_t frame_magic : 16 = FRAME_MAGIC;
     uint8_t id; // 同一个 cmd 的请求和响应的 id 一致
     uint8_t cmd;
-    uint8_t stat = 0;      // 状态码
-    uint32_t len : 24 = 0; // data 的长度
+    uint8_t stat = 0;           // 状态码
+    uint32_t data_len : 24 = 0; // data 的长度
     char data[0];
 };
 static_assert(sizeof(proto_frame_t) == 8);
@@ -72,20 +68,19 @@ using proto_frame_ptr_t = std::shared_ptr<proto_frame_t>;
 
 struct sm_regist_req_t {
     uint32_t storage_id;
-    uint32_t storage_magic;
-    uint32_t master_magic; // master 的 magic
-    uint16_t port;
+    uint16_t storage_magic;
+    uint16_t storage_port;
+    uint32_t master_magic;
+};
+
+struct sm_regist_res_t {
+    /* 整个结构存放不止一个 storage 的信息 */
+    uint16_t storage_magic;
+    uint16_t storage_port;
+    uint8_t ip_len;
     char ip[];
 };
 
-struct ms_new_regist_req_t {
-    uint32_t storage_id;
-    uint32_t magic;
-    uint16_t port;
-    char ip[0];
-};
-
-struct ss_as_partner_req_t {
-    uint32_t id;
-    uint32_t magic;
+struct ss_im_storage_req_t {
+    uint16_t storage_magic;
 };
