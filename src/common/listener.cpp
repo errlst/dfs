@@ -7,7 +7,7 @@ listener_t::listener_t(const asio::any_io_executor &io, listener_conf_t conf)
     m_acceptor.set_option(asio::socket_base::reuse_address(true));
     m_acceptor.bind(ep);
     m_acceptor.listen();
-    m_as_string = std::format("listener {}:{} ", conf.ip, conf.port);
+    m_as_string = std::format("listener {}:{}", conf.ip, conf.port);
 }
 
 auto listener_t::accept() -> asio::awaitable<std::shared_ptr<connection_t>> {

@@ -39,8 +39,25 @@ auto init_log() -> void {
 }
 
 auto main(int argc, char *argv[]) -> int {
+    auto conf_file = "/home/jin/project/dfs/conf/storage.conf.json";
 
-    init_conf("/home/jin/project/dfs/conf/storage.conf.json");
+    for (auto i = 1; i < argc; ++i) {
+        if (std::string_view(argv[i]) == "-h") {
+            show_usage();
+            return 0;
+        } else if (std::string_view(argv[i]) == "-c") {
+            if (i + 1 >= argc) {
+                show_usage();
+                return -1;
+            }
+            conf_file = argv[i + 1];
+            i += 1;
+        } else {
+            show_usage();
+        }
+    }
+
+    init_conf(conf_file);
     init_log();
 
     auto loop = loop_t{};

@@ -37,9 +37,13 @@ class connection_t {
     // auto recv_frame() -> asio::awaitable<std::shared_ptr<proto_frame_t>>;
 
     /* ip:port */
-    auto to_string() -> std::string { return m_as_string; }
+    auto to_string() -> std::string { return m_ip + ":" + std::to_string(m_port); }
 
-    auto close() -> asio::awaitable<void>;
+    auto ip() -> std::string { return m_ip; }
+
+    auto port() -> uint16_t { return m_port; }
+
+    auto close() -> void;
 
     template <typename T>
     auto set_data(uint64_t key, T &&value) -> void {
@@ -58,7 +62,7 @@ class connection_t {
         return std::any_cast<T>(it->second);
     }
 
-    /* 创建一个 client connection */
+    /* 创建 connection，且开始 start() */
     static auto connect_to(asio::any_io_executor io, std::string_view ip, uint16_t port, connection_conf_t conf)
         -> asio::awaitable<std::tuple<std::shared_ptr<connection_t>, std::error_code>>;
 
@@ -78,7 +82,8 @@ class connection_t {
   private:
     asio::ip::tcp::socket m_sock;
     connection_conf_t m_conf;
-    std::string m_as_string;
+    std::string m_ip;
+    uint16_t m_port;
     std::atomic_bool m_closed = false;
     std::atomic_uint8_t m_frame_id = 0;
 
