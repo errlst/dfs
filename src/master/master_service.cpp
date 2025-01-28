@@ -1,5 +1,6 @@
 #include "master_service.h"
-#include "../common/listener.h"
+#include "../common/acceptor.h"
+#include "../common/util.h"
 #include "../proto/proto.h"
 #include "./global.h"
 #include <set>
@@ -11,6 +12,7 @@ enum conn_data : uint64_t {
     storage_ip,
     storage_port,
     storage_magic,
+    storage_usable_disk,
 };
 
 struct {
@@ -19,16 +21,48 @@ struct {
     uint16_t thread_count;
     uint32_t master_magic;
     uint16_t group_size;
-    std::chrono::milliseconds heartbeat_interval;
-    std::chrono::milliseconds heartbeat_timeout;
+    uint32_t heart_timeout;
+    uint32_t heart_interval;
 } static conf;
 
 /* 多线程处理读消息 */
 static auto ms_ios = std::vector<std::shared_ptr<asio::io_context>>{};
 static auto ms_ios_guard = std::vector<asio::executor_work_guard<asio::io_context::executor_type>>{};
 
-/* 注册的 storage <group, conn> */
+/*
+    注册的 storage <id, conn>
+    客户端请求 storage 时，进行循环赛，获取可用的 storage
+    因此需要将 map 转换为 vector，方便进行轮询访问
+    因此需要使用 mutex 保证转换时的数据安全
+*/
 static auto storage_conns = std::map<uint32_t, std::shared_ptr<connection_t>>{};
+static auto storage_conns_vec = std::vector<std::shared_ptr<connection_t>>{};
+static auto storage_conns_mut = std::mutex{};
+
+/* 注册 storage */
+static auto regist_storage(uint32_t id, std::shared_ptr<connection_t> conn) -> void {
+    auto lock = std::unique_lock{storage_conns_mut};
+    storage_conns[id] = conn;
+    storage_conns_vec.emplace_back(conn);
+}
+
+/* 注销 storage */
+static auto unregist_storage(uint32_t id) -> void {
+    auto lock = std::unique_lock{storage_conns_mut};
+    if (auto it = storage_conns.find(id); it != storage_conns.end()) {
+        storage_conns.erase(it);
+    }
+    storage_conns_vec = {};
+    for (const auto &[id, conn] : storage_conns) {
+        storage_conns_vec.emplace_back(conn);
+    }
+}
+
+/* 轮询获取下一个 connection */
+static auto next_storage() -> std::shared_ptr<connection_t> {
+    static auto idx = std::atomic_uint64_t{0};
+    return storage_conns_vec[idx++ % storage_conns_vec.size()];
+}
 
 /* 计算分组，group 和 id 从 1 开始计数 */
 static auto calc_group(uint32_t id) -> uint32_t {
@@ -55,37 +89,78 @@ static auto init_conf() -> void {
         .thread_count = g_conf["master_service"]["thread_count"].get<std::uint16_t>(),
         .master_magic = g_conf["master_service"]["master_magic"].get<std::uint32_t>(),
         .group_size = g_conf["master_service"]["group_size"].get<std::uint16_t>(),
-        .heartbeat_interval = std::chrono::milliseconds{g_conf["network"]["heartbeat_interval"].get<std::uint32_t>()},
-        .heartbeat_timeout = std::chrono::milliseconds{g_conf["network"]["heartbeat_timeout"].get<std::uint32_t>()},
+        .heart_timeout = g_conf["network"]["heart_timeout"].get<std::uint32_t>(),
+        .heart_interval = g_conf["network"]["heart_interval"].get<std::uint32_t>(),
     };
-}
-
-static auto on_storage_disconnect(std::shared_ptr<connection_t> conn) -> asio::awaitable<void> {
-    auto storage_id = conn->get_data<uint32_t>(conn_data::storage_id).value();
-    auto group = calc_group(storage_id);
-    storage_conns.erase(storage_id);
-    g_log->log_warn(std::format("storage {}:{} disconnect", conn->get_data<std::string>(conn_data::storage_ip).value(),
-                                conn->get_data<uint16_t>(conn_data::storage_port).value()));
-
-    /* board cast disconnect to storages in same group */
-    for (auto conn : get_group_conns(group)) {
-    }
-    co_return;
 }
 
 using req_handle_t = std::function<asio::awaitable<void>(std::shared_ptr<connection_t>, std::shared_ptr<proto_frame_t>)>;
 
-static auto sm_regist_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void> {
-    /* check frame valid */
-    g_log->log_info(std::format("regist req from storage {}", conn->to_string()));
-    if (req_frame->data_len < sizeof(sm_regist_req_t)) {
-        g_log->log_warn(std::format("invalid regist req from storage {}", conn->to_string()));
-        co_await conn->send_res_frame(proto_frame_t{
-            .cmd = (uint8_t)proto_cmd_e::sm_regist,
-            .stat = 1,
-        });
-        co_return;
+/*********************************************************************************************************************** */
+/*********************************************************************************************************************** */
+/* 服务 storage */
+
+/* 定期获取 stroage 的可使用空间 */
+static auto get_storage_usable_disk_impl(std::shared_ptr<connection_t> conn) -> asio::awaitable<bool> {
+    auto id = co_await conn->send_req_frame(proto_frame_t{.cmd = (uint8_t)proto_cmd_e::ms_fs_free_size});
+    if (!id) {
+        co_return false;
     }
+
+    auto res_frame = co_await conn->recv_res_frame(id.value());
+    if (!res_frame) {
+        co_return false;
+    }
+
+    auto useable_disk = *(uint64_t *)res_frame->data;
+    // g_log->log_debug(std::format("storage {} max useable disk {}", conn->to_string(), useable_disk));
+    conn->set_data(conn_data::storage_usable_disk, useable_disk);
+    co_return true;
+}
+
+static auto get_storage_usable_disk(std::shared_ptr<connection_t> conn) -> asio::awaitable<void> {
+    while (co_await get_storage_usable_disk_impl(conn)) {
+        co_await co_sleep_for(std::chrono::seconds{5});
+    }
+}
+
+/* storage 断连 */
+static auto on_storage_disconnect(std::shared_ptr<connection_t> conn) -> asio::awaitable<void> {
+    auto id = conn->get_data<uint32_t>(conn_data::storage_id).value();
+    unregist_storage(id);
+
+    auto ip = conn->get_data<std::string>(conn_data::storage_ip);
+    auto port = conn->get_data<uint32_t>(conn_data::storage_port);
+    if (!ip.has_value() || !port.has_value()) {
+        g_log->log_fatal("failed to get storage ip or port");
+        exit(-1);
+    }
+    g_log->log_warn(std::format("storage {}:{} disconnect", ip.value(), port.value()));
+
+    co_return;
+}
+
+static auto storage_req_handles = std::map<uint8_t, req_handle_t>{};
+
+static auto read_from_storage(std::shared_ptr<connection_t> conn) -> asio::awaitable<void> {
+    asio::co_spawn(co_await asio::this_coro::executor, get_storage_usable_disk(conn), asio::detached);
+    while (true) {
+        auto req_frame = co_await conn->recv_req_frame();
+        if (!req_frame) {
+            co_await on_storage_disconnect(conn);
+            co_return;
+        }
+
+        if (storage_req_handles.contains(req_frame->cmd)) {
+            co_await storage_req_handles[req_frame->cmd](conn, req_frame);
+        } else {
+            g_log->log_error(std::format("unknown master cmd {}", req_frame->cmd));
+        }
+    }
+}
+
+static auto sm_regist_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void> {
+    g_log->log_info(std::format("regist req from storage {}", conn->to_string()));
 
     /* parse request data */
     auto req_data = dfs::proto::sm_regist::request_t{};
@@ -147,50 +222,102 @@ static auto sm_regist_handle(std::shared_ptr<connection_t> conn, std::shared_ptr
     conn->set_data(conn_data::storage_port, req_data.storage_info().port());
     conn->set_data(conn_data::storage_magic, req_data.storage_info().magic());
     conn->set_data(conn_data::storage_ip, req_data.storage_info().ip());
-    storage_conns[req_data.storage_info().id()] = conn;
+    regist_storage(req_data.storage_info().id(), conn);
     g_log->log_info(std::format("storage {} {} regist suc", req_data.storage_info().id(), req_data.storage_info().magic()));
 
     co_await conn->send_res_frame(std::shared_ptr<proto_frame_t>{res_frame, [](auto p) { free(p); }});
+    asio::co_spawn(co_await asio::this_coro::executor, read_from_storage(conn), asio::detached);
 }
 
-static auto req_handles = std::map<uint8_t, req_handle_t>{
-    {(uint8_t)proto_cmd_e::sm_regist, sm_regist_handle},
+/*********************************************************************************************************************** */
+/*********************************************************************************************************************** */
+/* 服务 client */
+
+/* client 断连 */
+static auto on_client_disconnect(std::shared_ptr<connection_t> conn) -> asio::awaitable<void> {
+    g_log->log_warn(std::format("client {} disconnect", conn->to_string()));
+    co_return;
+}
+
+static auto cm_valid_storage_handlle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void> {
+    /* get a valid storage */
+    auto valid_storage = std::shared_ptr<connection_t>{};
+    for (auto i = 0; i < storage_conns_vec.size(); ++i) {
+        auto storage = next_storage();
+        auto usable_disk = storage->get_data<uint64_t>(conn_data::storage_usable_disk).value();
+        if (usable_disk > *(uint64_t *)req_frame->data) {
+            valid_storage = storage;
+            break;
+        }
+    }
+    if (!valid_storage) {
+        g_log->log_warn(std::format("not find valid storage for size {}", *(uint64_t *)req_frame->data));
+        co_await conn->send_res_frame(proto_frame_t{
+            .id = req_frame->id,
+            .cmd = req_frame->cmd,
+            .stat = 1,
+        });
+        co_return;
+    }
+
+    /* response */
+    auto res_data = dfs::proto::cm_valid_storage::response_t{};
+    res_data.set_storage_magic(valid_storage->get_data<uint32_t>(conn_data::storage_magic).value());
+    res_data.set_storage_port(valid_storage->get_data<uint32_t>(conn_data::storage_port).value());
+    res_data.set_storage_ip(valid_storage->get_data<std::string>(conn_data::storage_ip).value());
+    auto res_frame = (proto_frame_t *)malloc(sizeof(proto_frame_t) + res_data.ByteSizeLong());
+    *res_frame = {
+        .id = req_frame->id,
+        .cmd = req_frame->cmd,
+        .data_len = (uint32_t)res_data.ByteSizeLong(),
+    };
+    if (!res_data.SerializeToArray(res_frame->data, res_frame->data_len)) {
+        g_log->log_error("failed to serialize cm_valid_storage response");
+        co_await conn->send_res_frame(proto_frame_t{
+            .id = req_frame->id,
+            .cmd = req_frame->cmd,
+            .stat = 2,
+        });
+        co_return;
+    }
+    co_await conn->send_res_frame(std::shared_ptr<proto_frame_t>{res_frame, [](auto p) { free(p); }});
+}
+
+static auto client_req_handles = std::map<uint8_t, req_handle_t>{
+    {(uint8_t)proto_cmd_e::cm_valid_storage, cm_valid_storage_handlle},
 };
 
-static auto read_from_connection(std::shared_ptr<connection_t> conn) -> asio::awaitable<void> {
+static auto read_from_client(std::shared_ptr<connection_t> conn) -> asio::awaitable<void> {
     while (true) {
-        auto frame = co_await conn->recv_req_frame();
+        auto req_frame = co_await conn->recv_req_frame();
+        if (!req_frame) {
+            co_await on_client_disconnect(conn);
+            co_return;
+        }
 
-        /* on disconnect */
-        if (!frame) {
-            if (conn->get_data<uint32_t>(conn_data::storage_id).has_value()) {
-                co_await on_storage_disconnect(conn);
-            }
+        /* storage regist if suc, storage conn will run in read_from_storag */
+        if (req_frame->cmd == (uint8_t)proto_cmd_e::sm_regist) {
+            co_await sm_regist_handle(conn, req_frame);
             co_return;
         }
 
         /* call cmd handle */
-        if (req_handles.contains(frame->cmd)) {
-            co_await req_handles[frame->cmd](conn, frame);
+        if (client_req_handles.contains(req_frame->cmd)) {
+            co_await client_req_handles[req_frame->cmd](conn, req_frame);
         } else {
-            g_log->log_error(std::format("unknown cmd {}", frame->cmd));
+            g_log->log_error(std::format("unknown client cmd {}", req_frame->cmd));
         }
     }
 }
 
 static auto work_as_master_service() -> asio::awaitable<void> {
     /* start accept */
-    auto acceptor = listener_t{co_await asio::this_coro::executor,
-                               listener_conf_t{
-                                   .ip = conf.ip,
-                                   .port = conf.port,
-                                   .log = g_log,
-                                   .conn_conf = {
-                                       .heartbeat_timeout = conf.heartbeat_timeout,
-                                       .heartbeat_interval = conf.heartbeat_interval,
-                                       .log = g_log,
-                                   },
-                               }};
+    auto acceptor = acceptor_t{co_await asio::this_coro::executor, acceptor_conf_t{
+                                                                       .ip = conf.ip,
+                                                                       .port = conf.port,
+                                                                       .heart_timeout = conf.heart_timeout,
+                                                                       .heart_interval = conf.heart_interval,
+                                                                       .log = g_log}};
     g_log->log_info(std::format("master service start on {}", acceptor.to_string()));
 
     /* create conn io */
@@ -206,16 +333,13 @@ static auto work_as_master_service() -> asio::awaitable<void> {
     static auto idx = 0ull;
     while (true) {
         auto conn = co_await acceptor.accept();
-        if (conn) {
-            auto io = ms_ios[idx++ % ms_ios.size()];
-            asio::co_spawn(*io, conn->start(), asio::detached);
-            asio::co_spawn(*io, read_from_connection(conn), asio::detached);
-        }
+        auto io = ms_ios[idx++ % ms_ios.size()];
+        asio::co_spawn(*io, conn->start(), asio::detached);
+        asio::co_spawn(*io, read_from_client(conn), asio::detached);
     }
 }
 
 auto master_service() -> asio::awaitable<void> {
-    g_log->log_info("master service start");
     init_conf();
     asio::co_spawn(co_await asio::this_coro::executor, work_as_master_service(), asio::detached);
     co_return;

@@ -18,24 +18,23 @@ log_t::log_t(std::string_view path, log_level_e level, bool daemon) {
     }
     m_daemon = daemon;
     update_time();
-    std::thread{&log_t::run, this}.detach();
 }
 
-auto log_t::run() -> void {
-    while (true) {
-        auto lock = std::unique_lock{m_mut};
-        m_cv.wait(lock, [this] { return !m_buf.empty(); });
+// auto log_t::run() -> void {
+//     while (true) {
+//         auto lock = std::unique_lock{m_mut};
+//         m_cv.wait(lock, [this] { return !m_buf.empty(); });
 
-        m_ofs << m_buf;
-        if (!m_daemon) {
-            std::cout << m_buf;
-        }
-        m_ofs.flush();
-        m_buf.clear();
+//         m_ofs << m_buf;
+//         if (!m_daemon) {
+//             std::cout << m_buf;
+//         }
+//         m_ofs.flush();
+//         m_buf.clear();
 
-        update_time();
-    }
-}
+//         update_time();
+//     }
+// }
 
 auto log_t::log_debug(const std::string &message, std::source_location loc) -> void {
     do_log(log_level_e::debug, loc, message);
@@ -85,8 +84,11 @@ auto log_t::do_log(log_level_e level, const std::source_location &loc, const std
                                  m_cached_time, log_level_str(level),
                                  loc.file_name(), loc.line(), RESET, message);
     auto lock = std::unique_lock{m_mut};
-    m_buf += fmted_str;
-    m_cv.notify_one();
+    m_ofs << fmted_str;
+    if (!m_daemon) {
+        std::cout << fmted_str;
+    }
+    m_ofs.flush();
 }
 
 auto log_t::log_level_str(log_level_e level) -> std::string {

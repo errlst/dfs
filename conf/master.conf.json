@@ -7,8 +7,8 @@
 
   // network configure
   "network": {
-    "heartbeat_timeout": 500000,
-    "heartbeat_interval": 10000000
+    "heart_timeout": 50000000,
+    "heart_interval": 10000000
   },
 
   // master configure

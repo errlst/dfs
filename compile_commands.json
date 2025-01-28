@@ -1,6 +1,11 @@
 [
 {
   "directory": "/home/jin/project/dfs",
+  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-o", "build/.objs/proto/linux/x86_64/debug/src/proto/sm_regist.pb.cc.o", "src/proto/sm_regist.pb.cc"],
+  "file": "src/proto/sm_regist.pb.cc"
+},
+{
+  "directory": "/home/jin/project/dfs",
   "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-I", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-I", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-o", "build/.objs/common/linux/x86_64/debug/src/common/connection.cpp.o", "src/common/connection.cpp"],
   "file": "src/common/connection.cpp"
 },
@@ -11,8 +16,8 @@
 },
 {
   "directory": "/home/jin/project/dfs",
-  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-I", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-I", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-o", "build/.objs/common/linux/x86_64/debug/src/common/listener.cpp.o", "src/common/listener.cpp"],
-  "file": "src/common/listener.cpp"
+  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-I", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-I", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-o", "build/.objs/common/linux/x86_64/debug/src/common/acceptor.cpp.o", "src/common/acceptor.cpp"],
+  "file": "src/common/acceptor.cpp"
 },
 {
   "directory": "/home/jin/project/dfs",
@@ -23,16 +28,6 @@
   "directory": "/home/jin/project/dfs",
   "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-I", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-I", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-o", "build/.objs/common/linux/x86_64/debug/src/common/loop.cpp.o", "src/common/loop.cpp"],
   "file": "src/common/loop.cpp"
-},
-{
-  "directory": "/home/jin/project/dfs",
-  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-I", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-I", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-o", "build/.objs/common/linux/x86_64/debug/src/common/co_mutex.cpp.o", "src/common/co_mutex.cpp"],
-  "file": "src/common/co_mutex.cpp"
-},
-{
-  "directory": "/home/jin/project/dfs",
-  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-I", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-I", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-o", "build/.objs/common/linux/x86_64/debug/src/common/co_conditional_variable.cpp.o", "src/common/co_conditional_variable.cpp"],
-  "file": "src/common/co_conditional_variable.cpp"
 },
 {
   "directory": "/home/jin/project/dfs",
@@ -71,11 +66,6 @@
 },
 {
   "directory": "/home/jin/project/dfs",
-  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-I", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-o", "build/.objs/test_co_mutex/linux/x86_64/debug/test/test_co_mutex.cpp.o", "test/test_co_mutex.cpp"],
-  "file": "test/test_co_mutex.cpp"
-},
-{
-  "directory": "/home/jin/project/dfs",
   "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-I", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-I", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-o", "build/.objs/master/linux/x86_64/debug/src/master/main.cpp.o", "src/master/main.cpp"],
   "file": "src/master/main.cpp"
 },
@@ -96,6 +86,6 @@
 },
 {
   "directory": "/home/jin/project/dfs",
-  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-o", "build/.objs/proto/linux/x86_64/debug/src/proto/sm_regist.pb.cc.o", "src/proto/sm_regist.pb.cc"],
-  "file": "src/proto/sm_regist.pb.cc"
+  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-I", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-o", "build/.objs/test_co_mutex/linux/x86_64/debug/test/test_co_mutex.cpp.o", "test/test_co_mutex.cpp"],
+  "file": "test/test_co_mutex.cpp"
 }]

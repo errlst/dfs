@@ -31,7 +31,7 @@ class log_t {
     auto log_fatal(const std::string &message, std::source_location loc = std::source_location::current()) -> void;
 
   private:
-    auto run() -> void;
+    // auto run() -> void;
 
     auto do_log(log_level_e level, const std::source_location &loc, const std::string &message) -> void;
 
@@ -41,9 +41,7 @@ class log_t {
 
   private:
     std::ofstream m_ofs;
-    std::string m_buf;
     std::mutex m_mut;
-    std::condition_variable m_cv;
     bool m_daemon;
     log_level_e m_level;
     std::string m_cached_time;

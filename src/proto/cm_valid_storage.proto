@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package dfs.proto.cm_valid_storage;
+
+message response_t {
+    uint32 storage_magic = 1;
+    uint32 storage_port = 2;
+    string storage_ip = 3;
+};

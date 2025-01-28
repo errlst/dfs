@@ -1,6 +1,5 @@
 #pragma once
 #include <cstdint>
-#include <memory>
 
 constexpr uint16_t FRAME_MAGIC = 0x55aa;
 
@@ -15,7 +14,17 @@ constexpr uint16_t FRAME_MAGIC = 0x55aa;
     所有协议都有对应的 xx_cmd_req_t 和 xx_cmd_res_t（心跳不需要）
 */
 enum class proto_cmd_e : uint8_t {
-    a_heart = 0, // 心跳
+    /*
+        心跳
+    */
+    a_heart = 0,
+
+    /*
+        建立心跳
+        request_t ： {uint32_t timeout, uint32_t interval}
+        response_t : { }
+    */
+    a_establish_heart,
 
     /*
         storage 注册到 master
@@ -32,24 +41,19 @@ enum class proto_cmd_e : uint8_t {
     ss_regist,
 
     /*
-        获取合适的 storage，用于创建文件
+        获取 storage 最大可使用存储（hot 的大小
+        request_t : { }
+        response_t : { uint64_t useable_disk }
     */
-    cm_create_file,
+    ms_fs_free_size,
+
 
     /*
-        创建文件
+        获取一个有效的 storage（通过需要的 size 和缓存的 storage 信息进行比较，最后返回的 storage 大概率是有效的 storage
+        request_t : { uint64_t size }
+        response_t : cm_valid_storage.proto
     */
-    cs_create_file,
-
-    /*
-        增加文件内容
-    */
-    cs_append_file,
-
-    /*
-        关闭文件并重命名
-    */
-    cs_close_file,
+    cm_valid_storage,
 };
 
 struct proto_frame_t {
@@ -61,24 +65,3 @@ struct proto_frame_t {
     char data[0];
 };
 static_assert(sizeof(proto_frame_t) == 8);
-
-using proto_frame_ptr_t = std::shared_ptr<proto_frame_t>;
-
-struct sm_regist_req_t {
-    uint32_t storage_id;
-    uint16_t storage_magic;
-    uint16_t storage_port;
-    uint32_t master_magic;
-};
-
-struct sm_regist_res_t {
-    /* 整个结构存放不止一个 storage 的信息 */
-    uint16_t storage_magic;
-    uint16_t storage_port;
-    uint8_t ip_len;
-    char ip[];
-};
-
-struct ss_im_storage_req_t {
-    uint16_t storage_magic;
-};

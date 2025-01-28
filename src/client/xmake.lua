@@ -1,0 +1,7 @@
+target("client")
+    set_kind("binary")
+    add_files("*.cpp")
+    add_deps("common")
+    add_deps("proto")
+    add_packages("asio")
+    add_packages("nlohmann_json")
