@@ -56,6 +56,7 @@ PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORIT
 PROTOBUF_CONSTEXPR response_t::response_t(
     ::_pbi::ConstantInitialized): _impl_{
     /*decltype(_impl_.storage_info_)*/{}
+  , /*decltype(_impl_.storage_group_)*/0u
   , /*decltype(_impl_._cached_size_)*/{}} {}
 struct response_tDefaultTypeInternal {
   PROTOBUF_CONSTEXPR response_tDefaultTypeInternal()
@@ -98,6 +99,7 @@ const uint32_t TableStruct_sm_5fregist_2eproto::offsets[] PROTOBUF_SECTION_VARIA
   ~0u,  // no _oneof_case_
   ~0u,  // no _weak_field_map_
   ~0u,  // no _inlined_string_donated_
+  PROTOBUF_FIELD_OFFSET(::dfs::proto::sm_regist::response_t, _impl_.storage_group_),
   PROTOBUF_FIELD_OFFSET(::dfs::proto::sm_regist::response_t, _impl_.storage_info_),
 };
 static const ::_pbi::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
@@ -118,13 +120,13 @@ const char descriptor_table_protodef_sm_5fregist_2eproto[] PROTOBUF_SECTION_VARI
   "(\r\022\r\n\005magic\030\003 \001(\r\022\n\n\002ip\030\004 \001(\t\"\\\n\trequest"
   "_t\0229\n\014storage_info\030\001 \001(\0132#.dfs.proto.sm_"
   "regist.storage_info_t\022\024\n\014master_magic\030\002 "
-  "\001(\r\"G\n\nresponse_t\0229\n\014storage_info\030\001 \003(\0132"
-  "#.dfs.proto.sm_regist.storage_info_tb\006pr"
-  "oto3"
+  "\001(\r\"^\n\nresponse_t\022\025\n\rstorage_group\030\001 \001(\r"
+  "\0229\n\014storage_info\030\002 \003(\0132#.dfs.proto.sm_re"
+  "gist.storage_info_tb\006proto3"
   ;
 static ::_pbi::once_flag descriptor_table_sm_5fregist_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_sm_5fregist_2eproto = {
-    false, false, 284, descriptor_table_protodef_sm_5fregist_2eproto,
+    false, false, 307, descriptor_table_protodef_sm_5fregist_2eproto,
     "sm_regist.proto",
     &descriptor_table_sm_5fregist_2eproto_once, nullptr, 0, 3,
     schemas, file_default_instances, TableStruct_sm_5fregist_2eproto::offsets,
@@ -669,9 +671,11 @@ response_t::response_t(const response_t& from)
   response_t* const _this = this; (void)_this;
   new (&_impl_) Impl_{
       decltype(_impl_.storage_info_){from._impl_.storage_info_}
+    , decltype(_impl_.storage_group_){}
     , /*decltype(_impl_._cached_size_)*/{}};
 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _this->_impl_.storage_group_ = from._impl_.storage_group_;
   // @@protoc_insertion_point(copy_constructor:dfs.proto.sm_regist.response_t)
 }
 
@@ -681,6 +685,7 @@ inline void response_t::SharedCtor(
   (void)is_message_owned;
   new (&_impl_) Impl_{
       decltype(_impl_.storage_info_){arena}
+    , decltype(_impl_.storage_group_){0u}
     , /*decltype(_impl_._cached_size_)*/{}
   };
 }
@@ -710,6 +715,7 @@ void response_t::Clear() {
   (void) cached_has_bits;
 
   _impl_.storage_info_.Clear();
+  _impl_.storage_group_ = 0u;
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
@@ -719,16 +725,24 @@ const char* response_t::_InternalParse(const char* ptr, ::_pbi::ParseContext* ct
     uint32_t tag;
     ptr = ::_pbi::ReadTag(ptr, &tag);
     switch (tag >> 3) {
-      // repeated .dfs.proto.sm_regist.storage_info_t storage_info = 1;
+      // uint32 storage_group = 1;
       case 1:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 10)) {
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 8)) {
+          _impl_.storage_group_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else
+          goto handle_unusual;
+        continue;
+      // repeated .dfs.proto.sm_regist.storage_info_t storage_info = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 18)) {
           ptr -= 1;
           do {
             ptr += 1;
             ptr = ctx->ParseMessage(_internal_add_storage_info(), ptr);
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
-          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<10>(ptr));
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<18>(ptr));
         } else
           goto handle_unusual;
         continue;
@@ -761,12 +775,18 @@ uint8_t* response_t::_InternalSerialize(
   uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  // repeated .dfs.proto.sm_regist.storage_info_t storage_info = 1;
+  // uint32 storage_group = 1;
+  if (this->_internal_storage_group() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(1, this->_internal_storage_group(), target);
+  }
+
+  // repeated .dfs.proto.sm_regist.storage_info_t storage_info = 2;
   for (unsigned i = 0,
       n = static_cast<unsigned>(this->_internal_storage_info_size()); i < n; i++) {
     const auto& repfield = this->_internal_storage_info(i);
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
-        InternalWriteMessage(1, repfield, repfield.GetCachedSize(), target, stream);
+        InternalWriteMessage(2, repfield, repfield.GetCachedSize(), target, stream);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
@@ -785,11 +805,16 @@ size_t response_t::ByteSizeLong() const {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  // repeated .dfs.proto.sm_regist.storage_info_t storage_info = 1;
+  // repeated .dfs.proto.sm_regist.storage_info_t storage_info = 2;
   total_size += 1UL * this->_internal_storage_info_size();
   for (const auto& msg : this->_impl_.storage_info_) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
+  }
+
+  // uint32 storage_group = 1;
+  if (this->_internal_storage_group() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(this->_internal_storage_group());
   }
 
   return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
@@ -811,6 +836,9 @@ void response_t::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PRO
   (void) cached_has_bits;
 
   _this->_impl_.storage_info_.MergeFrom(from._impl_.storage_info_);
+  if (from._internal_storage_group() != 0) {
+    _this->_internal_set_storage_group(from._internal_storage_group());
+  }
   _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
@@ -829,6 +857,7 @@ void response_t::InternalSwap(response_t* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   _impl_.storage_info_.InternalSwap(&other->_impl_.storage_info_);
+  swap(_impl_.storage_group_, other->_impl_.storage_group_);
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata response_t::GetMetadata() const {

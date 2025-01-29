@@ -28,7 +28,7 @@ enum class proto_cmd_e : uint8_t {
 
     /*
         storage 注册到 master
-        如果成功，master 返回同组的其他 storage
+        如果成功，master 返回 group_id 和同组的其他 storage
         request_t & response_t : sm_regist.proto
     */
     sm_regist,
@@ -47,13 +47,41 @@ enum class proto_cmd_e : uint8_t {
     */
     ms_fs_free_size,
 
-
     /*
         获取一个有效的 storage（通过需要的 size 和缓存的 storage 信息进行比较，最后返回的 storage 大概率是有效的 storage
         request_t : { uint64_t size }
         response_t : cm_valid_storage.proto
     */
     cm_valid_storage,
+
+    /*
+        创建文件，创建文件后就可以直接上传文件，直到关闭文件
+        request_t: { uint64_t size }
+        response_t  : { }
+    */
+    cs_create_file,
+
+    /*
+        插入数据
+        request_t : { char data[] }
+        response_t : { }
+    */
+    cs_append_data,
+
+    /*
+        中断上传（ storage 会删除文件
+        request_t : { }
+        response_t : { }
+    */
+    cs_abort_upload,
+
+    /*
+        结束上传
+        request_t : { char filename[] }
+        response_t : { char filepath[] }    最终返回的文件名会会附带一个8字节后缀，最终返回的路径为 <group_id>/xx/xx/<file_name>_<suffix>
+    */
+    cs_close_file,
+
 };
 
 struct proto_frame_t {

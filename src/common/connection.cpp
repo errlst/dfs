@@ -8,6 +8,10 @@ connection_t::connection_t(asio::ip::tcp::socket &&sock, std::shared_ptr<log_t> 
       m_port{m_sock.remote_endpoint().port()} {
 }
 
+connection_t::~connection_t() {
+    m_closed = true;
+}
+
 auto connection_t::start() -> asio::awaitable<void> {
     auto ec = co_await asio::this_coro::executor;
     asio::co_spawn(ec, start_recv(), asio::detached);
@@ -28,11 +32,13 @@ auto connection_t::recv_req_frame() -> asio::awaitable<std::shared_ptr<proto_fra
     co_return frame;
 }
 
-auto connection_t::send_res_frame(std::shared_ptr<proto_frame_t> frame) -> asio::awaitable<bool> {
+auto connection_t::send_res_frame(std::shared_ptr<proto_frame_t> frame, uint8_t id) -> asio::awaitable<bool> {
+    frame->id = id;
     co_return co_await do_send(frame.get(), sizeof(proto_frame_t) + frame->data_len);
 }
 
-auto connection_t::send_res_frame(proto_frame_t frame) -> asio::awaitable<bool> {
+auto connection_t::send_res_frame(proto_frame_t frame, uint8_t id) -> asio::awaitable<bool> {
+    frame.id = id;
     co_return co_await do_send(&frame, sizeof(proto_frame_t) + frame.data_len);
 }
 
@@ -81,9 +87,9 @@ auto connection_t::send_req_frame(proto_frame_t frame) -> asio::awaitable<std::o
 }
 
 auto connection_t::do_send(void *data, uint64_t len) -> asio::awaitable<bool> {
-    if (auto [ec, n] = co_await m_sock.async_write_some(asio::const_buffer(data, len), asio::as_tuple(asio::use_awaitable));
+    if (auto [ec, n] = co_await asio::async_write(m_sock, asio::const_buffer(data, len), asio::as_tuple(asio::use_awaitable));
         ec || n != len) {
-        auto errmsg = n != len ? "invliad send size" : ec.message();
+        auto errmsg = n != len ? std::format("invliad send size {}/{} ", n, len) : ec.message();
         m_log->log_error(std::format("send error from {}, errmsg {}", to_string(), errmsg));
         close();
         co_return false;
@@ -170,9 +176,9 @@ auto connection_t::start_recv() -> asio::awaitable<void> {
             co_return;
         }
         memcpy(frame.get(), &header_buf, sizeof(proto_frame_t));
-        if (auto [ec, n] = co_await m_sock.async_read_some(asio::mutable_buffer{reinterpret_cast<char *>(frame.get()) + sizeof(proto_frame_t), header_buf.data_len}, read_token);
+        if (auto [ec, n] = co_await asio::async_read(m_sock, asio::mutable_buffer{reinterpret_cast<char *>(frame.get()) + sizeof(proto_frame_t), header_buf.data_len}, read_token);
             ec || n != header_buf.data_len) {
-            auto errmsg = n != header_buf.data_len ? "invliad read size" : ec.message();
+            auto errmsg = n != header_buf.data_len ? std::format("invliad read size {}", n) : ec.message();
             m_log->log_error(std::format("recv error from {}  {}", to_string(), errmsg));
             close();
             co_return;

@@ -545,9 +545,10 @@ class response_t final :
   // accessors -------------------------------------------------------
 
   enum : int {
-    kStorageInfoFieldNumber = 1,
+    kStorageInfoFieldNumber = 2,
+    kStorageGroupFieldNumber = 1,
   };
-  // repeated .dfs.proto.sm_regist.storage_info_t storage_info = 1;
+  // repeated .dfs.proto.sm_regist.storage_info_t storage_info = 2;
   int storage_info_size() const;
   private:
   int _internal_storage_info_size() const;
@@ -565,6 +566,15 @@ class response_t final :
   const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::dfs::proto::sm_regist::storage_info_t >&
       storage_info() const;
 
+  // uint32 storage_group = 1;
+  void clear_storage_group();
+  uint32_t storage_group() const;
+  void set_storage_group(uint32_t value);
+  private:
+  uint32_t _internal_storage_group() const;
+  void _internal_set_storage_group(uint32_t value);
+  public:
+
   // @@protoc_insertion_point(class_scope:dfs.proto.sm_regist.response_t)
  private:
   class _Internal;
@@ -574,6 +584,7 @@ class response_t final :
   typedef void DestructorSkippable_;
   struct Impl_ {
     ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::dfs::proto::sm_regist::storage_info_t > storage_info_;
+    uint32_t storage_group_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   };
   union { Impl_ _impl_; };
@@ -818,7 +829,27 @@ inline void request_t::set_master_magic(uint32_t value) {
 
 // response_t
 
-// repeated .dfs.proto.sm_regist.storage_info_t storage_info = 1;
+// uint32 storage_group = 1;
+inline void response_t::clear_storage_group() {
+  _impl_.storage_group_ = 0u;
+}
+inline uint32_t response_t::_internal_storage_group() const {
+  return _impl_.storage_group_;
+}
+inline uint32_t response_t::storage_group() const {
+  // @@protoc_insertion_point(field_get:dfs.proto.sm_regist.response_t.storage_group)
+  return _internal_storage_group();
+}
+inline void response_t::_internal_set_storage_group(uint32_t value) {
+  
+  _impl_.storage_group_ = value;
+}
+inline void response_t::set_storage_group(uint32_t value) {
+  _internal_set_storage_group(value);
+  // @@protoc_insertion_point(field_set:dfs.proto.sm_regist.response_t.storage_group)
+}
+
+// repeated .dfs.proto.sm_regist.storage_info_t storage_info = 2;
 inline int response_t::_internal_storage_info_size() const {
   return _impl_.storage_info_.size();
 }

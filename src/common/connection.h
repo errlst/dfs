@@ -12,6 +12,8 @@ class connection_t {
   public:
     connection_t(asio::ip::tcp::socket &&sock, std::shared_ptr<log_t> log);
 
+    ~connection_t();
+
     auto start() -> asio::awaitable<void>;
 
     /*
@@ -23,9 +25,10 @@ class connection_t {
     /*
         发送 response frame，frame_id 由调用者设置
         返回 false 表示断开连接
+        frame_id 需要由调用者设置，通过参数传递避免忽略该字段
     */
-    auto send_res_frame(std::shared_ptr<proto_frame_t>) -> asio::awaitable<bool>;
-    auto send_res_frame(proto_frame_t) -> asio::awaitable<bool>;
+    auto send_res_frame(std::shared_ptr<proto_frame_t>, uint8_t) -> asio::awaitable<bool>;
+    auto send_res_frame(proto_frame_t, uint8_t) -> asio::awaitable<bool>;
 
     /*
         接受 response frame
@@ -67,6 +70,10 @@ class connection_t {
             return std::nullopt;
         }
         return std::any_cast<T>(it->second);
+    }
+
+    auto has_data(uint64_t key) -> bool {
+        return m_any_data.contains(key);
     }
 
     /*

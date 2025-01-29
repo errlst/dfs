@@ -6,6 +6,12 @@
 #include "./store.h"
 #include <set>
 
+enum conn_data : uint64_t {
+    /* client 数据 */
+    c_file_id,
+
+};
+
 struct {
     uint32_t id;
     std::string ip;
@@ -31,6 +37,8 @@ static auto ss_ios_guard = std::vector<asio::executor_work_guard<asio::io_contex
 
 static auto master_conn = std::shared_ptr<connection_t>{};             // master 服务器连接
 static auto storage_conns = std::set<std::shared_ptr<connection_t>>{}; // 同组 storage 服务器连接
+
+static auto storage_group_id = (uint32_t)-1;
 
 static auto init_conf() -> void {
     conf = {
@@ -109,9 +117,11 @@ static auto ss_regist_handle(std::shared_ptr<connection_t> conn, std::shared_ptr
     }
 
     /* regist suc */
-    if (!co_await conn->send_res_frame(proto_frame_t{
-            .cmd = (uint8_t)proto_cmd_e::ss_regist,
-        })) {
+    if (!co_await conn->send_res_frame(
+            proto_frame_t{
+                .cmd = (uint8_t)proto_cmd_e::ss_regist,
+            },
+            req_frame->id)) {
         co_return co_await on_client_disconnect(conn);
     }
     g_log->log_info(std::format("storage {} regist suec", conn->to_string()));
@@ -119,7 +129,126 @@ static auto ss_regist_handle(std::shared_ptr<connection_t> conn, std::shared_ptr
     asio::co_spawn(co_await asio::this_coro::executor, request_from_storage(conn), asio::detached);
 }
 
-static auto client_req_handles = std::map<proto_cmd_e, req_handle_t>{};
+static auto cs_create_file_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void> {
+    if (conn->has_data(conn_data::c_file_id)) {
+        g_log->log_error(std::format("file already created {}", conn->to_string()));
+        co_await conn->send_res_frame(
+            proto_frame_t{
+                .cmd = (uint8_t)proto_cmd_e::cs_create_file,
+                .stat = 1,
+            },
+            req_frame->id);
+        co_return;
+    }
+
+    if (req_frame->data_len != sizeof(uint64_t)) {
+        g_log->log_error(std::format("invalid cs_create_file data_len {}", (uint32_t)req_frame->data_len));
+        co_return;
+    }
+
+    /* create fille */
+    auto file_id = hot_stores->create_file(*(uint64_t *)req_frame->data);
+    if (!file_id) {
+        g_log->log_error("failed to create file");
+        co_await conn->send_res_frame(
+            proto_frame_t{
+                .cmd = (uint8_t)proto_cmd_e::cs_create_file,
+                .stat = 2,
+            },
+            req_frame->id);
+        co_return;
+    }
+    conn->set_data(conn_data::c_file_id, file_id.value());
+
+    /* response */
+    co_await conn->send_res_frame(
+        proto_frame_t{
+            .cmd = (uint8_t)proto_cmd_e::cs_create_file,
+        },
+        req_frame->id);
+    co_return;
+}
+
+static auto cs_append_data_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void> {
+    auto file_id = conn->get_data<uint64_t>(conn_data::c_file_id);
+    if (!file_id) {
+        g_log->log_warn(std::format("client {} not create file yield", conn->to_string()));
+        co_await conn->send_res_frame(
+            proto_frame_t{
+                .cmd = (uint8_t)proto_cmd_e::cs_append_data,
+                .stat = 1,
+            },
+            req_frame->id);
+        co_return;
+    }
+
+    /* append data */
+    auto data = std::span<uint8_t>{(uint8_t *)req_frame->data, req_frame->data_len};
+    if (!hot_stores->write_file(file_id.value(), data)) {
+        g_log->log_error("failed to write file");
+        co_await conn->send_res_frame(
+            proto_frame_t{
+                .cmd = (uint8_t)proto_cmd_e::cs_append_data,
+                .stat = 2,
+            },
+            req_frame->id);
+        co_return;
+    }
+
+    /* response */
+    co_await conn->send_res_frame(
+        proto_frame_t{
+            .cmd = (uint8_t)proto_cmd_e::cs_append_data,
+        },
+        req_frame->id);
+
+    co_return;
+}
+
+static auto cs_close_file_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void> {
+    auto file_id = conn->get_data<uint64_t>(conn_data::c_file_id);
+    if (!file_id) {
+        g_log->log_warn(std::format("client {} not create file yield", conn->to_string()));
+        co_await conn->send_res_frame(
+            proto_frame_t{
+                .cmd = (uint8_t)proto_cmd_e::cs_append_data,
+                .stat = 1,
+            },
+            req_frame->id);
+        co_return;
+    }
+
+    /* close file */
+    auto file_name = std::string{(char *)req_frame->data, req_frame->data_len};
+    auto new_file_path = hot_stores->close_file(file_id.value(), file_name);
+    if (!new_file_path) {
+        g_log->log_error("failed to close file");
+        co_await conn->send_res_frame(
+            proto_frame_t{
+                .cmd = (uint8_t)proto_cmd_e::cs_close_file,
+                .stat = 2,
+            },
+            req_frame->id);
+        co_return;
+    }
+    new_file_path = std::format("{}/{}", storage_group_id, new_file_path.value());
+
+    /* response */
+    auto res_frame = (proto_frame_t *)malloc(sizeof(proto_frame_t) + new_file_path->size());
+    *res_frame = {
+        .cmd = (uint8_t)proto_cmd_e::cs_close_file,
+        .data_len = (uint32_t)new_file_path->size(),
+    };
+    std::memcpy(res_frame->data, new_file_path->data(), new_file_path->size());
+    co_await conn->send_res_frame(std::shared_ptr<proto_frame_t>{res_frame, [](auto p) { free(p); }}, req_frame->id);
+    co_return;
+}
+
+static auto client_req_handles = std::map<proto_cmd_e, req_handle_t>{
+    {(proto_cmd_e)proto_cmd_e::cs_create_file, cs_create_file_handle},
+    {(proto_cmd_e)proto_cmd_e::cs_append_data, cs_append_data_handle},
+    {(proto_cmd_e)proto_cmd_e::cs_close_file, cs_close_file_handle},
+};
 
 static auto request_from_client(std::shared_ptr<connection_t> conn) -> asio::awaitable<void> {
     while (true) {
@@ -219,7 +348,6 @@ static auto regist_to_master() -> asio::awaitable<bool> {
         g_log->log_error(std::format("failed to regist to master {} {}", master_conn->to_string(), res_frame->stat));
         co_return false;
     }
-    g_log->log_info(std::format("regist to master {} suc", master_conn->to_string()));
 
     /* parse response */
     auto res_data = dfs::proto::sm_regist::response_t{};
@@ -227,6 +355,8 @@ static auto regist_to_master() -> asio::awaitable<bool> {
         g_log->log_error("failed to parse sm_regist response");
         co_return false;
     }
+    storage_group_id = res_data.storage_group();
+    g_log->log_info(std::format("regist to master {} suc group {}", master_conn->to_string(), storage_group_id));
 
     /* regist to other storage */
     for (const auto &info : res_data.storage_info()) {
@@ -277,12 +407,13 @@ static auto ms_fs_free_size_handle(std::shared_ptr<connection_t> conn, std::shar
 
     auto res_frame = (proto_frame_t *)malloc(sizeof(proto_frame_t) + sizeof(uint64_t));
     *res_frame = {
-        .id = req_frame->id,
         .cmd = (uint8_t)proto_cmd_e::ms_fs_free_size,
         .data_len = sizeof(uint64_t),
     };
     *((uint64_t *)res_frame->data) = max;
-    co_await conn->send_res_frame(std::shared_ptr<proto_frame_t>{res_frame, [](auto p) { free(p); }});
+    co_await conn->send_res_frame(std::shared_ptr<proto_frame_t>{res_frame, [](auto p) { free(p); }},
+                                  req_frame->id);
+    co_return;
 }
 
 static auto master_req_handles = std::map<proto_cmd_e, req_handle_t>{
@@ -311,11 +442,12 @@ static auto request_from_master() -> asio::awaitable<void> {
         auto handle = master_req_handles.find((proto_cmd_e)req_frame->cmd);
         if (handle == master_req_handles.end()) {
             g_log->log_error(std::format("unhandle cmd {} from master {}", req_frame->cmd, master_conn->to_string()));
-            co_await master_conn->send_res_frame(proto_frame_t{
-                .id = req_frame->id,
-                .cmd = req_frame->cmd,
-                .stat = UINT8_MAX,
-            });
+            co_await master_conn->send_res_frame(
+                proto_frame_t{
+                    .cmd = req_frame->cmd,
+                    .stat = UINT8_MAX,
+                },
+                req_frame->id);
             continue;
         }
         co_await handle->second(master_conn, req_frame);

@@ -1,4 +1,5 @@
 #pragma once
+#include "../common/util.h"
 #include <atomic>
 #include <fstream>
 #include <map>
@@ -8,6 +9,10 @@
 #include <variant>
 #include <vector>
 
+/*
+  相对路径为 xx/xx/<filename>
+
+*/
 class store_ctx_t {
   public:
     store_ctx_t(const std::string &path);
@@ -18,13 +23,12 @@ class store_ctx_t {
 
     auto write_file(uint64_t file_id, std::span<uint8_t> data) -> bool;
 
+    /* 返回最后的相对路径 */
     auto close_file(uint64_t file_id, const std::string &filename) -> std::optional<std::string>;
 
     auto open_file(uint64_t file_id, const std::string &filepath) -> std::optional<uint64_t>;
 
     auto read_file(uint64_t file_id, uint64_t offset, uint64_t size) -> std::optional<std::vector<uint8_t>>;
-
-    auto left_bytes() -> uint64_t;
 
     auto base_path() -> std::string;
 
@@ -36,13 +40,12 @@ class store_ctx_t {
     auto next_idx() -> uint16_t;
 
     auto get_ifstream(uint64_t file_id) -> std::optional<std::tuple<std::string, std::shared_ptr<std::ifstream>>>;
-
     auto get_ofstream(uint64_t file_id) -> std::optional<std::tuple<std::string, std::shared_ptr<std::ofstream>>>;
 
   private:
     std::string m_base_path; // basepath/xx/xx/filename == basepath/relpath
     std::shared_ptr<std::atomic_uint16_t> m_idx = std::make_shared<std::atomic_uint16_t>(0);
-    std::map<uint64_t, std::tuple<std::string, std::variant<std::shared_ptr<std::ofstream>, std::shared_ptr<std::ifstream>>>> m_files = {}; // 存放的是 relpath
+    std::map<uint64_t, std::tuple<std::string, std::variant<std::shared_ptr<std::ofstream>, std::shared_ptr<std::ifstream>>>> m_files = {}; // 存放相对路径
     std::default_random_engine m_rnd = std::default_random_engine(std::random_device()());
 };
 

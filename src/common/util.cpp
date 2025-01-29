@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <iostream>
 #include <print>
+#include <random>
 #include <sys/statvfs.h>
 
 auto check_directory(std::string_view path) -> void {
@@ -29,4 +30,14 @@ auto fs_free_size(std::string_view path) -> std::tuple<uint64_t, uint64_t> {
         return std::make_tuple(0ull, 0ull);
     }
     return std::make_tuple(stat.f_bavail * stat.f_bsize, stat.f_blocks * stat.f_bsize);
+}
+
+auto random_string(uint32_t len) -> std::string {
+    constexpr auto chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    static auto rng = std::default_random_engine(std::random_device()());
+    auto res = std::string(len, 0);
+    for (auto i = 0; i < len; ++i) {
+        res[i] = chars[rng() % 62];
+    }
+    return res;
 }

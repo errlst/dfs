@@ -30,8 +30,10 @@ store_ctx_t::store_ctx_t(const std::string &path)
 }
 
 auto store_ctx_t::create_file(uint64_t file_id, uint64_t file_size) -> bool {
-    if (auto left = left_bytes(); left < file_size) {
-        g_log->log_error(std::format("store {} no enough space for {}GB, left {}GB", m_base_path, 1.0 * file_size / 1024 / 1024 / 1024, 1.0 * left / 1024 / 1024 / 1024));
+    auto [free, _] = fs_free_size(m_base_path);
+    /* 留 5% 空间 */
+    if (free * 0.05 < file_size) {
+        g_log->log_error(std::format("store {} no enough space for {}GB, left {}GB", m_base_path, 1.0 * file_size / 1024 / 1024 / 1024, 1.0 * free / 1024 / 1024 / 1024));
         return false;
     }
 
@@ -42,6 +44,9 @@ auto store_ctx_t::create_file(uint64_t file_id, uint64_t file_size) -> bool {
         g_log->log_error(std::format("failed to create file: {}", abs_path));
         return false;
     }
+    ofs->seekp(file_size - 1);
+    ofs->put(0);
+    ofs->seekp(0);
     m_files[file_id] = std::make_tuple(rel_path, ofs);
     g_log->log_debug(std::format("create file: {}", abs_path));
     return true;
@@ -62,21 +67,25 @@ auto store_ctx_t::write_file(uint64_t file_id, std::span<uint8_t> data) -> bool 
 }
 
 auto store_ctx_t::close_file(uint64_t file_id, const std::string &filename) -> std::optional<std::string> {
-
     if (auto res = get_ofstream(file_id); res.has_value()) {
         m_files.erase(file_id);
-        const auto &[rel_path, ofs] = res.value();
+        const auto &[old_rel_path, ofs] = res.value();
         ofs->close();
-        auto abs_path = absolute_path(rel_path);
-        auto n_rel_path = std::format("{}/{}", rel_path.substr(0, rel_path.find_last_of("/")), filename);
-        auto n_abs_path = absolute_path(n_rel_path);
-        if (rename(abs_path.c_str(), n_abs_path.c_str()) != 0) {
-            g_log->log_error(std::format("close file {} -> {} failed", abs_path, n_abs_path));
-            remove(rel_path.c_str());
-            return std::nullopt;
-        }
-        g_log->log_debug(std::format("close file {} -> {} suc", abs_path, n_abs_path));
-        return n_rel_path;
+        auto old_base_path = std::format("{}/{}", m_base_path, old_rel_path);
+
+        /* 拼接新的 relpath 和 abspath */
+        auto new_rel_prefix = std::format("{}/{}", old_rel_path.substr(0, old_rel_path.find_last_of('/')), filename);
+        auto new_rel_path = std::string{};
+        auto new_abs_path = std::string{};
+        do {
+            new_rel_path = std::format("{}_{}", new_rel_prefix, random_string(8));
+            new_abs_path = std::format("{}/{}", m_base_path, new_rel_path);
+        } while (std::filesystem::exists(new_abs_path));
+
+        /* 重命名 */
+        g_log->log_debug(std::format("close file: {} -> {}", old_base_path, new_abs_path));
+        std::filesystem::rename(old_base_path, new_abs_path);
+        return new_rel_path;
     }
     return std::nullopt;
 }
@@ -116,16 +125,6 @@ auto store_ctx_t::read_file(uint64_t file_id, uint64_t offset, uint64_t size) ->
     return std::nullopt;
 }
 
-auto store_ctx_t::left_bytes() -> uint64_t {
-
-    struct statvfs stat;
-    if (statvfs(m_base_path.c_str(), &stat) != 0) {
-        g_log->log_error(std::format("failed to get statvfs: {}", m_base_path));
-        return 0;
-    }
-    return stat.f_bsize * stat.f_bavail;
-}
-
 auto store_ctx_t::base_path() -> std::string {
     return m_base_path;
 }
@@ -143,7 +142,6 @@ auto store_ctx_t::next_idx() -> uint16_t {
 }
 
 auto store_ctx_t::get_ifstream(uint64_t file_id) -> std::optional<std::tuple<std::string, std::shared_ptr<std::ifstream>>> {
-
     auto it = m_files.find(file_id);
     if (it == m_files.end()) {
         g_log->log_debug(std::format("invalid fileid", m_base_path, file_id));
