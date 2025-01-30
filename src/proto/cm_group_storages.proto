@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package dfs.proto.cm_group_storages;
+
+message response_t {
+    message storage_t {
+        string ip = 1;
+        uint32 port = 2;
+        uint32 magic = 3;
+    }
+
+    repeated storage_t storages = 1;
+}

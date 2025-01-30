@@ -55,6 +55,13 @@ enum class proto_cmd_e : uint8_t {
     cm_valid_storage,
 
     /*
+        获取组中的所有 storage
+        request_t : { uint32_t group_id }
+        response_t : cm_group_storages.proto
+    */
+    cm_group_storages,
+
+    /*
         创建文件，创建文件后就可以直接上传文件，直到关闭文件
         request_t: { uint64_t size }
         response_t  : { }
@@ -62,11 +69,11 @@ enum class proto_cmd_e : uint8_t {
     cs_create_file,
 
     /*
-        插入数据
+        上传文件
         request_t : { char data[] }
         response_t : { }
     */
-    cs_append_data,
+    cs_upload_file,
 
     /*
         中断上传（ storage 会删除文件
@@ -81,6 +88,20 @@ enum class proto_cmd_e : uint8_t {
         response_t : { char filepath[] }    最终返回的文件名会会附带一个8字节后缀，最终返回的路径为 <group_id>/xx/xx/<file_name>_<suffix>
     */
     cs_close_file,
+
+    /*
+        打开文件
+        request_t : { char filename[] }  filename 格式为 xx/xx/<file_name>，不包含组号
+        response_t : { }
+    */
+    cs_open_file,
+
+    /*
+        下载文件
+        request_t : { uint32_t size }   size 为本次请求的数据大小，范围必须在 [1, 2^24-1]
+        response_t : { char data[] }    如果长度为0，则表示下载完成
+    */
+    cs_download_file,
 
 };
 

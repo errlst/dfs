@@ -79,7 +79,7 @@ auto upload_fille(std::string_view path) -> asio::awaitable<void> {
     /* upload files 5MB 为一个片段 */
     auto req_frame_2 = std::shared_ptr<proto_frame_t>{(proto_frame_t *)malloc(sizeof(proto_frame_t) + 5 * 1024 * 1024), [](auto p) { free(p); }};
     *req_frame_2 = {
-        .cmd = (uint8_t)proto_cmd_e::cs_append_data,
+        .cmd = (uint8_t)proto_cmd_e::cs_upload_file,
     };
     while (ifs && !ifs.eof()) {
         auto n = ifs.readsome(req_frame_2->data, 5 * 1024 * 1024);
@@ -133,6 +133,48 @@ auto upload_fille(std::string_view path) -> asio::awaitable<void> {
     co_return;
 }
 
+auto download_file(std::string_view src, std::string_view dst) -> asio::awaitable<void> {
+    /* request storages */
+    auto req_frame = (proto_frame_t *)malloc(sizeof(proto_frame_t) + sizeof(uint32_t));
+    *req_frame = {
+        .cmd = (uint8_t)proto_cmd_e::cm_group_storages,
+        .data_len = sizeof(uint32_t),
+    };
+    *((uint32_t *)req_frame->data) = std::atol(src.substr(0, src.find_first_of('/')).data());
+    auto id = co_await g_conn->send_req_frame(std::shared_ptr<proto_frame_t>{req_frame, [](auto p) { free(p); }});
+    if (!id) {
+        g_log->log_error("failed to send cm_group_storages request");
+        co_return;
+    }
+
+    /*  */
+    auto res_frame = co_await g_conn->recv_res_frame(id.value());
+    if (!res_frame) {
+        g_log->log_error("failed to recv cm_group_storages response");
+        co_return;
+    }
+    if (res_frame->stat) {
+        g_log->log_error(std::format("cm_group_storages response stat {}", res_frame->stat));
+        co_return;
+    }
+    auto res_data = dfs::proto::cm_group_storages::response_t{};
+    if (!res_data.ParseFromArray(res_frame->data, res_frame->data_len)) {
+        g_log->log_error("failed to parse cm_group_storages response");
+        co_return;
+    }
+
+    /* 遍历 storage 下载数据 */
+    for (const auto &s_info : res_data.storages()) {
+        auto storage_conn = co_await connection_t::connect_to(s_info.ip(), s_info.port(), g_log);
+        if (!storage_conn) {
+            g_log->log_error(std::format("failed to connect to storage {}:{}", s_info.ip(), s_info.port()));
+            continue;
+        }
+
+        
+    }
+}
+
 auto client() -> asio::awaitable<void> {
     g_conn = co_await connection_t::connect_to("127.0.0.1", 8888, g_log);
     if (!g_conn) {
@@ -148,6 +190,10 @@ auto client() -> asio::awaitable<void> {
             std::string path;
             std::cin >> path;
             co_await upload_fille(path);
+        } else if (cmd == "download") {
+            std::string src, dst;
+            std::cin >> src >> dst;
+            co_await download_file(src, dst);
         }
     }
 }
