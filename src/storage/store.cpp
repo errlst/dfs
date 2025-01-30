@@ -91,22 +91,20 @@ auto store_ctx_t::close_file(uint64_t file_id, const std::string &filename) -> s
 }
 
 auto store_ctx_t::open_file(uint64_t file_id, const std::string &rel_path) -> std::optional<uint64_t> {
-
     auto abs_path = absolute_path(rel_path);
     auto ifs = std::make_shared<std::ifstream>(abs_path, std::ios::binary | std::ios::ate);
     if (!ifs->is_open()) {
-        g_log->log_debug(std::format("open file {} failed", abs_path));
         return std::nullopt;
     }
+    auto file_size = ifs->tellg();
+    ifs->seekg(0);
     m_files[file_id] = std::make_tuple(rel_path, ifs);
-    g_log->log_debug(std::format("open file {} size {} suc", abs_path, (uint64_t)ifs->tellg()));
-    return ifs->tellg();
+    return file_size;
 }
 
 auto store_ctx_t::read_file(uint64_t file_id, uint64_t offset, uint64_t size) -> std::optional<std::vector<uint8_t>> {
-
-    if (auto res = get_ifstream(file_id); res.has_value()) {
-        auto &[rel_path, ifs] = res.value();
+    if (auto _ = get_ifstream(file_id); _.has_value()) {
+        auto &[rel_path, ifs] = _.value();
         ifs->seekg(offset);
         if (!ifs->good()) {
             g_log->log_error(std::format("seekg file {} failed", absolute_path(rel_path)));
@@ -121,7 +119,25 @@ auto store_ctx_t::read_file(uint64_t file_id, uint64_t offset, uint64_t size) ->
         g_log->log_debug(std::format("read file {} offset {} size {} suc", absolute_path(rel_path), offset, size));
         return data;
     }
+    return std::nullopt;
+}
 
+auto store_ctx_t::read_file(uint64_t file_id, uint64_t size) -> std::optional<std::vector<uint8_t>> {
+    if (auto _ = get_ifstream(file_id); _.has_value()) {
+        auto &[rel_path, ifs] = _.value();
+        if (ifs->eof()) {
+            return std::vector<uint8_t>{};
+        }
+        if (!ifs->good()) {
+            return std::nullopt;
+        }
+        auto data = std::vector<uint8_t>(size, 0);
+        data.resize(ifs->readsome((char *)data.data(), size));
+        if (!ifs->good()) {
+            return std::nullopt;
+        }
+        return data;
+    }
     return std::nullopt;
 }
 
@@ -205,13 +221,12 @@ auto store_ctx_group_t::close_file(uint64_t file_id, const std::string &filename
 }
 
 auto store_ctx_group_t::open_file(const std::string &relpath) -> std::optional<std::tuple<uint64_t, uint64_t>> {
-
     auto file_id = next_file_id();
     auto idx = next_idx();
     for (auto i = 0; i < m_stores.size(); ++i, idx = store_idx(++idx)) {
         if (auto res = m_stores[idx].open_file(file_id, relpath); res.has_value()) {
             m_store_idx_map[file_id] = idx;
-            g_log->log_info(std::format("store group ‘{}’ open file '{}' suc", m_name, relpath));
+            g_log->log_debug(std::format("store group ‘{}’ open file '{}' suc", m_name, relpath));
             return std::make_tuple(file_id, res.value());
         }
     }
@@ -222,6 +237,13 @@ auto store_ctx_group_t::open_file(const std::string &relpath) -> std::optional<s
 auto store_ctx_group_t::read_file(uint64_t file_id, uint64_t offset, uint64_t size) -> std::optional<std::vector<uint8_t>> {
     if (auto idx = map_to_store_idx(file_id); idx.has_value()) {
         return m_stores[idx.value()].read_file(file_id, offset, size);
+    }
+    return std::nullopt;
+}
+
+auto store_ctx_group_t::read_file(uint64_t file_id, uint64_t size) -> std::optional<std::vector<uint8_t>> {
+    if (auto idx = map_to_store_idx(file_id); idx.has_value()) {
+        return m_stores[idx.value()].read_file(file_id, size);
     }
     return std::nullopt;
 }

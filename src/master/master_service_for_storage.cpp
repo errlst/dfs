@@ -83,7 +83,7 @@ auto sm_regist_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_
     auto res_data = dfs::proto::sm_regist::response_t{};
     auto group = calc_group(req_data.storage_info().id());
     res_data.set_storage_group(group);
-    for (auto storage : get_group_conns(group)) {
+    for (auto storage : group_storages(group)) {
         auto info = res_data.add_storage_info();
         info->set_id(storage->get_data<uint32_t>(conn_data::s_id).value());
         info->set_port(storage->get_data<uint32_t>(conn_data::s_port).value());

@@ -1,2 +1,6 @@
-[32m [Wed Jan 29 21:20:31 2025] [INFO] [src/client/main.cpp:49] [0m get valid storage 0.0.0.0:8889 51147
-[32m [Wed Jan 29 21:20:31 2025] [INFO] [src/client/main.cpp:57] [0m connect to storage 0.0.0.0:8889 suc
+[31m [Thu Jan 30 23:24:09 2025] [ERROR] [src/client/main.cpp:14] [0m failed to open file ./bigdata
+[32m [Thu Jan 30 23:24:09 2025] [INFO] [src/client/main.cpp:49] [0m get valid storage 0.0.0.0:8889 35758
+[32m [Thu Jan 30 23:24:09 2025] [INFO] [src/client/main.cpp:57] [0m connect to storage 0.0.0.0:8889 suc
+[32m [Thu Jan 30 23:24:09 2025] [INFO] [src/client/main.cpp:105] [0m upload 166 bytes
+[32m [Thu Jan 30 23:24:09 2025] [INFO] [src/client/main.cpp:132] [0m upload suc file: 1/00/01/xmake.lua_KzAATY7s
+[32m [Thu Jan 30 23:24:09 2025] [INFO] [src/client/main.cpp:213] [0m watting download from storage 127.0.0.1:8889 file_size is 166

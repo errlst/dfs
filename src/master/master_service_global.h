@@ -62,7 +62,7 @@ auto unregist_storage(uint32_t id) -> void;
 auto next_storage() -> std::shared_ptr<connection_t>;
 
 /* 获取组中的所有 storage */
-auto get_group_conns(uint32_t group) -> std::set<std::shared_ptr<connection_t>>;
+auto group_storages(uint32_t group) -> std::set<std::shared_ptr<connection_t>>;
 
 /*******************************************************************************/
 /*******************************************************************************/
@@ -74,7 +74,8 @@ extern std::map<uint8_t, req_handle_t> client_req_handles;
 auto on_client_disconnect(std::shared_ptr<connection_t> conn) -> asio::awaitable<void>;
 
 /* 请求处理函数 */
-auto cm_valid_storage_handlle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void>;
+auto cm_valid_storage_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void>;
+auto cm_group_storages_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void>;
 
 /* */
 auto recv_from_client(std::shared_ptr<connection_t> conn) -> asio::awaitable<void>;

@@ -35,7 +35,7 @@ auto next_storage() -> std::shared_ptr<connection_t> {
     return storage_conns_vec[idx++ % storage_conns_vec.size()];
 }
 
-auto get_group_conns(uint32_t group) -> std::set<std::shared_ptr<connection_t>> {
+auto group_storages(uint32_t group) -> std::set<std::shared_ptr<connection_t>> {
     std::set<std::shared_ptr<connection_t>> conns;
     for (auto i = 0u, id = conf.group_size * (group - 1) + 1; i < conf.group_size; ++i, ++id) {
         if (storage_conns.contains(id)) {

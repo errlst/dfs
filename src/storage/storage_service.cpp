@@ -52,6 +52,7 @@ static auto init_stores() -> void {
     hot_stores = std::make_shared<store_ctx_group_t>("hot_store_group", conf.hot_paths);
     warm_stores = std::make_shared<store_ctx_group_t>("warm_store_group", conf.warm_paths);
     cold_stores = std::make_shared<store_ctx_group_t>("cold_store_group", conf.cold_paths);
+    stores = {hot_stores, warm_stores, cold_stores};
 }
 
 auto storage_service() -> asio::awaitable<void> {

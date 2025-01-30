@@ -11,7 +11,6 @@
 
 /*
   相对路径为 xx/xx/<filename>
-
 */
 class store_ctx_t {
   public:
@@ -29,6 +28,7 @@ class store_ctx_t {
     auto open_file(uint64_t file_id, const std::string &filepath) -> std::optional<uint64_t>;
 
     auto read_file(uint64_t file_id, uint64_t offset, uint64_t size) -> std::optional<std::vector<uint8_t>>;
+    auto read_file(uint64_t file_id, uint64_t size) -> std::optional<std::vector<uint8_t>>;
 
     auto base_path() -> std::string;
 
@@ -69,6 +69,7 @@ class store_ctx_group_t {
     auto open_file(const std::string &relpath) -> std::optional<std::tuple<uint64_t, uint64_t>>;
 
     auto read_file(uint64_t file_id, uint64_t offset, uint64_t size) -> std::optional<std::vector<uint8_t>>;
+    auto read_file(uint64_t file_id, uint64_t size) -> std::optional<std::vector<uint8_t>>;
 
     auto next_path() -> std::string;
 

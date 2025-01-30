@@ -12,7 +12,8 @@ using req_handle_t = std::function<asio::awaitable<void>(std::shared_ptr<connect
 
 enum conn_data : uint64_t {
     /* client 数据 */
-    c_upload_file_id,
+    c_create_file_id,
+    c_open_file_id,
 
 };
 
@@ -35,6 +36,7 @@ struct conf_t {
 extern std::shared_ptr<store_ctx_group_t> hot_stores;
 extern std::shared_ptr<store_ctx_group_t> warm_stores;
 extern std::shared_ptr<store_ctx_group_t> cold_stores;
+extern std::vector<std::shared_ptr<store_ctx_group_t>> stores; // 方便遍历 hot、warm 和 cold
 
 extern std::vector<std::shared_ptr<asio::io_context>> ss_ios;
 extern std::vector<asio::executor_work_guard<asio::io_context::executor_type>> ss_ios_guard;
@@ -71,6 +73,7 @@ auto cs_create_file_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<p
 auto cs_upload_file_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void>;
 auto cs_close_file_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void>;
 auto cs_open_file_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void>;
+auto cs_download_file_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void>;
 auto recv_from_client(std::shared_ptr<connection_t> conn) -> asio::awaitable<void>;
 
 /************************************************************************************************************* */

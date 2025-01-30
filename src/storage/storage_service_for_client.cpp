@@ -30,7 +30,7 @@ auto ss_regist_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_
 }
 
 auto cs_create_file_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void> {
-    if (conn->has_data(conn_data::c_upload_file_id)) {
+    if (conn->has_data(conn_data::c_create_file_id)) {
         g_log->log_error(std::format("file already created {}", conn->to_string()));
         co_await conn->send_res_frame(
             proto_frame_t{
@@ -58,7 +58,7 @@ auto cs_create_file_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<p
             req_frame->id);
         co_return;
     }
-    conn->set_data(conn_data::c_upload_file_id, file_id.value());
+    conn->set_data(conn_data::c_create_file_id, file_id.value());
 
     /* response */
     co_await conn->send_res_frame(
@@ -70,7 +70,7 @@ auto cs_create_file_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<p
 }
 
 auto cs_upload_file_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void> {
-    auto file_id = conn->get_data<uint64_t>(conn_data::c_upload_file_id);
+    auto file_id = conn->get_data<uint64_t>(conn_data::c_create_file_id);
     if (!file_id) {
         g_log->log_warn(std::format("client {} not create file yield", conn->to_string()));
         co_await conn->send_res_frame(
@@ -106,7 +106,7 @@ auto cs_upload_file_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<p
 }
 
 auto cs_close_file_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void> {
-    auto file_id = conn->get_data<uint64_t>(conn_data::c_upload_file_id);
+    auto file_id = conn->get_data<uint64_t>(conn_data::c_create_file_id);
     if (!file_id) {
         g_log->log_warn(std::format("client {} not create file yield", conn->to_string()));
         co_await conn->send_res_frame(
@@ -145,12 +145,103 @@ auto cs_close_file_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<pr
 }
 
 auto cs_open_file_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void> {
+    if (conn->has_data(conn_data::c_open_file_id)) {
+        g_log->log_error(std::format("file already opened {}", conn->to_string()));
+        co_await conn->send_res_frame(
+            proto_frame_t{
+                .cmd = (uint8_t)proto_cmd_e::cs_open_file,
+                .stat = 1,
+            },
+            req_frame->id);
+        co_return;
+    }
+
+    /* check group id valid */
+    auto file_path = std::string{(char *)req_frame->data, req_frame->data_len};
+    auto group_id = std::atol(file_path.substr(0, file_path.find_first_of('/')).data());
+    if (group_id != storage_group_id) {
+        g_log->log_error(std::format("invalid group id {}", group_id));
+        co_await conn->send_res_frame(
+            proto_frame_t{
+                .cmd = (uint8_t)proto_cmd_e::cs_open_file,
+                .stat = 2,
+            },
+            req_frame->id);
+        co_return;
+    }
+    file_path = file_path.substr(file_path.find_first_of('/') + 1);
+
+    /* search file  */
+    for (auto store : stores) {
+        auto _ = store->open_file(file_path);
+        if (!_.has_value()) {
+            continue;
+        }
+
+        /* response suc */
+        auto [file_id, file_size] = _.value();
+        conn->set_data(conn_data::c_open_file_id, file_id);
+        auto res_frame = (proto_frame_t *)malloc(sizeof(proto_frame_t) + sizeof(uint64_t));
+        *res_frame = {
+            .cmd = (uint8_t)proto_cmd_e::cs_open_file,
+            .data_len = sizeof(uint64_t),
+        };
+        *((uint64_t *)res_frame->data) = file_size;
+        co_await conn->send_res_frame(std::shared_ptr<proto_frame_t>{res_frame, [](auto p) { free(p); }}, req_frame->id);
+        co_return;
+    }
+
+    /* not find file */
+    co_await conn->send_res_frame(
+        proto_frame_t{
+            .cmd = (uint8_t)proto_cmd_e::cs_open_file,
+            .stat = 3,
+        },
+        req_frame->id);
+    co_return;
+}
+
+auto cs_download_file_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void> {
+    if (!conn->has_data(conn_data::c_open_file_id)) {
+        g_log->log_error(std::format("file not opened {}", conn->to_string()));
+        co_await conn->send_res_frame(
+            proto_frame_t{
+                .cmd = (uint8_t)proto_cmd_e::cs_download_file,
+                .stat = 1,
+            },
+            req_frame->id);
+        co_return;
+    }
+
+    auto file_id = conn->get_data<uint64_t>(conn_data::c_open_file_id).value();
+    auto file_data = hot_stores->read_file(file_id, *(uint32_t *)req_frame->data);
+    if (!file_data.has_value()) {
+        g_log->log_error("failed to read file");
+        co_await conn->send_res_frame(
+            proto_frame_t{
+                .cmd = (uint8_t)proto_cmd_e::cs_download_file,
+                .stat = 2,
+            },
+            req_frame->id);
+        co_return;
+    }
+
+    auto res_frame = (proto_frame_t *)malloc(sizeof(proto_frame_t) + file_data->size());
+    *res_frame = {
+        .cmd = (uint8_t)proto_cmd_e::cs_download_file,
+        .data_len = (uint32_t)file_data->size(),
+    };
+    std::copy(file_data->begin(), file_data->end(), res_frame->data);
+    co_await conn->send_res_frame(std::shared_ptr<proto_frame_t>{res_frame, [](auto p) { free(p); }}, req_frame->id);
+    co_return;
 }
 
 std::map<proto_cmd_e, req_handle_t> client_req_handles{
     {(proto_cmd_e)proto_cmd_e::cs_create_file, cs_create_file_handle},
     {(proto_cmd_e)proto_cmd_e::cs_upload_file, cs_upload_file_handle},
     {(proto_cmd_e)proto_cmd_e::cs_close_file, cs_close_file_handle},
+    {(proto_cmd_e)proto_cmd_e::cs_open_file, cs_open_file_handle},
+    {(proto_cmd_e)proto_cmd_e::cs_download_file, cs_download_file_handle},
 };
 
 auto recv_from_client(std::shared_ptr<connection_t> conn) -> asio::awaitable<void> {
