@@ -1,0 +1,136 @@
+[
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/jin/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/jin/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-o", "build/.objs/master/linux/x86_64/debug/src/master/master_service_global.cpp.o", "src/master/master_service_global.cpp"],
+  "file": "src/master/master_service_global.cpp"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/jin/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/jin/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-o", "build/.objs/master/linux/x86_64/debug/src/master/main.cpp.o", "src/master/main.cpp"],
+  "file": "src/master/main.cpp"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/jin/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/jin/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-o", "build/.objs/master/linux/x86_64/debug/src/master/global.cpp.o", "src/master/global.cpp"],
+  "file": "src/master/global.cpp"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/jin/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/jin/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-o", "build/.objs/master/linux/x86_64/debug/src/master/master_service.cpp.o", "src/master/master_service.cpp"],
+  "file": "src/master/master_service.cpp"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/jin/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/jin/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-o", "build/.objs/master/linux/x86_64/debug/src/master/master_service_for_storage.cpp.o", "src/master/master_service_for_storage.cpp"],
+  "file": "src/master/master_service_for_storage.cpp"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/jin/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/jin/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-o", "build/.objs/master/linux/x86_64/debug/src/master/master_service_for_client.cpp.o", "src/master/master_service_for_client.cpp"],
+  "file": "src/master/master_service_for_client.cpp"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/jin/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/jin/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-o", "build/.objs/storage/linux/x86_64/debug/src/storage/main.cpp.o", "src/storage/main.cpp"],
+  "file": "src/storage/main.cpp"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/jin/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/jin/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-o", "build/.objs/storage/linux/x86_64/debug/src/storage/storage_service_for_storage.cpp.o", "src/storage/storage_service_for_storage.cpp"],
+  "file": "src/storage/storage_service_for_storage.cpp"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/jin/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/jin/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-o", "build/.objs/storage/linux/x86_64/debug/src/storage/storage_service_global.cpp.o", "src/storage/storage_service_global.cpp"],
+  "file": "src/storage/storage_service_global.cpp"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/jin/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/jin/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-o", "build/.objs/storage/linux/x86_64/debug/src/storage/store.cpp.o", "src/storage/store.cpp"],
+  "file": "src/storage/store.cpp"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/jin/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/jin/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-o", "build/.objs/storage/linux/x86_64/debug/src/storage/storage_service_for_master.cpp.o", "src/storage/storage_service_for_master.cpp"],
+  "file": "src/storage/storage_service_for_master.cpp"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/jin/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/jin/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-o", "build/.objs/storage/linux/x86_64/debug/src/storage/global.cpp.o", "src/storage/global.cpp"],
+  "file": "src/storage/global.cpp"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/jin/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/jin/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-o", "build/.objs/storage/linux/x86_64/debug/src/storage/storage_service.cpp.o", "src/storage/storage_service.cpp"],
+  "file": "src/storage/storage_service.cpp"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/jin/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/jin/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-o", "build/.objs/storage/linux/x86_64/debug/src/storage/monitor_service.cpp.o", "src/storage/monitor_service.cpp"],
+  "file": "src/storage/monitor_service.cpp"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/jin/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/jin/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-o", "build/.objs/storage/linux/x86_64/debug/src/storage/storage_service_for_client.cpp.o", "src/storage/storage_service_for_client.cpp"],
+  "file": "src/storage/storage_service_for_client.cpp"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-o", "build/.objs/test_co_mutex/linux/x86_64/debug/test/test_co_mutex.cpp.o", "test/test_co_mutex.cpp"],
+  "file": "test/test_co_mutex.cpp"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-o", "build/.objs/check_multthread_asio/linux/x86_64/debug/test/check_multthread_asio.cpp.o", "test/check_multthread_asio.cpp"],
+  "file": "test/check_multthread_asio.cpp"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/jin/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-o", "build/.objs/proto/linux/x86_64/debug/src/proto/cm_valid_storage.pb.cc.o", "src/proto/cm_valid_storage.pb.cc"],
+  "file": "src/proto/cm_valid_storage.pb.cc"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/jin/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-o", "build/.objs/proto/linux/x86_64/debug/src/proto/sm_regist.pb.cc.o", "src/proto/sm_regist.pb.cc"],
+  "file": "src/proto/sm_regist.pb.cc"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/jin/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-o", "build/.objs/proto/linux/x86_64/debug/src/proto/cm_group_storages.pb.cc.o", "src/proto/cm_group_storages.pb.cc"],
+  "file": "src/proto/cm_group_storages.pb.cc"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-o", "build/.objs/common/linux/x86_64/debug/src/common/log.cpp.o", "src/common/log.cpp"],
+  "file": "src/common/log.cpp"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-o", "build/.objs/common/linux/x86_64/debug/src/common/acceptor.cpp.o", "src/common/acceptor.cpp"],
+  "file": "src/common/acceptor.cpp"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-o", "build/.objs/common/linux/x86_64/debug/src/common/monitor.cpp.o", "src/common/monitor.cpp"],
+  "file": "src/common/monitor.cpp"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-o", "build/.objs/common/linux/x86_64/debug/src/common/loop.cpp.o", "src/common/loop.cpp"],
+  "file": "src/common/loop.cpp"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-o", "build/.objs/common/linux/x86_64/debug/src/common/util.cpp.o", "src/common/util.cpp"],
+  "file": "src/common/util.cpp"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-o", "build/.objs/common/linux/x86_64/debug/src/common/connection.cpp.o", "src/common/connection.cpp"],
+  "file": "src/common/connection.cpp"
+},
+{
+  "directory": "/home/jin/projects/dfs",
+  "arguments": ["/usr/bin/gcc", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/jin/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/jin/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/jin/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/jin/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-o", "build/.objs/client/linux/x86_64/debug/src/client/main.cpp.o", "src/client/main.cpp"],
+  "file": "src/client/main.cpp"
+}]

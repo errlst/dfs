@@ -9,28 +9,30 @@
 #include <set>
 
 using req_handle_t = std::function<asio::awaitable<void>(std::shared_ptr<connection_t>, std::shared_ptr<proto_frame_t>)>;
+#define REQ_HANDLE_PARAMS std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame
 
 enum conn_data : uint64_t {
-    /* client 数据 */
-    c_create_file_id,
-    c_open_file_id,
+  /* client 数据 */
+  c_create_file_id,
+  c_open_file_id,
 
 };
 
 struct conf_t {
-    uint32_t id;
-    std::string ip;
-    uint16_t port;
-    std::string master_ip;
-    uint16_t master_port;
-    uint16_t thread_count;
-    uint16_t storage_magic;
-    uint32_t master_magic;
-    std::vector<std::string> hot_paths;
-    std::vector<std::string> warm_paths;
-    std::vector<std::string> cold_paths;
-    uint32_t heart_timeout;
-    uint32_t heart_interval;
+  uint32_t id;
+  std::string ip;
+  uint16_t port;
+  std::string master_ip;
+  uint16_t master_port;
+  uint16_t thread_count;
+  uint16_t storage_magic;
+  uint32_t master_magic;
+  uint32_t sync_interval;
+  std::vector<std::string> hot_paths;
+  std::vector<std::string> warm_paths;
+  std::vector<std::string> cold_paths;
+  uint32_t heart_timeout;
+  uint32_t heart_interval;
 } extern conf;
 
 extern std::shared_ptr<store_ctx_group_t> hot_stores;
@@ -41,8 +43,10 @@ extern std::vector<std::shared_ptr<store_ctx_group_t>> stores; // 方便遍历 h
 extern std::vector<std::shared_ptr<asio::io_context>> ss_ios;
 extern std::vector<asio::executor_work_guard<asio::io_context::executor_type>> ss_ios_guard;
 
-extern std::shared_ptr<connection_t> master_conn;             // master 服务器连接
-extern std::set<std::shared_ptr<connection_t>> storage_conns; // 同组 storage 服务器连接
+extern std::shared_ptr<connection_t> master_conn;
+
+extern std::mutex storage_conns_mut;
+extern std::set<std::shared_ptr<connection_t>> storage_conns;
 
 extern uint32_t storage_group_id;
 
@@ -52,10 +56,19 @@ extern uint32_t storage_group_id;
 
 extern std::map<proto_cmd_e, req_handle_t> storage_req_handles;
 
+/* 同步上传的文件 */
+extern std::mutex unsync_uploaded_files_mut;
+extern std::queue<std::string> unsync_uploaded_files;
+auto sync_upload_files() -> asio::awaitable<void>;
+
 /* storage 断连 */
+// auto ss_sync_upload_open_handle()
 auto on_storage_disconnect(std::shared_ptr<connection_t> conn) -> asio::awaitable<void>;
 
 /* protocol 处理函数 */
+auto ss_sync_upload_open_handle(REQ_HANDLE_PARAMS) -> asio::awaitable<void>;
+auto ss_sync_upload_append_handle(REQ_HANDLE_PARAMS) -> asio::awaitable<void>;
+auto ss_sync_upload_close(REQ_HANDLE_PARAMS) -> asio::awaitable<void>;
 auto recv_from_storage(std::shared_ptr<connection_t> conn) -> asio::awaitable<void>;
 
 /************************************************************************************************************* */
