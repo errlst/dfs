@@ -1,29 +1,14 @@
+环境需要 xmake、gcc-14、protoc
+
+确保 xmake.lua 中的 protobuf-cpp 版本和 protoc 版本一致。
+
+bug 触发流程：
+
 ```shell
 xmake r master
-```
-
-```shell
 xmake r storage
-```
-
-```shell
 xmake r client
-
-:upload bigfile
-
-:upload bigfile
-```
-
-第二次 upload 稳定触发 segfault
-
-有些情况 storage 也会 c 触发 segfault
-
-但 master 稳定运行
-
-```shell
-xmake r client
-
 :connect 127.0.0.1 8889
 ```
 
-storage 有时会触发 segfault,但 client 稳定运行。
+如果没有触发，尝试多次连接，或者重新运行 storage 再连接。
