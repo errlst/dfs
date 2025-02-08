@@ -19,3 +19,11 @@ xmake r client
 有些情况 storage 也会 c 触发 segfault
 
 但 master 稳定运行
+
+```shell
+xmake r client
+
+:connect 127.0.0.1 8889
+```
+
+storage 有时会触发 segfault,但 client 稳定运行。
