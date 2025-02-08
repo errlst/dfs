@@ -151,6 +151,7 @@ auto cs_close_file_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<pr
   };
   std::memcpy(res_frame->data, res_path.data(), res_path.size());
   co_await conn->send_res_frame(std::shared_ptr<proto_frame_t>{res_frame, [](auto p) { free(p); }}, req_frame->id);
+  conn->del_data(c_create_file_id);
   co_return;
 }
 

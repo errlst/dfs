@@ -16,6 +16,9 @@ enum conn_data : uint64_t {
   c_create_file_id,
   c_open_file_id,
 
+  /* storage 数据 */
+  s_sync_upload_file_id,
+
 };
 
 struct conf_t {
@@ -68,7 +71,6 @@ auto on_storage_disconnect(std::shared_ptr<connection_t> conn) -> asio::awaitabl
 /* protocol 处理函数 */
 auto ss_sync_upload_open_handle(REQ_HANDLE_PARAMS) -> asio::awaitable<void>;
 auto ss_sync_upload_append_handle(REQ_HANDLE_PARAMS) -> asio::awaitable<void>;
-auto ss_sync_upload_close(REQ_HANDLE_PARAMS) -> asio::awaitable<void>;
 auto recv_from_storage(std::shared_ptr<connection_t> conn) -> asio::awaitable<void>;
 
 /************************************************************************************************************* */

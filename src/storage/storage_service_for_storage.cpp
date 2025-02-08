@@ -19,7 +19,7 @@ auto sync_upload_files() -> asio::awaitable<void> {
         unsync_uploaded_files.pop();
       }
 
-      /* open */
+      /* sync open */
       auto res = hot_stores->open_file(file_path);
       if (!res) {
         g_log->log_warn(std::format("open file {} failed", file_path));
@@ -27,7 +27,6 @@ auto sync_upload_files() -> asio::awaitable<void> {
       }
       auto [file_id, file_size] = res.value();
 
-      /* request */
       auto req_frame = (proto_frame_t *)malloc(sizeof(proto_frame_t) + sizeof(uint64_t) + file_path.size());
       *req_frame = {
           .cmd = (uint32_t)proto_cmd_e::ss_sync_upload_open,
@@ -36,16 +35,60 @@ auto sync_upload_files() -> asio::awaitable<void> {
       *(uint64_t *)(req_frame->data) = file_size;
       std::copy(file_path.begin(), file_path.end(), req_frame->data + sizeof(uint64_t));
 
+      auto need_sync_storages = std::set<std::shared_ptr<connection_t>>{};
       for (auto conn : storage_conns) {
         auto id = co_await conn->send_req_frame(std::shared_ptr<proto_frame_t>{req_frame, [](auto p) { free(p); }});
         if (!id.has_value()) {
           continue;
         }
 
-        /* resposne */
         auto res_frame = co_await conn->recv_res_frame(id.value());
-        if (!res_frame) {
+        if (!res_frame || res_frame->stat != 0) {
           continue;
+        }
+        need_sync_storages.insert(conn);
+      }
+
+      /* sync append */
+      req_frame = (proto_frame_t *)malloc(sizeof(proto_frame_t) + 5 * 1024 * 1024);
+      while (true) {
+        auto data = hot_stores->read_file(file_id, 5 * 1024 * 1024);
+        if (data->empty()) {
+          break;
+        }
+
+        *req_frame = {
+            .cmd = (uint32_t)proto_cmd_e::ss_sync_upload_append,
+            .data_len = (uint32_t)data->size(),
+        };
+        std::copy(data->begin(), data->end(), req_frame->data);
+
+        /* 失败则不再同步剩余数据 */
+        for (auto conn = need_sync_storages.begin(); conn != need_sync_storages.end();) {
+          auto id = co_await (*conn)->send_req_frame(req_frame);
+          if (!id.has_value()) {
+            conn = need_sync_storages.erase(conn);
+            continue;
+          }
+
+          auto res_frame = co_await (*conn)->recv_res_frame(id.value());
+          if (!res_frame || res_frame->stat != 0) {
+            conn = need_sync_storages.erase(conn);
+            continue;
+          }
+
+          ++conn;
+        }
+      }
+      free(req_frame);
+
+      /* sync finish */
+      for (auto conn : need_sync_storages) {
+        auto id = co_await conn->send_req_frame(proto_frame_t{
+            .cmd = (uint32_t)proto_cmd_e::ss_sync_upload_append,
+        });
+        if (id.has_value()) {
+          co_await conn->recv_res_frame(id.value());
         }
       }
     }
@@ -58,7 +101,85 @@ auto on_storage_disconnect(std::shared_ptr<connection_t> conn) -> asio::awaitabl
   co_return;
 }
 
-std::map<proto_cmd_e, req_handle_t> storage_req_handles{};
+std::map<proto_cmd_e, req_handle_t> storage_req_handles{
+    {proto_cmd_e::ss_sync_upload_open, ss_sync_upload_open_handle},
+    {proto_cmd_e::ss_sync_upload_append, ss_sync_upload_append_handle},
+};
+
+auto ss_sync_upload_open_handle(REQ_HANDLE_PARAMS) -> asio::awaitable<void> {
+  if (req_frame->data_len <= sizeof(uint64_t) || conn->has_data(s_sync_upload_file_id)) {
+    co_await conn->send_res_frame(proto_frame_t{
+                                      .cmd = req_frame->cmd,
+                                      .stat = 1,
+                                  },
+                                  req_frame->id);
+    co_return;
+  }
+
+  /* 解析参数 */
+  auto file_size = *(uint64_t *)req_frame->data;
+  auto rel_path = std::string_view{req_frame->data + sizeof(uint64_t), req_frame->data_len - sizeof(uint64_t)};
+  g_log->log_debug(std::format("async file {} {}", rel_path, file_size));
+
+  /* 创建文件 */
+  auto res = hot_stores->create_file(file_size, rel_path);
+  if (!res.has_value()) {
+    co_await conn->send_res_frame(proto_frame_t{
+                                      .cmd = req_frame->cmd,
+                                      .stat = 3,
+                                  },
+                                  req_frame->id);
+    co_return;
+  }
+  conn->set_data(s_sync_upload_file_id, res.value());
+
+  /* response */
+  co_await conn->send_res_frame(proto_frame_t{
+                                    .cmd = req_frame->cmd,
+                                    .stat = 0,
+                                },
+                                req_frame->id);
+  co_return;
+}
+
+auto ss_sync_upload_append_handle(REQ_HANDLE_PARAMS) -> asio::awaitable<void> {
+  auto file_id = conn->get_data<uint64_t>(s_sync_upload_file_id);
+  if (!file_id.has_value()) {
+    co_await conn->send_res_frame(proto_frame_t{
+                                      .cmd = req_frame->cmd,
+                                      .stat = 1,
+                                  },
+                                  req_frame->id);
+    co_return;
+  }
+
+  /* sync finish */
+  if (req_frame->data_len == 0) {
+    hot_stores->close_file(file_id.value());
+    conn->del_data(s_sync_upload_file_id);
+    co_await conn->send_res_frame(proto_frame_t{
+                                      .cmd = req_frame->cmd,
+                                      .stat = 0,
+                                  },
+                                  req_frame->id);
+    co_return;
+  }
+
+  /* normal append data */
+  if (!hot_stores->write_file(file_id.value(), {(uint8_t *)req_frame->data, req_frame->data_len})) {
+    co_await conn->send_res_frame(proto_frame_t{
+                                      .cmd = req_frame->cmd,
+                                      .stat = 2,
+                                  },
+                                  req_frame->id);
+  } else {
+    co_await conn->send_res_frame(proto_frame_t{
+                                      .cmd = req_frame->cmd,
+                                      .stat = 0,
+                                  },
+                                  req_frame->id);
+  }
+}
 
 auto recv_from_storage(std::shared_ptr<connection_t> conn) -> asio::awaitable<void> {
   while (true) {

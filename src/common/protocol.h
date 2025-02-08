@@ -91,17 +91,10 @@ enum class proto_cmd_e : uint8_t {
 
   /*
     追加数据
-    request_t : { char data[] }
+    request_t : { char data[] } 长度为0表示上传完成
     response_t : { }
   */
   ss_sync_upload_append,
-
-  /*
-    关闭文件
-    request_t : { }
-    response_t : { } 
-  */
-  ss_sync_upload_close,
 
   /*
     获取组中的所有 storage
