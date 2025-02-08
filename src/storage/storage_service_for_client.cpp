@@ -2,6 +2,7 @@
 
 auto on_client_disconnect(std::shared_ptr<connection_t> conn) -> asio::awaitable<void> {
     g_log->log_info(std::format("client {} disconnect", conn->to_string()));
+    conn->close();
     co_return;
 }
 

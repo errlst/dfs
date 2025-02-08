@@ -12,21 +12,20 @@ static auto work_as_server() -> asio::awaitable<void> {
     g_log->log_info(std::format("storage service listen on {}", acceptor.to_string()));
 
     /* create executors */
-    for (auto i = 0; i < conf.thread_count; ++i) {
-        ss_ios.push_back(std::make_shared<asio::io_context>());
-        ss_ios_guard.push_back(asio::make_work_guard(*ss_ios.back()));
-        std::thread{[i] {
-            ss_ios[i]->run();
-        }}.detach();
-    }
+    // for (auto i = 0; i < conf.thread_count; ++i) {
+    //     ss_ios.push_back(std::make_shared<asio::io_context>());
+    //     ss_ios_guard.push_back(asio::make_work_guard(*ss_ios.back()));
+    //     std::thread{[i] {
+    //         ss_ios[i]->run();
+    //     }}.detach();
+    // }
 
     /* dispatch connection to executor */
     auto idx = 0ull;
     while (true) {
         auto conn = co_await acceptor.accept();
-        auto io = ss_ios[idx++ % ss_ios.size()];
-        asio::co_spawn(*io, conn->start(), asio::detached);
-        asio::co_spawn(*io, recv_from_client(conn), asio::detached);
+        asio::co_spawn(co_await asio::this_coro::executor, conn->start(), asio::detached);
+        asio::co_spawn(co_await asio::this_coro::executor, recv_from_client(conn), asio::detached);
     }
 }
 

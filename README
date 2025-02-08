@@ -8,7 +8,8 @@ bug 触发流程：
 xmake r master
 xmake r storage
 xmake r client
-:connect 127.0.0.1 8889
+: upload xxx
+: ...
 ```
 
-如果没有触发，尝试多次连接，或者重新运行 storage 再连接。
+多次上传稳定触发

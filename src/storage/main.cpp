@@ -38,6 +38,8 @@ auto init_log() -> void {
     g_log = std::make_shared<log_t>(path, static_cast<log_level_e>(level), false);
 }
 
+auto loop = loop_t{};
+
 auto main(int argc, char *argv[]) -> int {
     auto conf_file = "/home/jin/project/dfs/conf/storage.conf.json";
 
@@ -59,8 +61,7 @@ auto main(int argc, char *argv[]) -> int {
 
     init_conf(conf_file);
     init_log();
-
-    auto loop = loop_t{};
+    std::println("{}", (void*)&loop);
     loop.regist_service(monitor_service);
     loop.regist_service(storage_service);
     loop.run();

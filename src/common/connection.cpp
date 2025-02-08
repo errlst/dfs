@@ -1,4 +1,5 @@
 #include "connection.h"
+#include "../common/util.h"
 #include "timeout_token.h"
 
 connection_t::connection_t(asio::ip::tcp::socket &&sock, std::shared_ptr<log_t> log)
@@ -9,7 +10,8 @@ connection_t::connection_t(asio::ip::tcp::socket &&sock, std::shared_ptr<log_t> 
 }
 
 connection_t::~connection_t() {
-    m_closed = true;
+    // m_closed = true;
+    close();
 }
 
 auto connection_t::start() -> asio::awaitable<void> {
@@ -119,8 +121,7 @@ auto connection_t::start_heart() -> asio::awaitable<void> {
     static auto heartbeat_buffer = asio::const_buffer{&heartbeat_frame, sizeof(heartbeat_frame)};
     auto timer = asio::steady_timer{co_await asio::this_coro::executor};
     while (true) {
-        timer.expires_after(std::chrono::milliseconds{m_heart_interval});
-        co_await timer.async_wait(asio::as_tuple(asio::use_awaitable));
+        co_await co_sleep_for(std::chrono::milliseconds{m_heart_interval});
         if (m_closed) {
             co_return;
         }
