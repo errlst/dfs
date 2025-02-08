@@ -10,7 +10,7 @@
 #include <set>
 
 /* connection 需要使用的额外数据 */
-enum conn_data : uint64_t {
+enum conn_data_e : uint64_t {
     /* storage 数据 */
     s_id,
     s_ip,
@@ -74,8 +74,8 @@ extern std::map<uint8_t, req_handle_t> client_req_handles;
 auto on_client_disconnect(std::shared_ptr<connection_t> conn) -> asio::awaitable<void>;
 
 /* 请求处理函数 */
-auto cm_valid_storage_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void>;
-auto cm_group_storages_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void>;
+auto cm_fetch_one_storage_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void>;
+auto cm_fetch_storages_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void>;
 
 /* */
 auto recv_from_client(std::shared_ptr<connection_t> conn) -> asio::awaitable<void>;

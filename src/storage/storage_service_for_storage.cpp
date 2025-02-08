@@ -29,7 +29,7 @@ auto sync_upload_files() -> asio::awaitable<void> {
 
       auto req_frame = (proto_frame_t *)malloc(sizeof(proto_frame_t) + sizeof(uint64_t) + file_path.size());
       *req_frame = {
-          .cmd = (uint32_t)proto_cmd_e::ss_sync_upload_open,
+          .cmd = (uint32_t)proto_cmd_e::ss_sync_upload_create,
           .data_len = (uint32_t)sizeof(uint64_t) + (uint32_t)file_path.size(),
       };
       *(uint64_t *)(req_frame->data) = file_size;
@@ -102,17 +102,13 @@ auto on_storage_disconnect(std::shared_ptr<connection_t> conn) -> asio::awaitabl
 }
 
 std::map<proto_cmd_e, req_handle_t> storage_req_handles{
-    {proto_cmd_e::ss_sync_upload_open, ss_sync_upload_open_handle},
+    {proto_cmd_e::ss_sync_upload_create, ss_sync_upload_open_handle},
     {proto_cmd_e::ss_sync_upload_append, ss_sync_upload_append_handle},
 };
 
 auto ss_sync_upload_open_handle(REQ_HANDLE_PARAMS) -> asio::awaitable<void> {
-  if (req_frame->data_len <= sizeof(uint64_t) || conn->has_data(s_sync_upload_file_id)) {
-    co_await conn->send_res_frame(proto_frame_t{
-                                      .cmd = req_frame->cmd,
-                                      .stat = 1,
-                                  },
-                                  req_frame->id);
+  if (req_frame->data_len <= sizeof(uint64_t) || conn->has_data((uint64_t)conn_data_e::s_sync_upload_file_id)) {
+    co_await conn->send_res_frame(proto_frame_t{.stat = 1}, req_frame);
     co_return;
   }
 
@@ -124,60 +120,35 @@ auto ss_sync_upload_open_handle(REQ_HANDLE_PARAMS) -> asio::awaitable<void> {
   /* 创建文件 */
   auto res = hot_stores->create_file(file_size, rel_path);
   if (!res.has_value()) {
-    co_await conn->send_res_frame(proto_frame_t{
-                                      .cmd = req_frame->cmd,
-                                      .stat = 3,
-                                  },
-                                  req_frame->id);
+    co_await conn->send_res_frame(proto_frame_t{.stat = 2}, req_frame);
     co_return;
   }
-  conn->set_data(s_sync_upload_file_id, res.value());
+  conn->set_data((uint64_t)conn_data_e::s_sync_upload_file_id, res.value());
 
   /* response */
-  co_await conn->send_res_frame(proto_frame_t{
-                                    .cmd = req_frame->cmd,
-                                    .stat = 0,
-                                },
-                                req_frame->id);
-  co_return;
+  co_await conn->send_res_frame(proto_frame_t{.stat = 0}, req_frame);
 }
 
 auto ss_sync_upload_append_handle(REQ_HANDLE_PARAMS) -> asio::awaitable<void> {
-  auto file_id = conn->get_data<uint64_t>(s_sync_upload_file_id);
+  auto file_id = conn->get_data<uint64_t>((uint64_t)conn_data_e::s_sync_upload_file_id);
   if (!file_id.has_value()) {
-    co_await conn->send_res_frame(proto_frame_t{
-                                      .cmd = req_frame->cmd,
-                                      .stat = 1,
-                                  },
-                                  req_frame->id);
+    co_await conn->send_res_frame(proto_frame_t{.stat = 1}, req_frame);
     co_return;
   }
 
   /* sync finish */
   if (req_frame->data_len == 0) {
     hot_stores->close_file(file_id.value());
-    conn->del_data(s_sync_upload_file_id);
-    co_await conn->send_res_frame(proto_frame_t{
-                                      .cmd = req_frame->cmd,
-                                      .stat = 0,
-                                  },
-                                  req_frame->id);
+    conn->del_data((uint64_t)conn_data_e::s_sync_upload_file_id);
+    co_await conn->send_res_frame(proto_frame_t{.stat = 0}, req_frame);
     co_return;
   }
 
   /* normal append data */
   if (!hot_stores->write_file(file_id.value(), {(uint8_t *)req_frame->data, req_frame->data_len})) {
-    co_await conn->send_res_frame(proto_frame_t{
-                                      .cmd = req_frame->cmd,
-                                      .stat = 2,
-                                  },
-                                  req_frame->id);
+    co_await conn->send_res_frame(proto_frame_t{.stat = 2}, req_frame);
   } else {
-    co_await conn->send_res_frame(proto_frame_t{
-                                      .cmd = req_frame->cmd,
-                                      .stat = 0,
-                                  },
-                                  req_frame->id);
+    co_await conn->send_res_frame(proto_frame_t{.stat = 0}, req_frame);
   }
 }
 
@@ -191,11 +162,7 @@ auto recv_from_storage(std::shared_ptr<connection_t> conn) -> asio::awaitable<vo
     auto handle = storage_req_handles.find((proto_cmd_e)req_frame->cmd);
     if (handle == storage_req_handles.end()) {
       g_log->log_warn(std::format("unhandle cmd {} from storage {}", req_frame->cmd, conn->to_string()));
-      co_await conn->send_res_frame(proto_frame_t{
-                                        .cmd = req_frame->cmd,
-                                        .stat = UINT8_MAX,
-                                    },
-                                    req_frame->id);
+      co_await conn->send_res_frame(proto_frame_t{.stat = UINT8_MAX}, req_frame);
       continue;
     }
     co_await handle->second(conn, req_frame);

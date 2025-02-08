@@ -63,6 +63,6 @@ auto storage_service() -> asio::awaitable<void> {
   init_stores();
   asio::co_spawn(co_await asio::this_coro::executor, work_as_server(), asio::detached);
   asio::co_spawn(co_await asio::this_coro::executor, recv_from_master(), asio::detached);
-  asio::co_spawn(co_await asio::this_coro::executor, sync_upload_files(), asio::detached);
+  // asio::co_spawn(co_await asio::this_coro::executor, sync_upload_files(), asio::detached);
   co_return;
 }

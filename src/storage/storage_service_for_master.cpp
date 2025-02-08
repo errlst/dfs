@@ -111,17 +111,15 @@ auto ms_fs_free_size_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<
 
   auto res_frame = (proto_frame_t *)malloc(sizeof(proto_frame_t) + sizeof(uint64_t));
   *res_frame = {
-      .cmd = (uint8_t)proto_cmd_e::ms_fs_free_size,
+      .cmd = (uint8_t)proto_cmd_e::ms_fetch_avaliable_space,
       .data_len = sizeof(uint64_t),
   };
   *((uint64_t *)res_frame->data) = max;
-  co_await conn->send_res_frame(std::shared_ptr<proto_frame_t>{res_frame, [](auto p) { free(p); }},
-                                req_frame->id);
-  co_return;
+  co_await conn->send_res_frame(std::shared_ptr<proto_frame_t>{res_frame, [](auto p) { free(p); }}, req_frame);
 }
 
 std::map<proto_cmd_e, req_handle_t> master_req_handles{
-    {(proto_cmd_e)proto_cmd_e::ms_fs_free_size, ms_fs_free_size_handle},
+    {(proto_cmd_e)proto_cmd_e::ms_fetch_avaliable_space, ms_fs_free_size_handle},
 };
 
 auto recv_from_master() -> asio::awaitable<void> {
@@ -144,12 +142,7 @@ auto recv_from_master() -> asio::awaitable<void> {
     auto handle = master_req_handles.find((proto_cmd_e)req_frame->cmd);
     if (handle == master_req_handles.end()) {
       g_log->log_error(std::format("unhandle cmd {} from master {}", req_frame->cmd, master_conn->to_string()));
-      co_await master_conn->send_res_frame(
-          proto_frame_t{
-              .cmd = req_frame->cmd,
-              .stat = UINT8_MAX,
-          },
-          req_frame->id);
+      co_await master_conn->send_res_frame(proto_frame_t{.stat = UINT8_MAX}, req_frame);
       continue;
     }
     co_await handle->second(master_conn, req_frame);

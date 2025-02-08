@@ -8,12 +8,12 @@
 #include "./store.h"
 #include <set>
 
-using req_handle_t = std::function<asio::awaitable<void>(std::shared_ptr<connection_t>, std::shared_ptr<proto_frame_t>)>;
 #define REQ_HANDLE_PARAMS std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame
+using req_handle_t = std::function<asio::awaitable<void>(std::shared_ptr<connection_t>, std::shared_ptr<proto_frame_t>)>;
 
-enum conn_data : uint64_t {
+enum class conn_data_e : uint64_t {
   /* client 数据 */
-  c_create_file_id,
+  c_upload_file_id,
   c_open_file_id,
 
   /* storage 数据 */
@@ -83,12 +83,12 @@ extern std::map<proto_cmd_e, req_handle_t> client_req_handles;
 auto on_client_disconnect(std::shared_ptr<connection_t> conn) -> asio::awaitable<void>;
 
 /* protcol 处理函数 */
-auto ss_regist_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void>;
-auto cs_create_file_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void>;
-auto cs_upload_file_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void>;
-auto cs_close_file_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void>;
-auto cs_open_file_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void>;
-auto cs_download_file_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void>;
+auto ss_regist_handle(REQ_HANDLE_PARAMS) -> asio::awaitable<void>;
+auto cs_upload_create_handle(REQ_HANDLE_PARAMS) -> asio::awaitable<void>;
+auto cs_upload_append_handle(REQ_HANDLE_PARAMS) -> asio::awaitable<void>;
+auto cs_close_file_handle(REQ_HANDLE_PARAMS) -> asio::awaitable<void>;
+auto cs_open_file_handle(REQ_HANDLE_PARAMS) -> asio::awaitable<void>;
+auto cs_download_file_handle(REQ_HANDLE_PARAMS) -> asio::awaitable<void>;
 auto recv_from_client(std::shared_ptr<connection_t> conn) -> asio::awaitable<void>;
 
 /************************************************************************************************************* */

@@ -9,6 +9,7 @@ connection_t::connection_t(asio::ip::tcp::socket &&sock, std::shared_ptr<log_t> 
 }
 
 connection_t::~connection_t() {
+  // close();
   m_closed = true;
 }
 
@@ -32,14 +33,16 @@ auto connection_t::recv_req_frame() -> asio::awaitable<std::shared_ptr<proto_fra
   co_return frame;
 }
 
-auto connection_t::send_res_frame(std::shared_ptr<proto_frame_t> frame, uint8_t id) -> asio::awaitable<bool> {
-  frame->id = id;
-  co_return co_await do_send(frame.get(), sizeof(proto_frame_t) + frame->data_len);
+auto connection_t::send_res_frame(std::shared_ptr<proto_frame_t> res_frame, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<bool> {
+  res_frame->id = req_frame->id;
+  res_frame->cmd = req_frame->cmd;
+  co_return co_await do_send(res_frame.get(), sizeof(proto_frame_t) + res_frame->data_len);
 }
 
-auto connection_t::send_res_frame(proto_frame_t frame, uint8_t id) -> asio::awaitable<bool> {
-  frame.id = id;
-  co_return co_await do_send(&frame, sizeof(proto_frame_t) + frame.data_len);
+auto connection_t::send_res_frame(proto_frame_t res_frame, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<bool> {
+  res_frame.id = req_frame->id;
+  res_frame.cmd = req_frame->cmd;
+  co_return co_await do_send(&res_frame, sizeof(proto_frame_t) + res_frame.data_len);
 }
 
 auto connection_t::recv_res_frame(uint8_t frame_id) -> asio::awaitable<std::shared_ptr<proto_frame_t>> {
@@ -238,6 +241,7 @@ auto connection_t::connect_to(std::string_view ip, uint16_t port, std::shared_pt
   if (ec || n != sizeof(req_data)) {
     auto res_frame = proto_frame_t{.cmd = (uint8_t)proto_cmd_e::a_establish_heart, .stat = 1};
     co_await sock.async_write_some(asio::const_buffer(&res_frame, sizeof(res_frame)), asio::use_awaitable);
+
     sock.close();
     co_return nullptr;
   }

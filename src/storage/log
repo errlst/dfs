@@ -1,7 +1,5 @@
-[31m [Sat Feb  8 12:31:44 2025] [ERROR] [src/client/main.cpp:14] [0m failed to open file ./bigfile
-[34m [Sat Feb  8 12:31:49 2025] [DEBUG] [src/client/main.cpp:20] [0m upload file size : 154
-[32m [Sat Feb  8 12:31:49 2025] [INFO] [src/client/main.cpp:50] [0m get valid storage 0.0.0.0:8890 13000
-[32m [Sat Feb  8 12:31:49 2025] [INFO] [src/client/main.cpp:58] [0m connect to storage 0.0.0.0:8890 suc
-[32m [Sat Feb  8 12:31:49 2025] [INFO] [src/client/main.cpp:106] [0m upload 154 bytes
-[32m [Sat Feb  8 12:31:50 2025] [INFO] [src/client/main.cpp:133] [0m upload suc file: 1/00/01/xmake.lua_rLuscUL7
-[34m [Sat Feb  8 12:31:53 2025] [DEBUG] [src/client/main.cpp:20] [0m upload file size : 154
+[34m [Sat Feb  8 16:29:01 2025] [DEBUG] [src/client/main.cpp:20] [0m upload file size : 154
+[31m [Sat Feb  8 16:29:01 2025] [ERROR] [src/client/main.cpp:42] [0m cm_valid_storage response stat 1
+[34m [Sat Feb  8 16:29:14 2025] [DEBUG] [src/client/main.cpp:20] [0m upload file size : 154
+[32m [Sat Feb  8 16:29:14 2025] [INFO] [src/client/main.cpp:50] [0m get valid storage 0.0.0.0:8889 61369
+[34m [Sat Feb  8 16:29:19 2025] [DEBUG] [src/client/main.cpp:20] [0m upload file size : 154

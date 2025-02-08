@@ -1,0 +1,9 @@
+[34m [Sat Feb  8 15:45:52 2025] [DEBUG] [src/client/main.cpp:12] [0m 0x7fffffffe220
+[31m [Sat Feb  8 15:45:52 2025] [ERROR] [src/client/main.cpp:17] [0m failed to open file ./bigfile
+[34m [Sat Feb  8 15:45:56 2025] [DEBUG] [src/client/main.cpp:12] [0m 0x7fffffffe220
+[34m [Sat Feb  8 15:45:56 2025] [DEBUG] [src/client/main.cpp:22] [0m upload file size : 110
+[32m [Sat Feb  8 15:45:56 2025] [INFO] [src/client/main.cpp:52] [0m get valid storage 0.0.0.0:8889 5887
+[34m [Sat Feb  8 15:46:19 2025] [DEBUG] [src/client/main.cpp:12] [0m 0x7fffffffe220
+[31m [Sat Feb  8 15:46:19 2025] [ERROR] [src/client/main.cpp:17] [0m failed to open file ./bigfile
+[34m [Sat Feb  8 15:46:23 2025] [DEBUG] [src/client/main.cpp:12] [0m 0x7fffffffe220
+[34m [Sat Feb  8 15:46:23 2025] [DEBUG] [src/client/main.cpp:22] [0m upload file size : 110

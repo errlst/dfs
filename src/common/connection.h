@@ -27,8 +27,8 @@ public:
       返回 false 表示断开连接
       frame_id 需要由调用者设置，通过参数传递避免忽略该字段
   */
-  auto send_res_frame(std::shared_ptr<proto_frame_t>, uint8_t) -> asio::awaitable<bool>;
-  auto send_res_frame(proto_frame_t, uint8_t) -> asio::awaitable<bool>;
+  auto send_res_frame(std::shared_ptr<proto_frame_t> res_frame, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<bool>;
+  auto send_res_frame(proto_frame_t res_frame, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<bool>;
 
   /*
       接受 response frame

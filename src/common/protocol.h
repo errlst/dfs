@@ -45,49 +45,49 @@ enum class proto_cmd_e : uint8_t {
     request_t : { }
     response_t : { uint64_t useable_disk }
   */
-  ms_fs_free_size,
+  ms_fetch_avaliable_space,
 
   /*
     获取一个有效的 storage（通过需要的 size 和缓存的 storage 信息进行比较，最后返回的 storage 大概率是有效的 storage
     request_t : { uint64_t size }
     response_t : cm_valid_storage.proto
   */
-  cm_valid_storage,
+  cm_fetch_one_storage,
 
   /*
     创建文件，创建文件后就可以直接上传文件，直到关闭文件
     request_t: { uint64_t size }
     response_t  : { }
   */
-  cs_create_file,
+  cs_upload_create,
 
   /*
     上传文件
     request_t : { char data[] }
     response_t : { }
   */
-  cs_upload_file,
+  cs_upload_append,
 
   /*
     中断上传（ storage 会删除文件
     request_t : { }
     response_t : { }
   */
-  cs_abort_upload,
+  cs_upload_abort,
 
   /*
     结束上传
     request_t : { char filename[] }
     response_t : { char filepath[] }    最终返回的文件名会会附带一个8字节后缀，最终返回的路径为 <group_id>/xx/xx/<file_name>_<suffix>
   */
-  cs_close_file,
+  cs_upload_close,
 
   /*
     同步上传文件
     request_t : { uint64_t filesize; char filename[] }
     response_t : { }
   */
-  ss_sync_upload_open,
+  ss_sync_upload_create,
 
   /*
     追加数据
@@ -101,7 +101,7 @@ enum class proto_cmd_e : uint8_t {
     request_t : { uint32_t group_id }
     response_t : cm_group_storages.proto
   */
-  cm_group_storages,
+  cm_fetch_storages,
 
   /*
     打开文件
