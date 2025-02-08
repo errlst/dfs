@@ -1,0 +1,2 @@
+[34m [Sat Feb  8 16:44:45 2025] [DEBUG] [src/client/main.cpp:11] [0m /home/jin/project/dfs/.vscode
+[31m [Sat Feb  8 16:44:45 2025] [ERROR] [src/client/main.cpp:15] [0m failed to open file bigfile

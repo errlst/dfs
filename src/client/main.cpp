@@ -8,6 +8,7 @@ auto g_log = std::make_shared<log_t>("./log", log_level_e::debug, false);
 auto g_conn = std::shared_ptr<connection_t>{};
 
 auto upload_fille(std::string_view path) -> asio::awaitable<void> {
+    g_log->log_debug(std::format("{}", std::filesystem::current_path().string()));
     /* get file size */
     auto ifs = std::ifstream{std::string{path}, std::ios::binary};
     if (!ifs) {
@@ -270,9 +271,13 @@ auto client() -> asio::awaitable<void> {
 }
 
 auto main() -> int {
-    auto io = asio::io_context{};
-    auto guard = asio::make_work_guard(io);
-    asio::co_spawn(io, client(), asio::detached);
-    io.run();
+    try {
+        auto io = asio::io_context{};
+        auto guard = asio::make_work_guard(io);
+        asio::co_spawn(io, client(), asio::detached);
+        io.run();
+    } catch (...) {
+        g_log->log_fatal("error");
+    }
     return 0;
 }
