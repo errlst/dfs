@@ -1,0 +1,21 @@
+```shell
+xmake r master
+```
+
+```shell
+xmake r storage
+```
+
+```shell
+xmake r client
+
+:upload bigfile
+
+:upload bigfile
+```
+
+第二次 upload 稳定触发 segfault
+
+有些情况 storage 也会 c 触发 segfault
+
+但 master 稳定运行
