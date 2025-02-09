@@ -11,7 +11,7 @@ struct acceptor_conf_t {
 
 class acceptor_t {
   public:
-    acceptor_t(const asio::any_io_executor &io, acceptor_conf_t conf);
+    acceptor_t(asio::io_context &io, acceptor_conf_t conf);
 
     /* 返回建立心跳的 connection */
     auto accept() -> asio::awaitable<std::shared_ptr<connection_t>>;

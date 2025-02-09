@@ -105,4 +105,4 @@ auto regist_to_master() -> asio::awaitable<bool>;
 
 /* protocol 处理函数 */
 auto ms_fs_free_size_handle(std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void>;
-auto recv_from_master() -> asio::awaitable<void>;
+auto recv_from_master(asio::io_context &io) -> asio::awaitable<void>;

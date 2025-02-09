@@ -76,7 +76,7 @@ auto store_ctx_t::write_file(uint64_t file_id, std::span<uint8_t> data) -> bool 
       g_log->log_error(std::format("write file: {} failed", absolute_path(rel_path)));
       return false;
     }
-    g_log->log_debug(std::format("write file: {}, size: {} suc", absolute_path(rel_path), data.size()));
+    // g_log->log_debug(std::format("write file: {}, size: {} suc", absolute_path(rel_path), data.size()));
     return true;
   }
   return false;

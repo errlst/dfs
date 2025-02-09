@@ -41,9 +41,13 @@ auto main(int argc, char *argv[]) -> int {
   init_conf("/home/jin/project/dfs/conf/master.conf.json");
   init_log();
 
-  auto loop = loop_t{};
-  loop.regist_service(master_service);
-  loop.run();
+  asio::co_spawn(*g_io_ctx, master_service(), asio::detached);
+  auto guard = asio::make_work_guard(*g_io_ctx);
+  g_io_ctx->run();
+
+  // auto loop = loop_t{};
+  // loop.regist_service(master_service);
+  // loop.run();
 
   return 0;
 }

@@ -1,34 +1,66 @@
 #include "./storage_service_global.h"
 
-static auto work_as_server() -> asio::awaitable<void> {
-  /* start acceptor */
-  auto acceptor = acceptor_t{co_await asio::this_coro::executor,
-                             acceptor_conf_t{
-                                 .ip = conf.ip,
-                                 .port = conf.port,
-                                 .heart_timeout = conf.heart_timeout,
-                                 .heart_interval = conf.heart_interval,
-                                 .log = g_log,
-                             }};
-  g_log->log_info(std::format("storage service listen on {}", acceptor.to_string()));
-
-  /* create executors */
+static auto work_as_server() -> void {
   for (auto i = 0; i < conf.thread_count; ++i) {
-    ss_ios.push_back(std::make_shared<asio::io_context>());
-    ss_ios_guard.push_back(asio::make_work_guard(*ss_ios.back()));
-    std::thread{[i] {
-      ss_ios[i]->run();
+    auto io = std::make_shared<asio::io_context>();
+    asio::co_spawn(*io, [=] -> asio::awaitable<void> {
+      // g_log->log_info(std::format("io start {}", (void*)io.get()));
+      auto acceptor = std::make_shared< acceptor_t>(*io, acceptor_conf_t{
+                                         .ip = conf.ip,
+                                         .port = conf.port,
+                                         .heart_timeout = conf.heart_timeout,
+                                         .heart_interval = conf.heart_interval,
+                                         .log = g_log});
+      g_log->log_info(std::format("storage service start on {} {}", acceptor->to_string(), (void*)io.get()));
+
+      while(true){
+        auto conn = co_await acceptor->accept();
+        conn->start(*io);
+        // asio::co_spawn(*io, conn->start(), asio::detached);
+        asio::co_spawn(*io, recv_from_client(conn), asio::detached);
+      } }, asio::detached);
+    std::thread{[io] {
+      auto guard = asio::make_work_guard(*io);
+      // g_log->log_debug(std::format("run io {}", (void *)io.get()));
+      io->run();
     }}.detach();
   }
 
-  /* dispatch connection to executor */
-  auto idx = 0ull;
-  while (true) {
-    auto conn = co_await acceptor.accept();
-    auto io = ss_ios[idx++ % ss_ios.size()];
-    asio::co_spawn(*io, conn->start(), asio::detached);
-    asio::co_spawn(*io, recv_from_client(conn), asio::detached);
-  }
+  auto io=std::make_shared<asio::io_context>();
+  std::thread{[io]{
+    auto gurad = asio::make_work_guard(*io);
+    asio::co_spawn(*io, recv_from_master(*io), asio::detached);
+    io->run();
+  }}.detach();
+
+  /* start acceptor */
+  // auto acceptor = acceptor_t{co_await asio::this_coro::executor,
+  //                            acceptor_conf_t{
+  //                                .ip = conf.ip,
+  //                                .port = conf.port,
+  //                                .heart_timeout = conf.heart_timeout,
+  //                                .heart_interval = conf.heart_interval,
+  //                                .log = g_log,
+  //                            }};
+  // g_log->log_info(std::format("storage service listen on {}", acceptor.to_string()));
+
+  // /* create executors */
+  // for (auto i = 0; i < conf.thread_count; ++i) {
+  //   ss_ios.push_back(std::make_shared<asio::io_context>());
+  //   std::thread{[i] {
+  //     auto guard = asio::make_work_guard(*ss_ios[i]);
+  //     ss_ios[i]->run();
+  //   }}.detach();
+  // }
+
+  // /* dispatch connection to executor */
+  // auto idx = 0ull;
+  // while (true) {
+  //   auto conn = co_await acceptor.accept();
+  //   auto io = ss_ios[(idx++) % ss_ios.size()];
+  //   asio::co_spawn(*io, conn->start(), asio::detached);
+  //   asio::co_spawn(*io, recv_from_client(conn), asio::detached);
+  // }
 }
 
 static auto init_conf() -> void {
@@ -61,8 +93,9 @@ auto storage_service() -> asio::awaitable<void> {
   g_log->log_info("storage service start");
   init_conf();
   init_stores();
-  asio::co_spawn(co_await asio::this_coro::executor, work_as_server(), asio::detached);
-  asio::co_spawn(co_await asio::this_coro::executor, recv_from_master(), asio::detached);
-  asio::co_spawn(co_await asio::this_coro::executor, sync_upload_files(), asio::detached);
+  // asio::co_spawn(co_await asio::this_coro::executor, work_as_server(), asio::detached);
+  work_as_server();
+  // asio::co_spawn(co_await asio::this_coro::executor, recv_from_master(), asio::detached);
+  // asio::co_spawn(co_await asio::this_coro::executor, sync_upload_files(), asio::detached);
   co_return;
 }

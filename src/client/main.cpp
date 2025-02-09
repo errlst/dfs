@@ -6,18 +6,18 @@
 
 auto g_log = std::make_shared<log_t>("./log", log_level_e::debug, false);
 auto g_conn = std::shared_ptr<connection_t>{};
+auto io = std::make_shared<asio::io_context>();
 
-auto upload_fille(std::string_view path) -> asio::awaitable<void> {
+auto upload_file(std::string_view path) -> asio::awaitable<void> {
   /* get file size */
   auto ifs = std::ifstream{std::string{path}, std::ios::binary};
   if (!ifs) {
     g_log->log_error(std::format("failed to open file {}", path));
     co_return;
   }
-
-
-  auto file_size = std::filesystem::file_size(path);
-  g_log->log_debug(std::format("upload file size : {}", file_size));
+  ifs.seekg(0, std::ios::end);
+  auto size = ifs.tellg();
+  ifs.seekg(0, std::ios::beg);
 
   /* request */
   auto req_frame = (proto_frame_t *)malloc(sizeof(proto_frame_t) + sizeof(uint64_t));
@@ -25,7 +25,7 @@ auto upload_fille(std::string_view path) -> asio::awaitable<void> {
       .cmd = (uint8_t)proto_cmd_e::cm_valid_storage,
       .data_len = sizeof(uint64_t),
   };
-  *((uint64_t *)req_frame->data) = file_size;
+  *((uint64_t *)req_frame->data) = size;
   auto id = co_await g_conn->send_req_frame(std::shared_ptr<proto_frame_t>{req_frame, [](auto p) { free(p); }});
   if (!id) {
     g_log->log_error("failed to send cm_valid_storage request");
@@ -50,7 +50,7 @@ auto upload_fille(std::string_view path) -> asio::awaitable<void> {
   g_log->log_info(std::format("get valid storage {}:{} {}", res_data.storage_ip(), res_data.storage_port(), res_data.storage_magic()));
 
   /* connect to storage */
-  auto storage_conn = co_await connection_t::connect_to(res_data.storage_ip(), res_data.storage_port(), g_log);
+  auto storage_conn = co_await connection_t::connect_to(*io,res_data.storage_ip(), res_data.storage_port(), g_log);
   if (!storage_conn) {
     g_log->log_error(std::format("failed to connect to storage {}:{} {}", res_data.storage_ip(), res_data.storage_port(), res_data.storage_magic()));
     co_return;
@@ -63,7 +63,7 @@ auto upload_fille(std::string_view path) -> asio::awaitable<void> {
       .cmd = (uint8_t)proto_cmd_e::cs_create_file,
       .data_len = sizeof(uint64_t),
   };
-  *((uint64_t *)req_frame->data) = file_size;
+  *((uint64_t *)req_frame->data) = size;
   id = co_await storage_conn->send_req_frame(std::shared_ptr<proto_frame_t>{req_frame, [](auto p) { free(p); }});
   if (!id) {
     g_log->log_error("failed to send cs_create_file request");
@@ -173,7 +173,7 @@ auto download_file(std::string_view src, std::string_view dst) -> asio::awaitabl
   /* 遍历 storage 获取有效的 connection */
   auto storage_conn = std::shared_ptr<connection_t>{};
   for (const auto &s_info : res_data.storages()) {
-    storage_conn = co_await connection_t::connect_to(s_info.ip(), s_info.port(), g_log);
+    storage_conn = co_await connection_t::connect_to(*io,s_info.ip(), s_info.port(), g_log);
     if (!storage_conn) {
       g_log->log_error(std::format("failed to connect to storage {}:{}", s_info.ip(), s_info.port()));
       continue;
@@ -208,6 +208,7 @@ auto download_file(std::string_view src, std::string_view dst) -> asio::awaitabl
   }
 
   if (!storage_conn) {
+    g_log->log_warn("no valid storage");
     co_return;
   }
 
@@ -248,32 +249,37 @@ auto download_file(std::string_view src, std::string_view dst) -> asio::awaitabl
 }
 
 auto client() -> asio::awaitable<void> {
-  g_conn = co_await connection_t::connect_to("127.0.0.1", 8888, g_log);
+  g_conn = co_await connection_t::connect_to(*io, "127.0.0.1", 8888, g_log);
   if (!g_conn) {
     g_log->log_error("failed to connect to master");
     co_return;
   }
-
-  auto cmd = std::string{};
-  while (true) {
-    std::cout << ": " << std::flush;
-    std::cin >> cmd;
-    if (cmd == "upload") {
-      std::string path;
-      std::cin >> path;
-      co_await upload_fille(path);
-    } else if (cmd == "download") {
-      std::string src, dst;
-      std::cin >> src >> dst;
-      co_await download_file(src, dst);
-    }
-  }
+  g_log->log_info("connect to master");
 }
 
 auto main() -> int {
-  auto io = asio::io_context{};
-  auto guard = asio::make_work_guard(io);
-  asio::co_spawn(io, client(), asio::detached);
-  io.run();
+  asio::co_spawn(*io, client(), asio::detached);
+  std::thread{[&] {
+    auto guard = asio::make_work_guard(io);
+    io->run();
+  }}.detach();
+
+  auto cmd = std::string{};
+  while (true) {
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    asio::co_spawn(*io, upload_file("bigfile"),asio::detached);
+    // std::cout << ": " << std::flush;
+    // std::cin >> cmd;
+    // if (cmd == "upload") {
+    //   std::string path;
+    //   std::cin >> path;
+    //   asio::co_spawn(*io, upload_file(path), asio::detached);
+    // } else if (cmd == "download") {
+    //   std::string src, dst;
+    //   std::cin >> src >> dst;
+    //   asio::co_spawn(*io, download_file(src, dst), asio::detached);
+    // }
+  }
+
   return 0;
 }

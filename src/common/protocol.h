@@ -1,8 +1,6 @@
 #pragma once
 #include <cstdint>
 
-constexpr uint16_t FRAME_MAGIC = 0x55aa;
-
 /*
     所有 cmd 为指定两方使用
         a all 任意两方
@@ -119,12 +117,13 @@ enum class proto_cmd_e : uint8_t {
 
 };
 
+constexpr uint16_t FRAME_MAGIC = 0x55aa;
+
 struct proto_frame_t {
-  uint32_t frame_magic : 16 = FRAME_MAGIC;
-  uint8_t id; // 同一个 cmd 的请求和响应的 id 一致
-  uint8_t cmd;
-  uint8_t stat = 0;           // 状态码
-  uint32_t data_len : 24 = 0; // data 的长度
+  uint16_t magic = FRAME_MAGIC;
+  uint16_t id;
+  uint16_t cmd;
+  uint16_t stat = 0;
+  uint32_t data_len;
   char data[0];
 };
-static_assert(sizeof(proto_frame_t) == 8);

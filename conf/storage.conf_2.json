@@ -18,7 +18,7 @@
     "port": 8890,
     "master_ip": "127.0.0.1",
     "master_port": 8888,
-    "thread_count": 2,
+    "thread_count": 10,
     "master_magic": 12345678,
     "sync_interval": 10, // 同步周期，单位为秒
     "hot_paths": ["/home/jin/project/dfs/build/base_path/storage/hot_2"],

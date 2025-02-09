@@ -7,10 +7,10 @@ auto on_master_disconnect() -> asio::awaitable<void> {
   co_return;
 }
 
-auto regist_to_master() -> asio::awaitable<bool> {
+auto regist_to_master(asio::io_context&io) -> asio::awaitable<bool> {
   /* connect to master */
   for (auto i = 1;; i *= 2) {
-    master_conn = co_await connection_t::connect_to(conf.master_ip, conf.master_port, g_log);
+    master_conn = co_await connection_t::connect_to(io, conf.master_ip, conf.master_port, g_log);
     if (!master_conn) {
       g_log->log_error(std::format("failed to connect to master {}:{}", conf.master_ip, conf.master_port));
       co_await co_sleep_for(std::chrono::seconds{i});
@@ -45,7 +45,7 @@ auto regist_to_master() -> asio::awaitable<bool> {
   /* wait regist response */
   auto res_frame = co_await master_conn->recv_res_frame(id.value());
   if (!res_frame || res_frame->cmd != (uint8_t)proto_cmd_e::sm_regist || res_frame->stat != 0) {
-    g_log->log_error(std::format("failed to regist to master {} {}", master_conn->to_string(), res_frame->stat));
+    g_log->log_error(std::format("failed to regist to master {}", master_conn->to_string()));
     co_return false;
   }
 
@@ -61,7 +61,7 @@ auto regist_to_master() -> asio::awaitable<bool> {
   /* regist to other storage */
   for (const auto &info : res_data.storage_info()) {
     /* connect to storage */
-    auto conn = co_await connection_t::connect_to(info.ip(), info.port(), g_log);
+    auto conn = co_await connection_t::connect_to(io,info.ip(), info.port(), g_log);
     if (!conn) {
       g_log->log_error(std::format("failed to connect to storage {}:{}", info.ip(), info.port()));
       continue;
@@ -124,9 +124,9 @@ std::map<proto_cmd_e, req_handle_t> master_req_handles{
     {(proto_cmd_e)proto_cmd_e::ms_fs_free_size, ms_fs_free_size_handle},
 };
 
-auto recv_from_master() -> asio::awaitable<void> {
+auto recv_from_master(asio::io_context &io) -> asio::awaitable<void> {
   /* regist to master first */
-  if (!co_await regist_to_master()) {
+  if (!co_await regist_to_master(io)) {
     if (master_conn) {
       master_conn->close();
       master_conn = nullptr;
