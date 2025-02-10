@@ -1,60 +1,65 @@
 #include "acceptor.h"
+#include "./log.h"
 
-acceptor_t::acceptor_t(asio::io_context &io, acceptor_conf_t conf)
-    : m_acceptor{io}, m_conf{conf} {
-  // m_conf.log->log_debug("acceptor create start");
+namespace common {
+
+acceptor::acceptor(asio::any_io_executor io, acceptor_conf conf)
+    : acceptor_{io}, conf_{conf} {
   auto ep = asio::ip::tcp::endpoint(asio::ip::make_address(conf.ip), conf.port);
-  m_acceptor.open(ep.protocol());
-  m_acceptor.set_option(asio::socket_base::reuse_address(true));
-  int reuseport = 1;
-  setsockopt(m_acceptor.native_handle(), SOL_SOCKET, SO_REUSEPORT, &reuseport, sizeof(reuseport));
-  m_acceptor.bind(ep);
-  m_acceptor.listen();
-  m_as_string = std::format("{}:{}", conf.ip, conf.port);
-  if (!m_acceptor.is_open()) {
-    m_conf.log->log_error("listen failed");
+  acceptor_.open(ep.protocol());
+  acceptor_.set_option(asio::socket_base::reuse_address(true));
+  acceptor_.bind(ep);
+  acceptor_.listen();
+  if (!acceptor_.is_open()) {
+    LOG_DEBUG(std::format("acceptor open failed"));
   }
-  // m_conf.log->log_debug("acceptr create suc");
+  LOG_DEBUG(std::format("acceptor open suc"));
 }
 
-auto acceptor_t::accept() -> asio::awaitable<std::shared_ptr<connection_t>> {
+auto acceptor::accept() -> asio::awaitable<std::shared_ptr<connection>> {
   while (true) {
-    /* recv connection */
-    auto [ec, sock] = co_await m_acceptor.async_accept(asio::as_tuple(asio::use_awaitable));
+    auto sock = asio::ip::tcp::socket{co_await asio::this_coro::executor};
+    auto [ec] = co_await acceptor_.async_accept(sock, asio::as_tuple(asio::use_awaitable));
     if (ec) {
-      m_conf.log->log_error(std::format("{} accept error {}", to_string(), ec.message()));
+      LOG_DEBUG(std::format("acceptor accept failed, {}", ec.message()));
       continue;
     }
 
-    /* 发送心跳建立请求 */
-    char req_data[sizeof(proto_frame_t) + 8];
-    auto req_frame = (proto_frame_t *)req_data;
+    /* 建立心跳 */
+    char request_to_send[sizeof(proto_frame) + sizeof(xx_heart_establish_request)];
+    auto req_frame = (proto_frame *)request_to_send;
     *req_frame = {
-        .cmd = (uint8_t)proto_cmd_e::a_establish_heart,
-        .data_len = 8,
+        .cmd = (uint16_t)proto_cmd::xx_heart_establish,
+        .type = REQUEST_FRAME,
+        .data_len = sizeof(xx_heart_establish_request),
     };
-    *(uint32_t *)req_frame->data = m_conf.heart_timeout;
-    *(uint32_t *)(req_frame->data + 4) = m_conf.heart_interval;
-    auto [ec2, n] = co_await sock.async_write_some(asio::const_buffer(req_data, sizeof(req_data)), asio::as_tuple(asio::use_awaitable));
-    if (ec2 || n != sizeof(proto_frame_t) + 8) {
-      m_conf.log->log_error(std::format("{} send establish heart error {}", to_string(), ec2.message()));
+    trans_frame_to_net(req_frame);
+    *(xx_heart_establish_request *)req_frame->data = {
+        .timeout = htonl(conf_.h_timeout),
+        .interval = htonl(conf_.h_interval),
+    };
+    auto [ec_1, n_1] = co_await asio::async_write(sock, asio::const_buffer(request_to_send, sizeof(request_to_send)), asio::as_tuple(asio::use_awaitable));
+    if (ec_1 || n_1 != sizeof(request_to_send)) {
+      LOG_DEBUG(std::format("acceptor send establish heart failed, {} {}", ec_1.message(), n_1));
       sock.close();
       continue;
     }
 
-    /* 等待心跳建立响应 */
-    auto res_frame = proto_frame_t{};
-    auto [ec3, n3] = co_await sock.async_read_some(asio::mutable_buffer{&res_frame, sizeof(res_frame)}, asio::as_tuple(asio::use_awaitable));
-    if (ec3 || n3 != sizeof(res_frame) || res_frame.magic != FRAME_MAGIC || res_frame.cmd != (uint8_t)proto_cmd_e::a_establish_heart || res_frame.stat != 0) {
-      m_conf.log->log_error(std::format("{} recv establish heart error {}", to_string(), ec3.message()));
+    auto response_recved = proto_frame{};
+    auto [ec_2, n_2] = co_await asio::async_read(sock, asio::mutable_buffer{&response_recved, sizeof(response_recved)}, asio::as_tuple(asio::use_awaitable));
+    trans_frame_to_host(&response_recved);
+    if (ec_2 || n_2 != sizeof(response_recved) || response_recved.magic != FRAME_MAGIC || response_recved.cmd != (uint16_t)proto_cmd::xx_heart_establish || response_recved.stat != 0 || response_recved.data_len != 0) {
+      LOG_DEBUG(std::format("acceptor recv establish heart failed, {} {}", ec_2.message(), n_2));
       sock.close();
       continue;
     }
 
-    auto conn = std::make_shared<connection_t>(std::move(sock), m_conf.log);
-    conn->m_heart_timeout = m_conf.heart_timeout;
-    conn->m_heart_interval = m_conf.heart_interval;
-    m_conf.log->log_info(std::format("{} accept connection {} ", to_string(), conn->to_string()));
+    LOG_DEBUG(std::format("recv new connection"));
+    auto conn = std::make_shared<connection>(std::move(sock));
+    conn->h_timeout_ = conf_.h_timeout;
+    conn->h_interval_ = conf_.h_interval;
     co_return conn;
   }
 }
+
+} // namespace common

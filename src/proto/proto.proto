@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package proto;
+
+message storage_info {
+  uint32 id = 1;
+  uint32 magic = 2;
+  uint32 port = 3;
+  string ip = 4;
+}
+
+message sm_regist_request {
+  uint32 master_magic = 1;
+  storage_info s_info = 2;
+}
+
+message sm_regist_response {
+  repeated storage_info s_infos = 1;
+}

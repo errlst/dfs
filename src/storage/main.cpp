@@ -20,22 +20,22 @@ auto init_conf(std::string_view file) -> void {
     exit(-1);
   }
 
-  g_conf = nlohmann::json::parse(ifs, nullptr, false, true); // 允许 json 注释
-  if (g_conf.empty()) {
+  g_s_conf = nlohmann::json::parse(ifs, nullptr, false, true); // 允许 json 注释
+  if (g_s_conf.empty()) {
     std::println("failed to parse configure {}", file);
     exit(-1);
   }
 
-  check_directory(g_conf["common"]["base_path"].get<std::string>());
+  check_directory(g_s_conf["common"]["base_path"].get<std::string>());
 }
 
 auto init_log() -> void {
-  auto base_path = g_conf["common"]["base_path"].get<std::string>();
+  auto base_path = g_s_conf["common"]["base_path"].get<std::string>();
   check_directory(std::format("{}/{}", base_path, "log"));
 
   auto path = std::format("{}/{}", base_path, "log/master.log");
-  auto level = g_conf["common"]["log_level"].get<uint8_t>();
-  g_log = std::make_shared<log_t>(path, static_cast<log_level_e>(level), false);
+  auto level = g_s_conf["common"]["log_level"].get<uint8_t>();
+  g_s_log = std::make_shared<log_t>(path, static_cast<log_level_e>(level), false);
 }
 
 auto main(int argc, char *argv[]) -> int {
@@ -60,10 +60,15 @@ auto main(int argc, char *argv[]) -> int {
   init_conf(conf_file);
   init_log();
 
-  auto loop = loop_t{};
-  loop.regist_service(monitor_service);
-  loop.regist_service(storage_service);
-  loop.run();
+  // asio::co_spawn(*g_s_io_ctx, monitor_service(), asio::detached);
+  asio::co_spawn(*g_s_io_ctx, storage_service(), asio::detached);
+  auto guard = asio::make_work_guard(g_s_io_ctx);
+  g_s_io_ctx->run();
+
+  // auto loop = loop_t{};
+  // loop.regist_service(monitor_service);
+  // loop.regist_service(storage_service);
+  // loop.run();
 
   return 0;
 }

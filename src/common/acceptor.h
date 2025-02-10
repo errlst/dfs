@@ -1,25 +1,23 @@
 #pragma once
 #include "connection.h"
 
-struct acceptor_conf_t {
-    std::string ip;
-    uint16_t port;
-    uint32_t heart_timeout;
-    uint32_t heart_interval;
-    std::shared_ptr<log_t> log;
+namespace common {
+struct acceptor_conf {
+  std::string ip;
+  uint16_t port;
+  uint32_t h_timeout;
+  uint32_t h_interval;
 };
 
-class acceptor_t {
-  public:
-    acceptor_t(asio::io_context &io, acceptor_conf_t conf);
+class acceptor {
+public:
+  acceptor(asio::any_io_executor, acceptor_conf conf);
 
-    /* 返回建立心跳的 connection */
-    auto accept() -> asio::awaitable<std::shared_ptr<connection_t>>;
+  /* 返回建立心跳的 connection */
+  auto accept() -> asio::awaitable<std::shared_ptr<connection>>;
 
-    auto to_string() -> std::string { return m_as_string; }
-
-  private:
-    asio::ip::tcp::acceptor m_acceptor;
-    acceptor_conf_t m_conf;
-    std::string m_as_string;
+private:
+  asio::ip::tcp::acceptor acceptor_;
+  acceptor_conf conf_;
 };
+} // namespace common
