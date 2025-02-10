@@ -6,7 +6,11 @@
 #include <print>
 #include <source_location>
 
+#ifdef LOG_NO_DEBUG
+#define LOG_DEBUG(msg)
+#else
 #define LOG_DEBUG(msg) std::println("\033[34m [{}:{}]\033[0m {}", __FILE__, __LINE__, msg)
+#endif
 #define LOG_INFO(msg) std::println("\033[32m [{}:{}]\033[0m {}", __FILE__, __LINE__, msg)
 #define LOG_ERROR(msg) std::println("\033[31m [{}:{}]\033[0m] {}", __FILE__, __LINE__, msg)
 

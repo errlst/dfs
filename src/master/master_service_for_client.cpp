@@ -104,19 +104,19 @@ std::map<uint16_t, request_handle> client_req_handles{
 //   }
 // }
 
-auto on_client_disconnect(std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
-  co_return;
-}
+// auto on_client_disconnect(std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
+//   co_return;
+// }
 
-auto recv_from_client(REQUEST_HANDLE_PARAM) -> asio::awaitable<void> {
-  if (request_recved->cmd == (uint16_t)common::proto_cmd::sm_regist) {
-    co_await sm_regist_handle(request_recved, conn);
-    co_return;
-  }
+// auto recv_from_client(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void> {
+//   if (request_recved->cmd == (uint16_t)common::proto_cmd::sm_regist) {
+//     co_await sm_regist_handle(request_recved, conn);
+//     co_return;
+//   }
 
-  if (client_req_handles.contains(request_recved->cmd)) {
-    co_await client_req_handles[request_recved->cmd](request_recved, conn);
-  } else {
-    LOG_ERROR(std::format("unhandled request {}", request_recved->cmd));
-  }
-}
+//   if (client_req_handles.contains(request_recved->cmd)) {
+//     co_await client_req_handles[request_recved->cmd](request_recved, conn);
+//   } else {
+//     LOG_ERROR(std::format("unhandled request {}", request_recved->cmd));
+//   }
+// }

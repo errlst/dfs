@@ -82,7 +82,7 @@ auto store_ctx_t::write_file(uint64_t file_id, std::span<uint8_t> data) -> bool 
   return false;
 }
 
-auto store_ctx_t::close_file(uint64_t file_id, const std::string &filename) -> std::optional<std::string> {
+auto store_ctx_t::close_file(uint64_t file_id, std::string_view filename) -> std::optional<std::string> {
   if (auto res = get_ofstream(file_id); res.has_value()) {
     m_files.erase(file_id);
     const auto &[old_rel_path, ofs] = res.value();
@@ -166,6 +166,14 @@ auto store_ctx_t::read_file(uint64_t file_id, uint64_t size) -> std::optional<st
     return data;
   }
   return std::nullopt;
+}
+
+auto store_ctx_t::free_space() -> uint64_t {
+  struct statvfs stat;
+  if (statvfs(m_base_path.data(), &stat) != 0) {
+    return 0;
+  }
+  return stat.f_bavail * stat.f_bsize;
 }
 
 auto store_ctx_t::base_path() -> std::string {
@@ -258,7 +266,7 @@ auto store_ctx_group_t::write_file(uint64_t file_id, std::span<uint8_t> data) ->
   return false;
 }
 
-auto store_ctx_group_t::close_file(uint64_t file_id, const std::string &filename) -> std::optional<std::string> {
+auto store_ctx_group_t::close_file(uint64_t file_id, std::string_view filename) -> std::optional<std::string> {
   if (auto idx = map_to_store_idx(file_id); idx.has_value()) {
     m_store_idx_map.erase(file_id);
     return m_stores[idx.value()].close_file(file_id, filename);
@@ -299,6 +307,14 @@ auto store_ctx_group_t::read_file(uint64_t file_id, uint64_t size) -> std::optio
     return m_stores[idx.value()].read_file(file_id, size);
   }
   return std::nullopt;
+}
+
+auto store_ctx_group_t::max_free_space() -> uint64_t {
+  auto res = 0ul;
+  for (auto &stores : m_stores) {
+    res = std::max(res, stores.free_space());
+  }
+  return res;
 }
 
 auto store_ctx_group_t::valid() -> bool {

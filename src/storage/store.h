@@ -24,13 +24,15 @@ public:
   auto write_file(uint64_t file_id, std::span<uint8_t> data) -> bool;
 
   /* 返回最后的相对路径 */
-  auto close_file(uint64_t file_id, const std::string &filename) -> std::optional<std::string>;
+  auto close_file(uint64_t file_id, std::string_view filename) -> std::optional<std::string>;
   auto close_file(uint64_t file_id) -> bool;
 
   auto open_file(uint64_t file_id, const std::string &filepath) -> std::optional<uint64_t>;
 
   auto read_file(uint64_t file_id, uint64_t offset, uint64_t size) -> std::optional<std::vector<uint8_t>>;
   auto read_file(uint64_t file_id, uint64_t size) -> std::optional<std::vector<uint8_t>>;
+
+  auto free_space() -> uint64_t;
 
   auto base_path() -> std::string;
 
@@ -68,7 +70,7 @@ public:
   auto write_file(uint64_t file_id, std::span<uint8_t> data) -> bool;
 
   // 返回：relpath
-  auto close_file(uint64_t file_id, const std::string &filename) -> std::optional<std::string>;
+  auto close_file(uint64_t file_id, std::string_view filename) -> std::optional<std::string>;
   auto close_file(uint64_t file_id) -> bool;
 
   // 打开文件之后可以读取文件内容
@@ -77,6 +79,9 @@ public:
 
   auto read_file(uint64_t file_id, uint64_t offset, uint64_t size) -> std::optional<std::vector<uint8_t>>;
   auto read_file(uint64_t file_id, uint64_t size) -> std::optional<std::vector<uint8_t>>;
+
+  /* 最大空闲空间 */
+  auto max_free_space() -> uint64_t;
 
   auto next_path() -> std::string;
 

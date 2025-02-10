@@ -1,34 +1,54 @@
 #include "./master_service_global.h"
 
-static auto recv_from_connection(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
-  LOG_DEBUG(std::format("recv from connection"));
+static auto request_handles_for_client = std::map<uint16_t, request_handle>{
+    {common::sm_regist, sm_regist_handle},
+    {common::cm_fetch_one_storage, cm_fetch_one_storage_handle},
+};
 
-  /* 断连 */
+static auto request_from_client(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
+  LOG_INFO(std::format("recv from client"));
+  auto it = request_handles_for_client.find(request->cmd);
+  if (it != request_handles_for_client.end()) {
+    co_return co_await it->second(request, conn);
+  }
+  LOG_ERROR(std::format("unhandled cmd for client {}", request->cmd));
+}
+
+static auto client_disconnect(std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
+  LOG_INFO(std::format("client disconnect"));
+  co_return;
+}
+
+static auto request_from_storage(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
+  LOG_INFO(std::format("recv from storage"));
+
+  co_return;
+}
+
+static auto storage_disconnect(std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
+  LOG_INFO(std::format("storage disconnect"));
+  co_return;
+}
+
+static auto request_from_connection(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
   if (request == nullptr) {
-    LOG_ERROR(std::format("connection disconnect"));
-    if (conn->get_data<uint8_t>(conn_data::type).value() == conn_type_client) {
-      // co_await on_client_disconnect(conn);
-    } else {
-      // co_await on_storage_disconnect(conn);
+    switch (conn->get_data<uint8_t>(conn_data::type).value()) {
+      case CONN_TYPE_CLIENT:
+        co_return co_await client_disconnect(conn);
+      case CONN_TYPE_STORAGE:
+        co_return co_await storage_disconnect(conn);
     }
     co_return;
   }
 
-  /* 请求 */
-  if (conn->get_data<uint8_t>(conn_data::type).value() == conn_type_client) {
-    co_await recv_from_client(request, conn);
-  } else {
-    co_await recv_from_storage(request, conn);
+  switch (conn->get_data<uint8_t>(conn_data::type).value()) {
+    case CONN_TYPE_CLIENT:
+      co_return co_await request_from_client(request, conn);
+    case CONN_TYPE_STORAGE:
+      co_return co_await request_from_storage(request, conn);
   }
+  co_return;
 }
-
-// static auto connection_disconnect(std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
-//   if (conn->get_data<uint8_t>(conn_data::type).value() == 0) {
-//     co_await on_client_disconnect(conn);
-//   } else {
-//     co_await on_storage_disconnect(conn);
-//   }
-// }
 
 static auto master() -> asio::awaitable<void> {
   auto acceptor = common::acceptor{co_await asio::this_coro::executor,
@@ -49,73 +69,10 @@ static auto master() -> asio::awaitable<void> {
   while (true) {
     auto conn = co_await acceptor.accept();
     conn->set_data<uint8_t>(conn_data::type, 0);
-    conn->start(recv_from_connection);
+    conn->start(request_from_connection);
     auto lock = std::unique_lock{client_conns_mut};
     client_conns.emplace(conn);
   }
-
-  /* start accept */
-  // auto acceptor = std::make_shared<acceptor_t>(co_await asio::this_coro::executor, acceptor_conf_t{
-  //                                                                                          .ip = conf.ip,
-  //                                                                                          .port = conf.port,
-  //                                                                                          .heart_timeout = conf.heart_timeout,
-  //                                                                                          .heart_interval = conf.heart_interval,
-  //                                                                                          .log = g_log});
-  // for (auto i = 0; i < conf.thread_count; ++i) {
-  //   auto io = std::make_shared<asio::io_context>();
-  //   asio::co_spawn(*io, [=] -> asio::awaitable<void> {
-  //     // g_log->log_info(std::format("io start {}", (void*)io.get()));
-  //     auto acceptor = std::make_shared< acceptor_t>(*io, acceptor_conf_t{
-  //                                        .ip = conf.ip,
-  //                                        .port = conf.port,
-  //                                        .heart_timeout = conf.heart_timeout,
-  //                                        .heart_interval = conf.heart_interval,
-  //                                        .log = g_log});
-  //     g_log->log_info(std::format("master service start on {} {}", acceptor->to_string(), (void*)io.get()));
-
-  //     while(true){
-  //       auto conn = co_await acceptor->accept();
-  //       conn->start(*io);
-  //       // asio::co_spawn(*io, conn->start(), asio::detached);
-  //       asio::co_spawn(*io, recv_from_client(conn), asio::detached);
-  //     } }, asio::detached);
-  //   std::thread{
-  //       [io] {
-  //         auto guard = asio::make_work_guard(*io);
-  //         // g_log->log_debug(std::format("run io {}", (void *)io.get()));
-  //         io->run();
-  //       }}
-  //       .detach();
-  // }
-  // co_return;
-
-  // auto acceptor = acceptor{*g_io_ctx, acceptor_conf_t{
-  //                                           .ip = conf.ip,
-  //                                           .port = conf.port,
-  //                                           .heart_timeout = conf.heart_timeout,
-  //                                           .heart_interval = conf.heart_interval,
-  //                                           .log = g_log}};
-  // g_m_log->log_info(std::format("master service start on {}", acceptor.to_string()));
-
-  // /* create conn io */
-  // // for (auto i = 0; i < conf.thread_count; ++i) {
-  // // ms_ios.push_back(std::make_shared<asio::io_context>());
-  // //   // ms_ios_guard.push_back(asio::make_work_guard(*ms_ios[i]));
-  // //   std::thread{[i] {
-  // //     auto guard = asio::make_work_guard(*ms_ios[i]);
-  // //     ms_ios[i]->run();
-  // //   }}.detach();
-  // // }
-
-  // // /* dispatch conn to io */
-  // // static auto idx = 0ull;
-  // while (true) {
-  //   auto conn = co_await acceptor.accept();
-  //   // auto io = ms_ios[idx++ % ms_ios.size()];
-  //   conn->start(*m_io_ctx);
-  //   // asio::co_spawn(*g_io_ctx, conn->start(), asio::detached);
-  //   asio::co_spawn(*m_io_ctx, recv_from_client(conn), asio::detached);
-  // }
 }
 
 static auto init_conf() -> void {

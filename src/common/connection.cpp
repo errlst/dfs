@@ -25,7 +25,7 @@ auto connection::close() -> asio::awaitable<void> {
   if (closed_) {
     co_return;
   }
-  LOG_DEBUG(std::format("close"));
+  // LOG_DEBUG(std::format("close"));
   closed_ = true;
   for (auto &_ : res_frames_) {
     _.second.second->cancel();
@@ -66,6 +66,9 @@ auto connection::send_request(proto_frame *frame) -> asio::awaitable<std::option
     co_await close();
     co_return std::nullopt;
   }
+  if (frame->magic != 0x55aa) {
+    LOG_DEBUG("");
+  }
   LOG_DEBUG(std::format(R"(send request : {{
     magic: {:x},
     id: {},
@@ -75,6 +78,32 @@ auto connection::send_request(proto_frame *frame) -> asio::awaitable<std::option
     data_len: {}
   }})",
                         untransed_frame.magic, untransed_frame.id, untransed_frame.cmd, untransed_frame.type, untransed_frame.stat, frame_len - sizeof(proto_frame)));
+
+  co_return untransed_frame.id;
+}
+
+auto connection::send_request(proto_frame frame) -> asio::awaitable<std::optional<uint16_t>> {
+  co_await asio::post(strand_, asio::use_awaitable);
+  frame.id = request_frame_id_++;
+  frame.type = REQUEST_FRAME;
+  frame.data_len = 0;
+  auto untransed_frame = frame;
+  trans_frame_to_net(&frame);
+  auto [ec, n] = co_await asio::async_write(sock_, asio::const_buffer(&frame, sizeof(proto_frame)), asio::as_tuple(asio::use_awaitable));
+  if (n != sizeof(proto_frame)) {
+    LOG_DEBUG(std::format("send request failed {}", ec.message()));
+    co_await close();
+    co_return std::nullopt;
+  }
+  LOG_DEBUG(std::format(R"(send request : {{
+    magic: {:x},
+    id: {},
+    cmd: {},
+    type: {},
+    stat: {},
+    data_len: {}
+  }})",
+                        untransed_frame.magic, untransed_frame.id, untransed_frame.cmd, untransed_frame.type, untransed_frame.stat, 0));
 
   co_return untransed_frame.id;
 }
@@ -118,7 +147,7 @@ auto connection::send_response(proto_frame frame, std::shared_ptr<proto_frame> r
     co_await close();
     co_return false;
   }
-  LOG_DEBUG(std::format(R"(send request : {{
+  LOG_DEBUG(std::format(R"(send response : {{
     magic: {:x},
     id: {},
     cmd: {},
@@ -130,8 +159,16 @@ auto connection::send_response(proto_frame frame, std::shared_ptr<proto_frame> r
   co_return true;
 }
 
+auto connection::add_exetension_work(std::function<asio::awaitable<void>(std::shared_ptr<connection>)> work) -> void {
+  asio::co_spawn(strand_, work(shared_from_this()), asio::detached);
+}
+
 auto connection::ip() -> std::string {
   return sock_.remote_endpoint().address().to_string();
+}
+
+auto connection::port() -> uint16_t {
+  return sock_.remote_endpoint().port();
 }
 
 auto connection::connect_to(std::string_view ip, uint16_t port) -> asio::awaitable<std::shared_ptr<connection>> {

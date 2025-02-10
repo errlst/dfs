@@ -1,0 +1,101 @@
+#include "storage_service_global.h"
+
+auto ss_regist_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void> {
+  auto request_data_recved = proto::ss_regist_request{};
+  if (!request_data_recved.ParseFromArray(request_recved->data, request_recved->data_len)) {
+    LOG_ERROR(std::format("parse ss_regist_request failed"));
+    co_await conn->send_response(common::proto_frame{.stat = 1}, request_recved);
+    co_return;
+  }
+
+  if (request_data_recved.master_magic() != conf.master_magic ||
+      request_data_recved.storage_magic() != conf.storage_magic) {
+    LOG_ERROR(std::format("ss_regist request invalid magic, master: {}, storage: {}",
+                          request_data_recved.master_magic(), request_data_recved.storage_magic()));
+    co_await conn->send_response(common::proto_frame{.stat = 2}, request_recved);
+    co_return;
+  }
+
+  co_await conn->send_response(common::proto_frame{.stat = 0}, request_recved);
+  conn->set_data<uint8_t>(conn_data::type, CONN_TYPE_STORAGE);
+  auto lock = std::unique_lock{storage_conns_mut};
+  storage_conns.emplace(conn);
+  LOG_INFO(std::format("storage regist suc {}:{}", conn->ip(), conn->port()));
+  co_return;
+}
+
+auto ms_get_free_space_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void> {
+  auto response_to_send = (common::proto_frame *)malloc(sizeof(common::proto_frame) + sizeof(uint64_t));
+  *response_to_send = {.data_len = sizeof(uint64_t)};
+  *(uint64_t *)response_to_send->data = ntohll(hot_stores->max_free_space());
+  co_await conn->send_response(response_to_send, request_recved);
+}
+
+auto cs_upload_open_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void> {
+  if (request_recved->data_len != sizeof(uint64_t)) {
+    LOG_ERROR("cs_upload_open request data_len invalid");
+    co_await conn->send_response(common::proto_frame{.stat = 1}, request_recved);
+    co_return;
+  }
+
+  auto file_size = ntohll(*(uint64_t *)request_recved->data);
+  auto file_id = hot_stores->create_file(file_size);
+  if (!file_id) {
+    LOG_ERROR(std::format("create file failed for file_size {}", file_size));
+    co_await conn->send_response(common::proto_frame{.stat = 2}, request_recved);
+    co_return;
+  }
+
+  conn->set_data<uint64_t>(conn_data::client_upload_file_id, file_id.value());
+  co_await conn->send_response(common::proto_frame{.stat = 0}, request_recved);
+}
+
+auto cs_upload_append_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void> {
+  auto file_id = conn->get_data<uint64_t>(conn_data::client_upload_file_id);
+  if (!file_id) {
+    LOG_ERROR("client not request upload yield");
+    co_await conn->send_response(common::proto_frame{.stat = 1}, request_recved);
+    co_return;
+  }
+
+  if (request_recved->data_len == 0) {
+    LOG_ERROR(std::format("client cancel upload"));
+    co_await conn->send_response(common::proto_frame{.stat = 2}, request_recved);
+    conn->del_data(conn_data::client_upload_file_id);
+    co_return;
+  }
+
+  if (!hot_stores->write_file(file_id.value(), std::span{(uint8_t *)request_recved->data, request_recved->data_len})) {
+    LOG_ERROR("write file failed");
+    co_await conn->send_response(common::proto_frame{.stat = 3}, request_recved);
+    conn->del_data(conn_data::client_upload_file_id);
+    co_return;
+  }
+
+  co_await conn->send_response(common::proto_frame{.stat = 0}, request_recved);
+}
+
+auto cs_upload_close_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void> {
+  auto file_id = conn->get_data<uint64_t>(conn_data::client_upload_file_id);
+  if (!file_id) {
+    LOG_ERROR("client not request upload yield");
+    co_await conn->send_response(common::proto_frame{.stat = 1}, request_recved);
+    co_return;
+  }
+
+  /* 给文件名增加一个随机字符串后缀，降低冲突概率 */
+  auto file_path = hot_stores->close_file(file_id.value(), std::string_view{request_recved->data, request_recved->data_len});
+  if (!file_path) {
+    LOG_ERROR("close file failed");
+    co_await conn->send_response(common::proto_frame{.stat = 2}, request_recved);
+    conn->del_data(conn_data::client_upload_file_id);
+    co_return;
+  }
+
+  file_path = std::format("{}/{}", storage_group_id, file_path.value());
+  auto response_to_send = (common::proto_frame *)malloc(sizeof(common::proto_frame) + file_path->size());
+  *response_to_send = {.data_len = (uint32_t)file_path->size()};
+  std::copy(file_path->begin(), file_path->end(), response_to_send->data);
+  co_await conn->send_response(response_to_send, request_recved);
+  free(response_to_send);
+}

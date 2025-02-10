@@ -6,25 +6,27 @@
 #include "./global.h"
 #include "./storage_service.h"
 #include "./store.h"
+#include <arpa/inet.h>
 #include <queue>
 #include <set>
 
-using request_handle = std::function<asio::awaitable<void>(std::shared_ptr<common::connection>, std::shared_ptr<common::proto_frame>)>;
-#define REQ_HANDLE_PARAMS std::shared_ptr<connection_t> conn, std::shared_ptr<proto_frame_t> req_frame
+using request_handle = std::function<asio::awaitable<void>(std::shared_ptr<common::proto_frame>, std::shared_ptr<common::connection>)>;
+#define REQUEST_HANDLE_PARAMS std::shared_ptr<common::proto_frame> request_recved, std::shared_ptr<common::connection> conn
 
-constexpr auto conn_type_client = 0;
-constexpr auto conn_type_storage = 1;
-constexpr auto conn_type_master = 2;
+constexpr auto CONN_TYPE_CLIENT = 0;
+constexpr auto CONN_TYPE_STORAGE = 1;
+constexpr auto CONN_TYPE_MASTER = 2;
 
 enum conn_data : uint64_t {
-  type,
+  type,                  // uint8_t
+  client_upload_file_id, // uint64_t
 
-  /* client 数据 */
-  c_create_file_id,
-  c_open_file_id,
+  // /* client 数据 */
+  // c_create_file_id,
+  // c_open_file_id,
 
-  /* storage 数据 */
-  s_sync_upload_file_id,
+  // /* storage 数据 */
+  // s_sync_upload_file_id,
 
 };
 
@@ -74,6 +76,16 @@ extern uint32_t storage_group_id;
 // extern std::queue<std::string> unsync_uploaded_files;
 // auto sync_upload_files() -> asio::awaitable<void>;
 
+auto ss_regist_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;
+
+auto ms_get_free_space_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;
+
+auto cs_upload_open_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;
+
+auto cs_upload_append_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;
+
+auto cs_upload_close_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;
+
 // /* storage 断连 */
 // // auto ss_sync_upload_open_handle()
 // auto on_storage_disconnect(std::shared_ptr<connection> conn) -> asio::awaitable<void>;
@@ -93,7 +105,6 @@ extern uint32_t storage_group_id;
 // auto on_client_disconnect(std::shared_ptr<connection> conn) -> asio::awaitable<void>;
 
 // /* protcol 处理函数 */
-// auto ss_regist_handle(std::shared_ptr<connection> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void>;
 // auto cs_create_file_handle(std::shared_ptr<connection> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void>;
 // auto cs_upload_file_handle(std::shared_ptr<connection> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void>;
 // auto cs_close_file_handle(std::shared_ptr<connection> conn, std::shared_ptr<proto_frame_t> req_frame) -> asio::awaitable<void>;

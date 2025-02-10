@@ -39,68 +39,9 @@
 //     co_return;
 // }
 
-auto on_storage_disconnect(std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
-  co_return;
-}
 
-auto sm_regist_handle(REQUEST_HANDLE_PARAM) -> asio::awaitable<void> {
-  auto request_data = proto::sm_regist_request{};
-  if (!request_data.ParseFromArray(request_recved->data, request_recved->data_len)) {
-    LOG_ERROR(std::format("failed to parse sm_regist_request"));
-    co_await conn->send_response(common::proto_frame{.stat = 1}, request_recved);
-    co_return;
-  }
 
-  if (request_data.master_magic() != conf.master_magic) {
-    LOG_ERROR(std::format("invalid master magic {}", request_data.master_magic()));
-    co_await conn->send_response(common::proto_frame{.stat = 2}, request_recved);
-    co_return;
-  }
 
-  if (storage_registed(request_data.s_info().id())) {
-    LOG_ERROR(std::format("storage {} has registed", request_data.s_info().id()));
-    co_await conn->send_response(common::proto_frame{.stat = 3}, request_recved);
-    co_return;
-  }
-
-  LOG_INFO(std::format(R"(storage request regist{{
-  id: {},
-  magic: {},
-  ip: {},
-  port: {}, 
-}} )",
-                       request_data.s_info().id(), request_data.s_info().magic(), request_data.s_info().ip(), request_data.s_info().port()));
-
-  /* 响应同组 storage */
-  auto response_data_to_send = proto::sm_regist_response{};
-  for (auto storage : group_storages(storage_group(request_data.s_info().id()))) {
-    auto s_info = response_data_to_send.add_s_infos();
-    s_info->set_id(storage->get_data<uint32_t>(conn_data::storage_id).value());
-    s_info->set_magic(storage->get_data<uint32_t>(conn_data::storage_magic).value());
-    s_info->set_port(storage->get_data<uint16_t>(conn_data::storage_port).value());
-    s_info->set_ip(storage->get_data<std::string>(conn_data::storage_ip).value());
-  }
-  auto response_to_send = (common::proto_frame *)malloc(sizeof(common::proto_frame) + response_data_to_send.ByteSizeLong());
-  *response_to_send = {.data_len = (uint32_t)response_data_to_send.ByteSizeLong()};
-  response_data_to_send.SerializeToArray(response_to_send->data, response_to_send->data_len);
-  auto ok = co_await conn->send_response(response_to_send, request_recved);
-  free(response_to_send);
-  if (!ok) {
-    co_return;
-  }
-
-  /* 保存 storage 信息 */
-  conn->set_data<uint32_t>(conn_data::storage_id, request_data.s_info().id());
-  conn->set_data<uint32_t>(conn_data::storage_magic, request_data.s_info().magic());
-  conn->set_data<uint16_t>(conn_data::storage_port, request_data.s_info().port());
-  conn->set_data<std::string>(conn_data::storage_ip, request_data.s_info().ip());
-  conn->set_data<uint8_t>(conn_data::type, conn_type_storage);
-  regist_storage(request_data.s_info().id(), conn);
-}
-
-auto recv_from_storage(REQUEST_HANDLE_PARAM) -> asio::awaitable<void> {
-  co_return;
-}
 
 // std::map<uint8_t, req_handle_t> storage_req_handles{};
 

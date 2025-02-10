@@ -9,8 +9,8 @@
 #include <map>
 #include <set>
 
-constexpr auto conn_type_client = 0;
-constexpr auto conn_type_storage = 1;
+constexpr auto CONN_TYPE_CLIENT = 0;
+constexpr auto CONN_TYPE_STORAGE = 1;
 
 enum conn_data : uint64_t {
   type, // uint8
@@ -50,7 +50,7 @@ extern std::mutex client_conns_mut;
 extern std::set<std::shared_ptr<common::connection>> client_conns;
 
 using request_handle = std::function<asio::awaitable<void>(std::shared_ptr<common::proto_frame>, std::shared_ptr<common::connection>)>;
-#define REQUEST_HANDLE_PARAM std::shared_ptr<common::proto_frame> request_recved, std::shared_ptr<common::connection> conn
+#define REQUEST_HANDLE_PARAMS std::shared_ptr<common::proto_frame> request_recved, std::shared_ptr<common::connection> conn
 
 /*******************************************************************************/
 /*******************************************************************************/
@@ -77,31 +77,35 @@ auto next_storage() -> std::shared_ptr<common::connection>;
 /*******************************************************************************/
 /* 服务 client 相关函数 */
 
-extern std::map<uint16_t, request_handle> client_req_handles;
+auto sm_regist_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;
 
-// /* client 断连 */
-auto on_client_disconnect(std::shared_ptr<common::connection> conn) -> asio::awaitable<void>;
+auto cm_fetch_one_storage_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;
 
-// /* 请求处理函数 */
-// auto cm_valid_storage_handle(std::shared_ptr<common::connection> conn, std::shared_ptr<common::proto_frame> req_frame) -> asio::awaitable<void>;
-// auto cm_group_storages_handle(std::shared_ptr<common::connection> conn, std::shared_ptr<common::proto_frame> req_frame) -> asio::awaitable<void>;
+// extern std::map<uint16_t, request_handle> client_req_handles;
 
-/* */
-// auto recv_from_client(std::shared_ptr<common::connection> conn) -> asio::awaitable<void>;
+// // /* client 断连 */
+// auto on_client_disconnect(std::shared_ptr<common::connection> conn) -> asio::awaitable<void>;
 
-auto recv_from_client(REQUEST_HANDLE_PARAM) -> asio::awaitable<void>;
+// // /* 请求处理函数 */
+// // auto cm_valid_storage_handle(std::shared_ptr<common::connection> conn, std::shared_ptr<common::proto_frame> req_frame) -> asio::awaitable<void>;
+// // auto cm_group_storages_handle(std::shared_ptr<common::connection> conn, std::shared_ptr<common::proto_frame> req_frame) -> asio::awaitable<void>;
 
-/*******************************************************************************/
-/*******************************************************************************/
-/* 服务 storage 相关函数 */
+// /* */
+// // auto recv_from_client(std::shared_ptr<common::connection> conn) -> asio::awaitable<void>;
 
-extern std::map<uint16_t, request_handle> storage_req_handles;
+// // auto recv_from_client(REQUEST_HANDLE_PARAM) -> asio::awaitable<void>;
 
-/* storage 断连 */
-auto on_storage_disconnect(std::shared_ptr<common::connection> conn) -> asio::awaitable<void>;
+// /*******************************************************************************/
+// /*******************************************************************************/
+// /* 服务 storage 相关函数 */
 
-auto sm_regist_handle(REQUEST_HANDLE_PARAM) -> asio::awaitable<void>;
+// extern std::map<uint16_t, request_handle> storage_req_handles;
 
-// auto recv_from_storage(std::shared_ptr<common::connection> conn) -> asio::awaitable<void>;
+// /* storage 断连 */
+// auto on_storage_disconnect(std::shared_ptr<common::connection> conn) -> asio::awaitable<void>;
 
-auto recv_from_storage(REQUEST_HANDLE_PARAM) -> asio::awaitable<void>;
+// auto sm_regist_handle(REQUEST_HANDLE_PARAM) -> asio::awaitable<void>;
+
+// // auto recv_from_storage(std::shared_ptr<common::connection> conn) -> asio::awaitable<void>;
+
+// // auto recv_from_storage(REQUEST_HANDLE_PARAM) -> asio::awaitable<void>;

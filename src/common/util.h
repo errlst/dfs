@@ -12,3 +12,7 @@ auto fs_free_size(std::string_view path) -> std::tuple<uint64_t, uint64_t>;
 
 /* 随机字符串 */
 auto random_string(uint32_t len) -> std::string;
+
+/* 字节序转换 */
+auto htonll(uint64_t host_value) -> uint64_t;
+auto ntohll(uint64_t net_value) -> uint64_t;

@@ -1,8 +1,16 @@
 #include "./storage_service_global.h"
 
-static auto recv_from_master(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
+static auto request_handle_for_master = std::map<uint16_t, request_handle>{
+    {common::proto_cmd::ms_get_free_space, ms_get_free_space_handle},
+};
+
+static auto request_from_master(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
   LOG_INFO(std::format("recv from master"));
-  co_return;
+  auto it = request_handle_for_master.find(request->cmd);
+  if (it != request_handle_for_master.end()) {
+    co_return co_await it->second(request, conn);
+  }
+  LOG_ERROR(std::format("unhandled cmd for master {}", request->cmd));
 }
 
 static auto master_disconnect(std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
@@ -10,7 +18,7 @@ static auto master_disconnect(std::shared_ptr<common::connection> conn) -> asio:
   co_return;
 }
 
-static auto recv_from_storage(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
+static auto request_from_storage(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
   LOG_INFO(std::format("recv from storage"));
   co_return;
 }
@@ -20,9 +28,20 @@ static auto storage_disconnect(std::shared_ptr<common::connection> conn) -> asio
   co_return;
 }
 
-static auto recv_from_client(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
+static auto request_handle_for_client = std::map<uint16_t, request_handle>{
+    {common::proto_cmd::ss_regist, ss_regist_handle},
+    {common::proto_cmd::cs_upload_open, cs_upload_open_handle},
+    {common::proto_cmd::cs_upload_append, cs_upload_append_handle},
+    {common::proto_cmd::cs_upload_close, cs_upload_close_handle},
+};
+
+static auto request_from_client(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
   LOG_INFO(std::format("recv from client"));
-  co_return;
+  auto it = request_handle_for_client.find(request->cmd);
+  if (it != request_handle_for_client.end()) {
+    co_return co_await it->second(request, conn);
+  }
+  LOG_ERROR(std::format("unhandled cmd for client {}", request->cmd));
 }
 
 static auto client_disconnect(std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
@@ -30,16 +49,16 @@ static auto client_disconnect(std::shared_ptr<common::connection> conn) -> asio:
   co_return;
 }
 
-static auto recv_from_connection(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
+static auto request_from_connection(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
   if (request == nullptr) {
     switch (conn->get_data<uint8_t>(conn_data::type).value()) {
-      case conn_type_client:
+      case CONN_TYPE_CLIENT:
         co_await client_disconnect(conn);
         break;
-      case conn_type_storage:
+      case CONN_TYPE_STORAGE:
         co_await storage_disconnect(conn);
         break;
-      case conn_type_master:
+      case CONN_TYPE_MASTER:
         co_await master_disconnect(conn);
         break;
     }
@@ -47,14 +66,14 @@ static auto recv_from_connection(std::shared_ptr<common::proto_frame> request, s
   }
 
   switch (conn->get_data<uint8_t>(conn_data::type).value()) {
-    case conn_type_client:
-      co_await recv_from_client(request, conn);
+    case CONN_TYPE_CLIENT:
+      co_await request_from_client(request, conn);
       break;
-    case conn_type_storage:
-      co_await recv_from_storage(request, conn);
+    case CONN_TYPE_STORAGE:
+      co_await request_from_storage(request, conn);
       break;
-    case conn_type_master:
-      co_await recv_from_master(request, conn);
+    case CONN_TYPE_MASTER:
+      co_await request_from_master(request, conn);
       break;
   }
 }
@@ -70,8 +89,8 @@ static auto regist_to_master() -> asio::awaitable<bool> {
     co_await co_sleep_for(std::chrono::seconds(i));
   }
   LOG_INFO(std::format("connect to master suc"));
-  master_conn->set_data<uint8_t>(conn_data::type, conn_type_master);
-  master_conn->start(recv_from_connection);
+  master_conn->set_data<uint8_t>(conn_data::type, CONN_TYPE_MASTER);
+  master_conn->start(request_from_connection);
 
   /* regist to master */
   auto request_data = proto::sm_regist_request{};
@@ -107,6 +126,7 @@ static auto regist_to_master() -> asio::awaitable<bool> {
     LOG_ERROR("failed to parse sm_regist_response");
     co_return false;
   }
+  storage_group_id = response_data_recved.group_id();
 
   /* 连接到其他 storage */
   for (const auto &s_info : response_data_recved.s_infos()) {
@@ -116,9 +136,40 @@ static auto regist_to_master() -> asio::awaitable<bool> {
       LOG_ERROR(std::format("connect to storage {}:{} failed", s_info.ip(), s_info.port()));
       continue;
     }
+    conn->start(request_from_connection);
     LOG_DEBUG(std::format("connect to storage {}:{} suc", s_info.ip(), s_info.port()));
 
     /* 注册 */
+    auto request_data_to_send = proto::ss_regist_request{};
+    request_data_to_send.set_master_magic(conf.master_magic);
+    request_data_to_send.set_storage_magic(s_info.magic());
+    auto request_to_send = (common::proto_frame *)malloc(sizeof(common::proto_frame) + request_data_to_send.ByteSizeLong());
+    *request_to_send = {
+        .cmd = (uint16_t)common::proto_cmd::ss_regist,
+        .data_len = (uint32_t)request_data_to_send.ByteSizeLong(),
+    };
+    request_data_to_send.SerializeToArray(request_to_send->data, request_to_send->data_len);
+    auto id = co_await conn->send_request(request_to_send);
+    free(request_to_send);
+    if (!id) {
+      LOG_ERROR(std::format("send ss_regist_request failed"));
+      continue;
+    }
+
+    auto response_recved = co_await conn->recv_response(id.value());
+    if (!response_recved) {
+      LOG_ERROR(std::format("recv ss_regist_response failed"));
+      continue;
+    }
+    if (response_recved->stat != 0) {
+      LOG_ERROR(std::format("ss_regist_response failed {}", response_recved->stat));
+      continue;
+    }
+
+    auto lock = std::unique_lock{storage_conns_mut};
+    storage_conns.emplace(conn);
+    conn->start(request_from_connection);
+    LOG_INFO(std::format("regist to storage {}:{} suc", s_info.ip(), s_info.port()));
   }
 
   co_return true;
@@ -129,6 +180,7 @@ static auto storage() -> asio::awaitable<void> {
     LOG_ERROR("regist to master failed");
     co_return;
   }
+  LOG_INFO(std::format("regist to maste suc"));
 
   auto acceptor = common::acceptor{co_await asio::this_coro::executor,
                                    common::acceptor_conf{
@@ -146,8 +198,8 @@ static auto storage() -> asio::awaitable<void> {
 
   while (true) {
     auto conn = co_await acceptor.accept();
-    conn->set_data<uint8_t>(conn_data::type, conn_type_client);
-    conn->start(recv_from_connection);
+    conn->set_data<uint8_t>(conn_data::type, CONN_TYPE_CLIENT);
+    conn->start(request_from_connection);
     auto lock = std::unique_lock{client_conn_mut};
     client_conns.emplace(conn);
   }

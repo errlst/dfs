@@ -1,138 +1,150 @@
-// #include "../common/connection.h"
-// #include "../common/protocol.h"
-// #include "../common/util.h"
-// #include "../proto/proto.h"
-// #include <fstream>
+#include "../common/connection.h"
+#include "../common/protocol.h"
+#include "../common/util.h"
+#include "../proto/proto.pb.h"
+#include <fstream>
 
-// auto g_m_log = std::make_shared<log_t>("./log", log_level_e::debug, false);
-// auto g_conn = std::shared_ptr<connection>{};
-// auto io = std::make_shared<asio::io_context>();
+auto master_conn = std::shared_ptr<common::connection>{};
 
-// auto upload_file(std::string_view path) -> asio::awaitable<void> {
-//   /* get file size */
-//   auto ifs = std::ifstream{std::string{path}, std::ios::binary};
-//   if (!ifs) {
-//     g_m_log->log_error(std::format("failed to open file {}", path));
-//     co_return;
-//   }
-//   ifs.seekg(0, std::ios::end);
-//   auto size = ifs.tellg();
-//   ifs.seekg(0, std::ios::beg);
+auto upload_file(std::string_view path) -> asio::awaitable<void> {
+  if (!std::filesystem::exists(path)) {
+    LOG_ERROR(std::format("invalid file ", path));
+  }
 
-//   /* request */
-//   auto req_frame = (proto_frame_t *)malloc(sizeof(proto_frame_t) + sizeof(uint64_t));
-//   *req_frame = {
-//       .cmd = (uint8_t)proto_cmd_e::cm_valid_storage,
-//       .data_len = sizeof(uint64_t),
-//   };
-//   *((uint64_t *)req_frame->data) = size;
-//   auto id = co_await g_conn->send_req_frame(std::shared_ptr<proto_frame_t>{req_frame, [](auto p) { free(p); }});
-//   if (!id) {
-//     g_m_log->log_error("failed to send cm_valid_storage request");
-//     co_return;
-//   }
+  /* request */
+  auto request_to_send = (common::proto_frame *)malloc(sizeof(common::proto_frame) + sizeof(uint64_t));
+  *request_to_send = {
+      .cmd = common::proto_cmd::cm_fetch_one_storage,
+      .data_len = sizeof(uint64_t),
+  };
+  *((uint64_t *)request_to_send->data) = htonll(std::filesystem::file_size(path));
+  auto id = co_await master_conn->send_request(request_to_send);
+  free(request_to_send);
+  if (!id) {
+    LOG_ERROR("failed to send cm_fetch_one_storage request");
+    co_return;
+  }
 
-//   /* response */
-//   auto res_frame = co_await g_conn->recv_res_frame(id.value());
-//   if (!res_frame) {
-//     g_m_log->log_error("failed to recv cm_valid_storage response");
-//     co_return;
-//   }
-//   if (res_frame->stat) {
-//     g_m_log->log_error(std::format("cm_valid_storage response stat {}", res_frame->stat));
-//     co_return;
-//   }
-//   auto res_data = dfs::proto::cm_valid_storage::response_t{};
-//   if (!res_data.ParseFromArray(res_frame->data, res_frame->data_len)) {
-//     g_m_log->log_error("failed to parse cm_valid_storage response");
-//     co_return;
-//   }
-//   g_m_log->log_info(std::format("get valid storage {}:{} {}", res_data.storage_ip(), res_data.storage_port(), res_data.storage_magic()));
+  auto response_recved = co_await master_conn->recv_response(id.value());
+  if (!response_recved) {
+    LOG_ERROR("failed to recv cm_fetch_one_storage response");
+    co_return;
+  }
 
-//   /* connect to storage */
-//   auto storage_conn = co_await connection::connect_to(*io,res_data.storage_ip(), res_data.storage_port(), g_m_log);
-//   if (!storage_conn) {
-//     g_m_log->log_error(std::format("failed to connect to storage {}:{} {}", res_data.storage_ip(), res_data.storage_port(), res_data.storage_magic()));
-//     co_return;
-//   }
-//   g_m_log->log_info(std::format("connect to storage {}:{} suc", res_data.storage_ip(), res_data.storage_port()));
+  auto response_data_recved = proto::cm_fetch_one_storage_response{};
+  if (!response_data_recved.ParseFromArray(response_recved->data, response_recved->data_len)) {
+    LOG_ERROR("failed to parse cm_fetch_one_storage_response");
+    co_return;
+  }
 
-//   /* create fille request */
-//   req_frame = (proto_frame_t *)malloc(sizeof(proto_frame_t) + sizeof(uint64_t));
-//   *req_frame = {
-//       .cmd = (uint8_t)proto_cmd_e::cs_create_file,
-//       .data_len = sizeof(uint64_t),
-//   };
-//   *((uint64_t *)req_frame->data) = size;
-//   id = co_await storage_conn->send_req_frame(std::shared_ptr<proto_frame_t>{req_frame, [](auto p) { free(p); }});
-//   if (!id) {
-//     g_m_log->log_error("failed to send cs_create_file request");
-//     co_return;
-//   }
+  /* connect to storage */
+  auto conn = co_await common::connection::connect_to(response_data_recved.s_info().ip(), response_data_recved.s_info().port());
+  if (!conn) {
+    LOG_ERROR(std::format("failed to connect to storage {}:{}", response_data_recved.s_info().ip(), response_data_recved.s_info().port()));
+    co_return;
+  }
+  LOG_INFO(std::format("connect to storage {}:{} suc", response_data_recved.s_info().ip(), response_data_recved.s_info().port()));
+  conn->start([](std::shared_ptr<common::proto_frame>, std::shared_ptr<common::connection>) -> asio::awaitable<void> {
+    co_return;
+  });
 
-//   /* wait response */
-//   res_frame = co_await storage_conn->recv_res_frame(id.value());
-//   if (!res_frame) {
-//     g_m_log->log_error("failed to recv cs_create_file response");
-//     co_return;
-//   }
+  /* 开始上传 */
+  LOG_INFO(std::format("start upload file"));
+  request_to_send = (common::proto_frame *)malloc(sizeof(common::proto_frame) + sizeof(uint64_t));
+  *request_to_send = {
+      .cmd = common::proto_cmd::cs_upload_open,
+      .data_len = sizeof(uint64_t),
+  };
+  *((uint64_t *)request_to_send->data) = htonll(std::filesystem::file_size(path));
+  id = co_await conn->send_request(request_to_send);
+  free(request_to_send);
+  if (!id) {
+    LOG_ERROR("failed to send cs_upload_open request");
+    co_return;
+  }
 
-//   /* upload files 5MB 为一个片段 */
-//   auto req_frame_2 = std::shared_ptr<proto_frame_t>{(proto_frame_t *)malloc(sizeof(proto_frame_t) + 5 * 1024 * 1024), [](auto p) { free(p); }};
-//   *req_frame_2 = {
-//       .cmd = (uint8_t)proto_cmd_e::cs_upload_file,
-//   };
-//   while (ifs && !ifs.eof()) {
-//     auto n = ifs.readsome(req_frame_2->data, 5 * 1024 * 1024);
-//     if (n == 0) {
-//       break;
-//     }
-//     req_frame_2->data_len = n;
-//     id = co_await storage_conn->send_req_frame(req_frame_2);
-//     if (!id) {
-//       g_m_log->log_error("failed to send cs_append_data request");
-//       co_return;
-//     }
+  response_recved = co_await conn->recv_response(id.value());
+  if (!response_recved) {
+    LOG_ERROR("failed to recv cs_upload_open response");
+    co_return;
+  }
+  if (response_recved->stat != 0) {
+    LOG_ERROR(std::format("cs_upload_open response stat {}", response_recved->stat));
+    co_return;
+  }
 
-//     res_frame = co_await storage_conn->recv_res_frame(id.value());
-//     if (!res_frame) {
-//       g_m_log->log_error("failed to recv cs_append_data response");
-//       co_return;
-//     }
-//     if (res_frame->stat) {
-//       g_m_log->log_error(std::format("cs_append_data response stat {}", res_frame->stat));
-//       co_return;
-//     }
-//     g_m_log->log_info(std::format("upload {} bytes", n));
-//   }
+  /* 上传数据 */
+  bool ok = true;
+  request_to_send = (common::proto_frame *)malloc(sizeof(common::proto_frame) + 1024 * 1024 * 5);
+  auto idx = 0;
+  auto ifs = std::ifstream{std::string{path}, std::ios::binary};
+  if (!ifs) {
+    LOG_ERROR(std::format("failed open file {}", strerror(errno)));
+    co_return;
+  }
+  while (!ifs.eof()) {
+    LOG_INFO(std::format("upload file trunk {}", idx++));
+    *request_to_send = common::proto_frame{
+        .cmd = common::proto_cmd::cs_upload_append,
+        .data_len = (uint32_t)ifs.readsome(request_to_send->data, 1024 * 1024 * 5),
+    };
+    if (request_to_send->data_len == 0) {
+      LOG_ERROR(std::format("read file failed {}", strerror(errno)));
+      break;
+    }
+    id = co_await conn->send_request(request_to_send);
+    if (!id) {
+      LOG_ERROR("failed to send cs_upload_append request");
+      ok = false;
+      break;
+    }
 
-//   /* close file */
-//   auto file_name = path.substr(path.find_last_of('/') + 1);
-//   auto req_frame_3 = (proto_frame_t *)malloc(sizeof(proto_frame_t) + file_name.size());
-//   *req_frame_3 = {
-//       .cmd = (uint8_t)proto_cmd_e::cs_close_file,
-//       .data_len = (uint32_t)file_name.size(),
-//   };
-//   std::memcpy(req_frame_3->data, file_name.data(), file_name.size());
-//   id = co_await storage_conn->send_req_frame(std::shared_ptr<proto_frame_t>{req_frame_3, [](auto p) { free(p); }});
-//   if (!id) {
-//     g_m_log->log_error("failed to send cs_close_file request");
-//     co_return;
-//   }
+    response_recved = co_await conn->recv_response(id.value());
+    if (!response_recved) {
+      LOG_ERROR("failed to recv cs_upload_append response");
+      ok = false;
+      break;
+    }
+    if (response_recved->stat != 0) {
+      LOG_ERROR(std::format("cs_upload_append response stat {}", response_recved->stat));
+      ok = false;
+      break;
+    }
+  }
+  free(request_to_send);
+  if (!ok) {
+    co_return;
+  }
 
-//   res_frame = co_await storage_conn->recv_res_frame(id.value());
-//   if (!res_frame) {
-//     g_m_log->log_error("failed to recv cs_close_file response");
-//     co_return;
-//   }
-//   if (res_frame->stat) {
-//     g_m_log->log_error(std::format("cs_close_file response stat {}", res_frame->stat));
-//     co_return;
-//   }
+  /* 结束上传 */
+  LOG_INFO(std::format("close upload"));
+  auto file_name = path.substr(path.find_last_of('/') + 1);
+  request_to_send = (common::proto_frame *)malloc(sizeof(common::proto_frame) + file_name.size());
+  *request_to_send = {
+      .cmd = common::proto_cmd::cs_upload_close,
+      .data_len = (uint32_t)file_name.size(),
+  };
+  std::copy(file_name.begin(), file_name.end(), request_to_send->data);
 
-//   g_m_log->log_info(std::format("upload suc file: {}", std::string_view{res_frame->data, res_frame->data_len}));
-//   co_return;
-// }
+  id = co_await conn->send_request(request_to_send);
+  if (!id) {
+    LOG_ERROR("failed to send cs_upload_close request");
+    co_return;
+  }
+
+  response_recved = co_await conn->recv_response(id.value());
+  if (!response_recved) {
+    LOG_ERROR("failed to recv cs_upload_close response");
+    co_return;
+  }
+  if (response_recved->stat != 0) {
+    LOG_ERROR(std::format("cs_upload_close response stat {}", response_recved->stat));
+    co_return;
+  }
+
+  auto file_path = std::string_view{response_recved->data, response_recved->data_len};
+  LOG_INFO(std::format("upload suc file: {}", file_path));
+}
 
 // auto download_file(std::string_view src, std::string_view dst) -> asio::awaitable<void> {
 //   auto ofs = std::ofstream{std::string{dst}, std::ios::binary};
@@ -148,14 +160,14 @@
 //       .data_len = sizeof(uint32_t),
 //   };
 //   *((uint32_t *)req_frame->data) = std::atol(src.substr(0, src.find_first_of('/')).data());
-//   auto id = co_await g_conn->send_req_frame(std::shared_ptr<proto_frame_t>{req_frame, [](auto p) { free(p); }});
+//   auto id = co_await master_conn->send_req_frame(std::shared_ptr<proto_frame_t>{req_frame, [](auto p) { free(p); }});
 //   if (!id) {
 //     g_m_log->log_error("failed to send cm_group_storages request");
 //     co_return;
 //   }
 
 //   /*  */
-//   auto res_frame = co_await g_conn->recv_res_frame(id.value());
+//   auto res_frame = co_await master_conn->recv_res_frame(id.value());
 //   if (!res_frame) {
 //     g_m_log->log_error("failed to recv cm_group_storages response");
 //     co_return;
@@ -248,42 +260,43 @@
 //   }
 // }
 
-// auto client() -> asio::awaitable<void> {
-//   g_conn = co_await connection_t::connect_to(*io, "127.0.0.1", 8888, g_log);
-//   if (!g_conn) {
-//     g_m_log->log_error("failed to connect to master");
-//     co_return;
-//   }
-//   g_m_log->log_info("connect to master");
-// }
-
-auto main() -> int {
-  return 0;
+auto client() -> asio::awaitable<void> {
+  master_conn = co_await common::connection::connect_to("127.0.0.1", 8888);
+  if (!master_conn) {
+    LOG_ERROR(std::format("failed connect to master"));
+    co_return;
+  }
+  master_conn->start([](std::shared_ptr<common::proto_frame>, std::shared_ptr<common::connection>) -> asio::awaitable<void> {
+    co_return;
+  });
+  LOG_INFO("connect to master suc");
 }
 
-// auto main() -> int {
-//   asio::co_spawn(*io, client(), asio::detached);
-//   std::thread{[&] {
-//     auto guard = asio::make_work_guard(io);
-//     io->run();
-//   }}.detach();
+auto main() -> int {
+  auto io = asio::io_context{};
 
-//   auto cmd = std::string{};
-//   while (true) {
-//     std::this_thread::sleep_for(std::chrono::seconds(2));
-//     asio::co_spawn(*io, upload_file("bigfile"),asio::detached);
-//     // std::cout << ": " << std::flush;
-//     // std::cin >> cmd;
-//     // if (cmd == "upload") {
-//     //   std::string path;
-//     //   std::cin >> path;
-//     //   asio::co_spawn(*io, upload_file(path), asio::detached);
-//     // } else if (cmd == "download") {
-//     //   std::string src, dst;
-//     //   std::cin >> src >> dst;
-//     //   asio::co_spawn(*io, download_file(src, dst), asio::detached);
-//     // }
-//   }
+  asio::co_spawn(io, client(), asio::detached);
+  std::thread{[&] {
+    auto guard = asio::make_work_guard(io);
+    io.run();
+  }}.detach();
 
-//   return 0;
-// }
+  auto cmd = std::string{};
+  while (true) {
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    asio::co_spawn(io, upload_file("bigfile"), asio::detached);
+    // std::cout << ": " << std::flush;
+    // std::cin >> cmd;
+    // if (cmd == "upload") {
+    //   std::string path;
+    //   std::cin >> path;
+    //   asio::co_spawn(io, upload_file(path), asio::detached);
+    // } else if (cmd == "download") {
+    //   std::string src, dst;
+    //   std::cin >> src >> dst;
+    //   // asio::co_spawn(*io, download_file(src, dst), asio::detached);
+    // }
+  }
+
+  return 0;
+}

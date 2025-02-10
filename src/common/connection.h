@@ -21,6 +21,7 @@ public:
 
   /* frame 只需要设置 cmd 和 data_len */
   auto send_request(proto_frame *frame) -> asio::awaitable<std::optional<uint16_t>>;
+  auto send_request(proto_frame frame) -> asio::awaitable<std::optional<uint16_t>>;
 
   /* frame 只需要设置 stat 和 data_len */
   auto send_response(proto_frame *frame, std::shared_ptr<proto_frame> req_frame) -> asio::awaitable<bool>;
@@ -30,6 +31,8 @@ public:
   auto add_exetension_work(std::function<asio::awaitable<void>(std::shared_ptr<connection>)>) -> void;
 
   auto ip() -> std::string;
+
+  auto port() -> uint16_t;
 
   //   /*
   //       接受 request frame

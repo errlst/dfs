@@ -112,7 +112,7 @@
 // };
 
 namespace common {
-enum class proto_cmd : uint8_t {
+enum proto_cmd : uint16_t {
   /* 心跳包 */
   xx_heart_ping,
 
@@ -123,36 +123,93 @@ enum class proto_cmd : uint8_t {
 
   /*
     storage 注册到 master
+    request: sm_regist_request
+    response: sm_regist_response
   */
   sm_regist,
+
+  /*
+    storage 注册到 storage
+    request: ss_regist_request
+    response: void
+  */
+  ss_regist,
+
+  /*
+    开始同步上传的文件
+    request: uint64 filesize, string filename   xx/xx/<filename>_<file_suffix>
+    response: void
+  */
+  ss_upload_sync_open,
+
+  /*
+    同步数据
+    request: array data   长度为0表示同步完成
+    response: void
+  */
+  ss_upload_sync_append,
+
+  /*
+    获取空闲内存
+    request: void
+    response: uint64 free_space
+  */
+  ms_get_free_space,
+
+  /*
+    获取可用的 storage
+    request: uint64 need_space
+    response: cm_fetch_one_storage_response
+  */
+  cm_fetch_one_storage,
+
+  /*
+    获取一组 storage
+    request: uint32 group_id
+    response:
+  */
+  cm_fetch_group_storages,
+
+  /*
+    开始上传文件
+    request: uint64 filesize
+    response: void
+  */
+  cs_upload_open,
+
+  /*
+    上传数据
+    request: array data 如果长度为0，则终止上传
+    response: void
+  */
+  cs_upload_append,
+
+  /*
+    结束上传
+    request: string filename
+    response: string filepath  <group>/xx/xx/<filename>_<suffix>
+  */
+  cs_upload_close,
+
+  /*
+    开始下载文件
+    request: string filepath  xx/xx/<filename>_<suffix>
+    response: void
+  */
+  cs_download_open,
+
+  /*
+    下载文件
+    request: void
+    response: array data  长度为0表示下载完成
+  */
+  cs_download_append,
+
 };
 
 struct xx_heart_establish_request {
   uint32_t timeout;
   uint32_t interval;
-};
-
-/* storage_ip 就是 connection 的 ip */
-#pragma pack(push, 1)
-struct sm_regist_request {
-  uint32_t master_magic;
-  uint32_t storage_magic;
-  uint32_t storage_id;
-  uint32_t storage_port;
-};
-#pragma pack(pop)
-
-#pragma pack(push, 1)
-struct sm_regist_response_data {
-  uint32_t storage_magic;
-  uint16_t storage_port;
-  uint16_t storage_ip_len;
-  char storage_ip[0];
-};
-#pragma pack(pop)
-
-struct sm_regist_response {
-  sm_regist_response_data data[0];
 };
 
 constexpr auto FRAME_MAGIC = (uint16_t)0x55aa;
