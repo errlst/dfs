@@ -9,13 +9,29 @@
 #pragma once
 #include <print>
 
+#ifdef NO_LOG
+#define LOG_NO_DEBUG
+#define LOG_NO_INFO
+#define LOG_NO_ERROR
+#endif
+
 #ifdef LOG_NO_DEBUG
 #define LOG_DEBUG(msg)
 #else
 #define LOG_DEBUG(msg) std::println("\033[34m [{}:{}]\033[0m {}", __FILE__, __LINE__, msg)
 #endif
+
+#ifdef LOG_NO_INFO
+#define LOG_INFO(msg)
+#else
 #define LOG_INFO(msg) std::println("\033[32m [{}:{}]\033[0m {}", __FILE__, __LINE__, msg)
+#endif
+
+#ifdef LOG_NO_ERROR
+#define LOG_ERROR(msg)
+#else
 #define LOG_ERROR(msg) std::println("\033[31m [{}:{}]\033[0m] {}", __FILE__, __LINE__, msg)
+#endif
 
 // enum class log_level_e : uint8_t {
 //   debug = 0,

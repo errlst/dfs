@@ -1,24 +1,29 @@
+#define LOG_NO_DEBUG
 #include "connection.h"
 #include "./log.h"
 #include "./util.h"
 #include <asio/experimental/parallel_group.hpp>
 
+#define NO_LOG
+
 namespace common {
 
 connection::connection(asio::ip::tcp::socket &&sock)
     : sock_{std::move(sock)},
-      strand_(asio::make_strand(sock_.get_executor())) {
+      strand_(asio::make_strand(sock_.get_executor())),
+      heart_timer_{std::make_unique<asio::steady_timer>(strand_)} {
 }
 
 connection::~connection() {
   LOG_ERROR(std::format("connection destoryed"));
-  sock_.close();
+  // asio::co_spawn(strand_, close(), asio::use_future).get();
 }
 
 auto connection::start(std::function<asio::awaitable<void>(std::shared_ptr<proto_frame>, std::shared_ptr<connection>)> on_recv_request) -> void {
   on_recv_request_ = on_recv_request;
-  asio::co_spawn(strand_, start_recv(), asio::detached);
-  asio::co_spawn(strand_, start_heart(), asio::detached);
+  auto self = shared_from_this();
+  asio::co_spawn(strand_, [self] { return self->start_recv(); }, asio::detached);
+  asio::co_spawn(strand_, [self] { return self->start_heart(); }, asio::detached);
 }
 
 auto connection::close() -> asio::awaitable<void> {
@@ -29,9 +34,8 @@ auto connection::close() -> asio::awaitable<void> {
   for (auto &_ : response_frames_) {
     _.second.second->cancel();
   }
-  if (heart_timer_) {
-    heart_timer_->cancel();
-  }
+  heart_timer_->cancel();
+  sock_.close();
   co_await on_recv_request_(nullptr, shared_from_this());
   for (auto on_close : on_close_works_) {
     on_close();
@@ -187,6 +191,11 @@ auto connection::port() -> uint16_t {
 
 auto connection::connect_to(std::string_view ip, uint16_t port) -> asio::awaitable<std::shared_ptr<connection>> {
   auto sock = asio::ip::tcp::socket{co_await asio::this_coro::executor};
+  // sock.set_option(asio::socket_base::reuse_address(true));
+  auto opt = 1;
+  setsockopt(sock.native_handle(), SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
+  setsockopt(sock.native_handle(), SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
   auto [ec] = co_await sock.async_connect(asio::ip::tcp::endpoint{asio::ip::make_address(ip), port}, asio::as_tuple(asio::use_awaitable));
   if (ec) {
     LOG_ERROR(std::format("connect to {}:{} failed {}", ip, port, ec.message()));
@@ -229,14 +238,9 @@ auto connection::connect_to(std::string_view ip, uint16_t port) -> asio::awaitab
 auto connection::start_heart() -> asio::awaitable<void> {
   auto frame = proto_frame{.cmd = (uint8_t)proto_cmd::xx_heart_ping};
   trans_frame_to_net(&frame);
-  heart_timer_ = std::make_shared<asio::steady_timer>(strand_);
-  while (true) {
+  while (!closed_) {
     heart_timer_->expires_after(std::chrono::milliseconds{h_interval_});
     co_await heart_timer_->async_wait(asio::as_tuple(asio::use_awaitable));
-    if (closed_) {
-      // LOG_DEBUG("heart ping stoped");
-      co_return;
-    }
 
     if (auto [ec, n] = co_await asio::async_write(sock_, asio::const_buffer(&frame, sizeof(frame)), asio::as_tuple(asio::use_awaitable));
         ec || n != sizeof(frame)) {

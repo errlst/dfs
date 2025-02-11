@@ -20,6 +20,7 @@
 #include "google/protobuf/io/coded_stream.h"
 #include "google/protobuf/arena.h"
 #include "google/protobuf/arenastring.h"
+#include "google/protobuf/generated_message_bases.h"
 #include "google/protobuf/generated_message_tctable_decl.h"
 #include "google/protobuf/generated_message_util.h"
 #include "google/protobuf/metadata_lite.h"
@@ -70,6 +71,9 @@ extern ss_regist_requestDefaultTypeInternal _ss_regist_request_default_instance_
 class storage_info;
 struct storage_infoDefaultTypeInternal;
 extern storage_infoDefaultTypeInternal _storage_info_default_instance_;
+class storage_monitor_info;
+struct storage_monitor_infoDefaultTypeInternal;
+extern storage_monitor_infoDefaultTypeInternal _storage_monitor_info_default_instance_;
 }  // namespace proto
 namespace google {
 namespace protobuf {
@@ -81,6 +85,151 @@ namespace proto {
 // ===================================================================
 
 
+// -------------------------------------------------------------------
+
+class storage_monitor_info final : public ::google::protobuf::internal::ZeroFieldsBase
+/* @@protoc_insertion_point(class_definition:proto.storage_monitor_info) */ {
+ public:
+  inline storage_monitor_info() : storage_monitor_info(nullptr) {}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(storage_monitor_info* msg, std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(storage_monitor_info));
+  }
+#endif
+
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR storage_monitor_info(
+      ::google::protobuf::internal::ConstantInitialized);
+
+  inline storage_monitor_info(const storage_monitor_info& from) : storage_monitor_info(nullptr, from) {}
+  inline storage_monitor_info(storage_monitor_info&& from) noexcept
+      : storage_monitor_info(nullptr, std::move(from)) {}
+  inline storage_monitor_info& operator=(const storage_monitor_info& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline storage_monitor_info& operator=(storage_monitor_info&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::google::protobuf::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::google::protobuf::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const storage_monitor_info& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const storage_monitor_info* internal_default_instance() {
+    return reinterpret_cast<const storage_monitor_info*>(
+        &_storage_monitor_info_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages = 1;
+  friend void swap(storage_monitor_info& a, storage_monitor_info& b) { a.Swap(&b); }
+  inline void Swap(storage_monitor_info* other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(storage_monitor_info* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  storage_monitor_info* New(::google::protobuf::Arena* arena = nullptr) const {
+    return ::google::protobuf::internal::ZeroFieldsBase::DefaultConstruct<storage_monitor_info>(arena);
+  }
+  using ::google::protobuf::internal::ZeroFieldsBase::CopyFrom;
+  inline void CopyFrom(const storage_monitor_info& from) {
+    ::google::protobuf::internal::ZeroFieldsBase::CopyImpl(*this, from);
+  }
+  using ::google::protobuf::internal::ZeroFieldsBase::MergeFrom;
+  void MergeFrom(const storage_monitor_info& from) {
+    ::google::protobuf::internal::ZeroFieldsBase::MergeImpl(*this, from);
+  }
+
+  public:
+  bool IsInitialized() const {
+    return true;
+  }
+ private:
+  template <typename T>
+  friend ::absl::string_view(
+      ::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "proto.storage_monitor_info"; }
+
+ protected:
+  explicit storage_monitor_info(::google::protobuf::Arena* arena);
+  storage_monitor_info(::google::protobuf::Arena* arena, const storage_monitor_info& from);
+  storage_monitor_info(::google::protobuf::Arena* arena, storage_monitor_info&& from) noexcept
+      : storage_monitor_info(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* GetClassData() const PROTOBUF_FINAL;
+  static void* PlacementNew_(const void*, void* mem,
+                             ::google::protobuf::Arena* arena);
+  static constexpr auto InternalNewImpl_();
+  static const ::google::protobuf::internal::ClassDataFull _class_data_;
+
+ public:
+  ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  // @@protoc_insertion_point(class_scope:proto.storage_monitor_info)
+ private:
+  class _Internal;
+  friend class ::google::protobuf::internal::TcParser;
+  static const ::google::protobuf::internal::TcParseTable<
+      0, 0, 0,
+      0, 2>
+      _table_;
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(
+        ::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(::google::protobuf::internal::InternalVisibility visibility,
+                          ::google::protobuf::Arena* arena);
+    inline explicit Impl_(::google::protobuf::internal::InternalVisibility visibility,
+                          ::google::protobuf::Arena* arena, const Impl_& from,
+                          const storage_monitor_info& from_msg);
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  friend struct ::TableStruct_proto_2eproto;
+};
 // -------------------------------------------------------------------
 
 class storage_info final : public ::google::protobuf::Message
@@ -374,7 +523,7 @@ class ss_regist_request final : public ::google::protobuf::Message
     return reinterpret_cast<const ss_regist_request*>(
         &_ss_regist_request_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 3;
+  static constexpr int kIndexInFileMessages = 4;
   friend void swap(ss_regist_request& a, ss_regist_request& b) { a.Swap(&b); }
   inline void Swap(ss_regist_request* other) {
     if (other == this) return;
@@ -576,7 +725,7 @@ class sm_regist_response final : public ::google::protobuf::Message
     return reinterpret_cast<const sm_regist_response*>(
         &_sm_regist_response_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 2;
+  static constexpr int kIndexInFileMessages = 3;
   friend void swap(sm_regist_response& a, sm_regist_response& b) { a.Swap(&b); }
   inline void Swap(sm_regist_response* other) {
     if (other == this) return;
@@ -785,7 +934,7 @@ class sm_regist_request final : public ::google::protobuf::Message
     return reinterpret_cast<const sm_regist_request*>(
         &_sm_regist_request_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 1;
+  static constexpr int kIndexInFileMessages = 2;
   friend void swap(sm_regist_request& a, sm_regist_request& b) { a.Swap(&b); }
   inline void Swap(sm_regist_request* other) {
     if (other == this) return;
@@ -993,7 +1142,7 @@ class cm_fetch_one_storage_response final : public ::google::protobuf::Message
     return reinterpret_cast<const cm_fetch_one_storage_response*>(
         &_cm_fetch_one_storage_response_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 4;
+  static constexpr int kIndexInFileMessages = 5;
   friend void swap(cm_fetch_one_storage_response& a, cm_fetch_one_storage_response& b) { a.Swap(&b); }
   inline void Swap(cm_fetch_one_storage_response* other) {
     if (other == this) return;
@@ -1189,7 +1338,7 @@ class cm_fetch_group_storages_response final : public ::google::protobuf::Messag
     return reinterpret_cast<const cm_fetch_group_storages_response*>(
         &_cm_fetch_group_storages_response_default_instance_);
   }
-  static constexpr int kIndexInFileMessages = 5;
+  static constexpr int kIndexInFileMessages = 6;
   friend void swap(cm_fetch_group_storages_response& a, cm_fetch_group_storages_response& b) { a.Swap(&b); }
   inline void Swap(cm_fetch_group_storages_response* other) {
     if (other == this) return;
@@ -1455,6 +1604,10 @@ inline void storage_info::set_allocated_ip(std::string* value) {
   }
   // @@protoc_insertion_point(field_set_allocated:proto.storage_info.ip)
 }
+
+// -------------------------------------------------------------------
+
+// storage_monitor_info
 
 // -------------------------------------------------------------------
 

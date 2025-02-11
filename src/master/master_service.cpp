@@ -1,6 +1,9 @@
+#define NO_LOG
 #include "./master_service.h"
 #include "../common/acceptor.h"
 #include "./master_service_handles.h"
+#include "./metrics_service.h"
+
 
 static auto request_handles_for_client = std::map<uint16_t, request_handle>{
     {common::proto_cmd::sm_regist, sm_regist_handle},
@@ -8,13 +11,14 @@ static auto request_handles_for_client = std::map<uint16_t, request_handle>{
     {common::proto_cmd::cm_fetch_group_storages, cm_fetch_group_storages_handle},
 };
 
-static auto request_from_client(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
+static auto request_from_client(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<bool> {
   LOG_INFO(std::format("recv from client"));
   auto it = request_handles_for_client.find(request->cmd);
   if (it != request_handles_for_client.end()) {
     co_return co_await it->second(request, conn);
   }
   LOG_ERROR(std::format("unhandled cmd for client {}", request->cmd));
+  co_return false;
 }
 
 static auto client_disconnect(std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
@@ -23,9 +27,16 @@ static auto client_disconnect(std::shared_ptr<common::connection> conn) -> asio:
   co_return;
 }
 
-static auto request_from_storage(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
+static auto request_handles_for_storage = std::map<uint16_t, request_handle>{};
+
+static auto request_from_storage(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<bool> {
   LOG_INFO(std::format("recv from storage"));
-  co_return;
+  auto it = request_handles_for_storage.find(request->cmd);
+  if (it != request_handles_for_storage.end()) {
+    co_return co_await it->second(request, conn);
+  }
+  LOG_ERROR(std::format("unhandled cmd for storage {}", request->cmd));
+  co_return false;
 }
 
 static auto storage_disconnect(std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
@@ -45,13 +56,19 @@ static auto request_from_connection(std::shared_ptr<common::proto_frame> request
     co_return;
   }
 
+  auto bt = metrics::request_begin();
+  auto info = metrics::request_end_info{};
   switch (conn->get_data<uint8_t>(conn_data::type).value()) {
-    case CONN_TYPE_CLIENT:
-      co_return co_await request_from_client(request, conn);
-    case CONN_TYPE_STORAGE:
-      co_return co_await request_from_storage(request, conn);
+    case CONN_TYPE_CLIENT: {
+      info.success = co_await request_from_client(request, conn);
+      break;
+    }
+    case CONN_TYPE_STORAGE: {
+      info.success = co_await request_from_storage(request, conn);
+      break;
+    }
   }
-  co_return;
+  metrics::request_end(bt, info);
 }
 
 static auto master() -> asio::awaitable<void> {
@@ -68,7 +85,6 @@ static auto master() -> asio::awaitable<void> {
     std::thread{[&io] {
       auto guard = asio::make_work_guard(io);
       io.run();
-      LOG_ERROR(std::format("io exit"));
     }}.detach();
   }
 

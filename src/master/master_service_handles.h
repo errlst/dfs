@@ -75,11 +75,11 @@ inline auto group_storages(uint32_t group) -> std::vector<std::shared_ptr<common
   return ret;
 }
 
-using request_handle = std::function<asio::awaitable<void>(std::shared_ptr<common::proto_frame>, std::shared_ptr<common::connection>)>;
+using request_handle = std::function<asio::awaitable<bool>(std::shared_ptr<common::proto_frame>, std::shared_ptr<common::connection>)>;
 #define REQUEST_HANDLE_PARAMS std::shared_ptr<common::proto_frame> request_recved, std::shared_ptr<common::connection> conn
 
-auto sm_regist_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;
+auto sm_regist_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
 
-auto cm_fetch_one_storage_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;
+auto cm_fetch_one_storage_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
 
-auto cm_fetch_group_storages_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;
+auto cm_fetch_group_storages_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;

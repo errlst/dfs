@@ -281,10 +281,15 @@ auto main() -> int {
     io.run();
   }}.detach();
 
+  for (auto i = 0; i < 10; ++i) {
+    std::thread{[&io] {
+      auto gurad = asio::make_work_guard(io);
+      io.run();
+    }}.detach();
+  }
+
   auto cmd = std::string{};
   while (true) {
-    // std::this_thread::sleep_for(std::chrono::seconds(2));
-    // asio::co_spawn(io, upload_file("bigfile"), asio::detached);
     std::cout << ": " << std::flush;
     std::cin >> cmd;
     if (cmd == "upload") {

@@ -1,4 +1,5 @@
 #pragma once
+#define NO_LOG
 #include "./log.h"
 #include "./protocol.h"
 #include <any>
@@ -42,10 +43,13 @@ public:
     if (it == datas_.end()) {
       return std::nullopt;
     }
-    if (it->second.type() != typeid(T)) {
-      LOG_ERROR(std::format("need type is {} but stored type is {}", typeid(T).name(), it->second.type().name()));
-      abort();
-    }
+    // if (it->second.type() != typeid(T)) {
+    //   auto &i = it->second.type();
+    //   auto &j = typeid(T);
+    //   // std::println(std::format("need type is {} but stored type is {}", typeid(T).name(), it->second.type().name()));
+    //   // LOG_ERROR(std::format("need type is {} but stored type is {}", typeid(T).name(), it->second.type().name()));
+    //   abort();
+    // }
     return std::any_cast<T>(it->second);
   }
 
@@ -69,7 +73,7 @@ private:
   std::atomic_uint16_t request_frame_id_ = 0;
   bool closed_ = false;
 
-  std::shared_ptr<asio::steady_timer> heart_timer_;
+  std::unique_ptr<asio::steady_timer> heart_timer_;
   uint32_t h_timeout_ = -1;
   uint32_t h_interval_ = -1;
 

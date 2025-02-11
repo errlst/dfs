@@ -1,5 +1,6 @@
 #include "../common/log.h"
 #include "./master_service.h"
+#include "./metrics_service.h"
 #include <fstream>
 #include <nlohmann/json.hpp>
 
@@ -43,6 +44,11 @@ auto main(int argc, char *argv[]) -> int {
                          .master_magic = config["master_service"]["master_magic"].get<uint32_t>(),
                          .heart_timeout = config["network"]["heart_timeout"].get<uint32_t>(),
                          .heart_interval = config["network"]["heart_interval"].get<uint32_t>(),
+                     }),
+                 asio::detached);
+  asio::co_spawn(io, metrics::metrics_service(metrics::metrics_service_config{
+                         .base_path = config["common"]["base_path"].get<std::string>(),
+                         .interval = 1000,
                      }),
                  asio::detached);
   auto guard = asio::make_work_guard(io);
