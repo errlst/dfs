@@ -1,4 +1,6 @@
-#include "./storage_service_global.h"
+#include "../common/acceptor.h"
+#include "../common/util.h"
+#include "./storage_service_handles.h"
 
 static auto request_handle_for_master = std::map<uint16_t, request_handle>{
     {common::proto_cmd::ms_get_free_space, ms_get_free_space_handle},
@@ -18,13 +20,23 @@ static auto master_disconnect(std::shared_ptr<common::connection> conn) -> asio:
   co_return;
 }
 
+static auto request_handle_for_storage = std::map<uint16_t, request_handle>{
+    {common::proto_cmd::ss_upload_sync_open, ss_upload_sync_open_handle},
+    {common::proto_cmd::ss_upload_sync_append, ss_upload_sync_append_handle},
+};
+
 static auto request_from_storage(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
   LOG_INFO(std::format("recv from storage"));
-  co_return;
+  auto it = request_handle_for_storage.find(request->cmd);
+  if (it != request_handle_for_storage.end()) {
+    co_return co_await it->second(request, conn);
+  }
+  LOG_ERROR(std::format("unhandled cmd for storage {}", request->cmd));
 }
 
 static auto storage_disconnect(std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
-  LOG_INFO(std::format("client disconnect"));
+  LOG_INFO(std::format("storage disconnect"));
+  unregist_storage(conn);
   co_return;
 }
 
@@ -46,6 +58,7 @@ static auto request_from_client(std::shared_ptr<common::proto_frame> request, st
 
 static auto client_disconnect(std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
   LOG_INFO(std::format("client disconnect"));
+  unregist_client(conn);
   co_return;
 }
 
@@ -81,11 +94,11 @@ static auto request_from_connection(std::shared_ptr<common::proto_frame> request
 static auto regist_to_master() -> asio::awaitable<bool> {
   /* connect to master */
   for (auto i = 1;; i += 2) {
-    master_conn = co_await common::connection::connect_to(conf.master_ip, conf.master_port);
+    master_conn = co_await common::connection::connect_to(ss_config.master_ip, ss_config.master_port);
     if (master_conn) {
       break;
     }
-    LOG_ERROR(std::format("connect to master {}:{} failed", conf.master_ip, conf.master_port));
+    LOG_ERROR(std::format("connect to master {}:{} failed", ss_config.master_ip, ss_config.master_port));
     co_await co_sleep_for(std::chrono::seconds(i));
   }
   LOG_INFO(std::format("connect to master suc"));
@@ -94,10 +107,10 @@ static auto regist_to_master() -> asio::awaitable<bool> {
 
   /* regist to master */
   auto request_data = proto::sm_regist_request{};
-  request_data.set_master_magic(conf.master_magic);
-  request_data.mutable_s_info()->set_id(conf.id);
-  request_data.mutable_s_info()->set_magic(conf.storage_magic);
-  request_data.mutable_s_info()->set_port(conf.port);
+  request_data.set_master_magic(ss_config.master_magic);
+  request_data.mutable_s_info()->set_id(ss_config.id);
+  request_data.mutable_s_info()->set_magic(ss_config.storage_magic);
+  request_data.mutable_s_info()->set_port(ss_config.port);
   request_data.mutable_s_info()->set_ip("127.0.0.1");
   auto request_to_send = (common::proto_frame *)malloc(sizeof(common::proto_frame) + request_data.ByteSizeLong());
   *request_to_send = {
@@ -141,7 +154,7 @@ static auto regist_to_master() -> asio::awaitable<bool> {
 
     /* 注册 */
     auto request_data_to_send = proto::ss_regist_request{};
-    request_data_to_send.set_master_magic(conf.master_magic);
+    request_data_to_send.set_master_magic(ss_config.master_magic);
     request_data_to_send.set_storage_magic(s_info.magic());
     auto request_to_send = (common::proto_frame *)malloc(sizeof(common::proto_frame) + request_data_to_send.ByteSizeLong());
     *request_to_send = {
@@ -166,13 +179,90 @@ static auto regist_to_master() -> asio::awaitable<bool> {
       continue;
     }
 
-    auto lock = std::unique_lock{storage_conns_mut};
-    storage_conns.emplace(conn);
-    conn->start(request_from_connection);
+    regist_storage(conn);
     LOG_INFO(std::format("regist to storage {}:{} suc", s_info.ip(), s_info.port()));
   }
 
   co_return true;
+}
+
+/* 同步上传文件 */
+static auto sync_upload_files() -> asio::awaitable<void> {
+  while (true) {
+    co_await co_sleep_for(std::chrono::seconds(ss_config.sync_interval));
+    if (unsync_uploaded_files.empty()) {
+      continue;
+    }
+
+    auto storages = get_storage_conns();
+    if (storages.empty()) {
+      continue;
+    }
+
+    auto file_path = get_one_unsync_uploaded_file();
+    auto res = hot_stores->open_file(file_path);
+    if (!res) {
+      LOG_ERROR(std::format("open file {} failed", file_path));
+      continue;
+    }
+    auto [file_id, file_size] = res.value();
+
+    /* 请求上传 */
+    LOG_INFO(std::format("request sync upload file {}", file_path));
+    auto syncable_storages = std::set<std::shared_ptr<common::connection>>{};
+    auto request_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + sizeof(uint64_t) + file_path.size()), [](auto p) { free(p); }};
+    *(uint64_t *)request_to_send->data = htonll(file_size);
+    std::copy(file_path.begin(), file_path.end(), request_to_send->data + sizeof(uint64_t));
+    for (auto storage : storages) {
+      *request_to_send = {
+          .cmd = common::proto_cmd::ss_upload_sync_open,
+          .data_len = (uint32_t)sizeof(uint64_t) + (uint32_t)file_path.size(),
+      };
+      auto id = co_await storage->send_request(request_to_send.get());
+      if (!id) {
+        LOG_ERROR(std::format("send ss_upload_sync_open failed"));
+        continue;
+      }
+      auto response_recved = co_await storage->recv_response(id.value());
+      if (!response_recved) {
+        LOG_ERROR(std::format("recv ss_upload_sync_open failed"));
+        continue;
+      }
+      if (response_recved->stat != 0) {
+        LOG_ERROR(std::format("ss_upload_sync_open failed {}", response_recved->stat));
+        continue;
+      }
+      syncable_storages.emplace(storage);
+    }
+
+    /* 上传数据 */
+    request_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + 5 * 1024 * 1024), [](auto p) { free(p); }};
+    while (true) {
+      auto size = hot_stores->read_file(file_id, request_to_send->data, 5 * 1024 * 1024);
+      *request_to_send = {.cmd = common::proto_cmd::ss_upload_sync_append, .data_len = (uint32_t)size};
+      for (auto storage : syncable_storages) {
+        auto id = co_await storage->send_request(request_to_send.get());
+        if (!id) {
+          LOG_ERROR(std::format("send ss_upload_sync_append failed"));
+          continue;
+        }
+        auto response_recved = co_await storage->recv_response(id.value());
+        if (!response_recved) {
+          LOG_ERROR(std::format("recv ss_upload_sync_append failed"));
+          continue;
+        }
+        if (response_recved->stat != 0) {
+          LOG_ERROR(std::format("ss_upload_sync_append failed {}", response_recved->stat));
+          continue;
+        }
+      }
+
+      /* 上传完成 */
+      if (size == 0) {
+        break;
+      }
+    }
+  }
 }
 
 static auto storage() -> asio::awaitable<void> {
@@ -182,57 +272,57 @@ static auto storage() -> asio::awaitable<void> {
   }
   LOG_INFO(std::format("regist to maste suc"));
 
-  auto acceptor = common::acceptor{co_await asio::this_coro::executor,
-                                   common::acceptor_conf{
-                                       .ip = conf.ip,
-                                       .port = conf.port,
-                                       .h_timeout = conf.heart_timeout,
-                                       .h_interval = conf.heart_interval,
-                                   }};
-  for (auto i = 0; i < conf.thread_count; ++i) {
-    std::thread{[] {
-      auto guard = asio::make_work_guard(*g_s_io_ctx);
-      g_s_io_ctx->run();
+  auto ex = co_await asio::this_coro::executor;
+  auto &io = (asio::io_context &)(ex.context());
+  asio::co_spawn(ex, sync_upload_files(), asio::detached);
+  auto acceptor = common::acceptor{ex, common::acceptor_conf{
+                                           .ip = ss_config.ip,
+                                           .port = ss_config.port,
+                                           .h_timeout = ss_config.heart_timeout,
+                                           .h_interval = ss_config.heart_interval,
+                                       }};
+  for (auto i = 0; i < ss_config.thread_count; ++i) {
+    std::thread{[&io] {
+      auto guard = asio::make_work_guard(io);
+      io.run();
     }}.detach();
   }
 
   while (true) {
     auto conn = co_await acceptor.accept();
-    conn->set_data<uint8_t>(conn_data::type, CONN_TYPE_CLIENT);
     conn->start(request_from_connection);
-    auto lock = std::unique_lock{client_conn_mut};
-    client_conns.emplace(conn);
+    regist_client(conn);
   }
 }
 
-static auto init_conf() -> void {
-  conf = {
-      .id = g_s_conf["storage_service"]["id"].get<uint32_t>(),
-      .ip = g_s_conf["storage_service"]["ip"].get<std::string>(),
-      .port = g_s_conf["storage_service"]["port"].get<uint16_t>(),
-      .master_ip = g_s_conf["storage_service"]["master_ip"].get<std::string>(),
-      .master_port = g_s_conf["storage_service"]["master_port"].get<uint16_t>(),
-      .thread_count = g_s_conf["storage_service"]["thread_count"].get<uint16_t>(),
-      .storage_magic = (uint16_t)std::random_device{}(),
-      .master_magic = g_s_conf["storage_service"]["master_magic"].get<uint32_t>(),
-      .sync_interval = g_s_conf["storage_service"]["sync_interval"].get<uint32_t>(),
-      .hot_paths = g_s_conf["storage_service"]["hot_paths"].get<std::vector<std::string>>(),
-      .warm_paths = g_s_conf["storage_service"]["warm_paths"].get<std::vector<std::string>>(),
-      .cold_paths = g_s_conf["storage_service"]["cold_paths"].get<std::vector<std::string>>(),
-      .heart_timeout = g_s_conf["network"]["heart_timeout"].get<uint32_t>(),
-      .heart_interval = g_s_conf["network"]["heart_interval"].get<uint32_t>(),
-  };
-}
+// static auto init_conf() -> void {
+//   conf = {
+//       .id = g_s_conf["storage_service"]["id"].get<uint32_t>(),
+//       .ip = g_s_conf["storage_service"]["ip"].get<std::string>(),
+//       .port = g_s_conf["storage_service"]["port"].get<uint16_t>(),
+//       .master_ip = g_s_conf["storage_service"]["master_ip"].get<std::string>(),
+//       .master_port = g_s_conf["storage_service"]["master_port"].get<uint16_t>(),
+//       .thread_count = g_s_conf["storage_service"]["thread_count"].get<uint16_t>(),
+//       .storage_magic = (uint16_t)std::random_device{}(),
+//       .master_magic = g_s_conf["storage_service"]["master_magic"].get<uint32_t>(),
+//       .sync_interval = g_s_conf["storage_service"]["sync_interval"].get<uint32_t>(),
+//       .hot_paths = g_s_conf["storage_service"]["hot_paths"].get<std::vector<std::string>>(),
+//       .warm_paths = g_s_conf["storage_service"]["warm_paths"].get<std::vector<std::string>>(),
+//       .cold_paths = g_s_conf["storage_service"]["cold_paths"].get<std::vector<std::string>>(),
+//       .heart_timeout = g_s_conf["network"]["heart_timeout"].get<uint32_t>(),
+//       .heart_interval = g_s_conf["network"]["heart_interval"].get<uint32_t>(),
+//   };
+// }
 
 static auto init_stores() -> void {
-  hot_stores = std::make_shared<store_ctx_group_t>("hot_store_group", conf.hot_paths);
-  warm_stores = std::make_shared<store_ctx_group_t>("warm_store_group", conf.warm_paths);
-  cold_stores = std::make_shared<store_ctx_group_t>("cold_store_group", conf.cold_paths);
+  hot_stores = std::make_shared<store_ctx_group_t>("hot_store_group", ss_config.hot_paths);
+  warm_stores = std::make_shared<store_ctx_group_t>("warm_store_group", ss_config.warm_paths);
+  cold_stores = std::make_shared<store_ctx_group_t>("cold_store_group", ss_config.cold_paths);
   stores = {hot_stores, warm_stores, cold_stores};
 }
 
-auto storage_service() -> asio::awaitable<void> {
-  init_conf();
+auto storage_service(storage_service_config config) -> asio::awaitable<void> {
+  ss_config = config;
   init_stores();
   asio::co_spawn(co_await asio::this_coro::executor, storage(), asio::detached);
   co_return;

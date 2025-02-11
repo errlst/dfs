@@ -1,4 +1,21 @@
 #pragma once
 #include <asio.hpp>
 
-auto storage_service() -> asio::awaitable<void>;
+struct storage_service_config {
+  uint32_t id;
+  std::string ip;
+  uint16_t port;
+  std::string master_ip;
+  uint16_t master_port;
+  uint16_t thread_count;
+  uint16_t storage_magic;
+  uint32_t master_magic;
+  uint32_t sync_interval;
+  std::vector<std::string> hot_paths;
+  std::vector<std::string> warm_paths;
+  std::vector<std::string> cold_paths;
+  uint32_t heart_timeout;
+  uint32_t heart_interval;
+};
+
+auto storage_service(storage_service_config config) -> asio::awaitable<void>;

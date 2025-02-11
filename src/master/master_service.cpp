@@ -1,4 +1,6 @@
-#include "./master_service_global.h"
+#include "./master_service.h"
+#include "../common/acceptor.h"
+#include "./master_service_handles.h"
 
 static auto request_handles_for_client = std::map<uint16_t, request_handle>{
     {common::sm_regist, sm_regist_handle},
@@ -16,17 +18,18 @@ static auto request_from_client(std::shared_ptr<common::proto_frame> request, st
 
 static auto client_disconnect(std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
   LOG_INFO(std::format("client disconnect"));
+  unregist_client(conn);
   co_return;
 }
 
 static auto request_from_storage(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
   LOG_INFO(std::format("recv from storage"));
-
   co_return;
 }
 
 static auto storage_disconnect(std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
   LOG_INFO(std::format("storage disconnect"));
+  unregist_storage(conn);
   co_return;
 }
 
@@ -51,44 +54,32 @@ static auto request_from_connection(std::shared_ptr<common::proto_frame> request
 }
 
 static auto master() -> asio::awaitable<void> {
-  auto acceptor = common::acceptor{co_await asio::this_coro::executor,
+  auto ex = co_await asio::this_coro::executor;
+  auto acceptor = common::acceptor{ex,
                                    common::acceptor_conf{
-                                       .ip = conf.ip,
-                                       .port = conf.port,
-                                       .h_timeout = conf.heart_timeout,
-                                       .h_interval = conf.heart_interval,
+                                       .ip = ms_config.ip,
+                                       .port = ms_config.port,
+                                       .h_timeout = ms_config.heart_timeout,
+                                       .h_interval = ms_config.heart_interval,
                                    }};
-  for (auto i = 0; i < conf.thread_count; ++i) {
-    std::thread{[] {
-      auto guard = asio::make_work_guard(*g_m_io_ctx);
-      g_m_io_ctx->run();
+  auto &io = (asio::io_context &)ex.context();
+  for (auto i = 0; i < ms_config.thread_count; ++i) {
+    std::thread{[&io] {
+      auto guard = asio::make_work_guard(io);
+      io.run();
       LOG_ERROR(std::format("io exit"));
     }}.detach();
   }
 
   while (true) {
     auto conn = co_await acceptor.accept();
-    conn->set_data<uint8_t>(conn_data::type, 0);
     conn->start(request_from_connection);
-    auto lock = std::unique_lock{client_conns_mut};
-    client_conns.emplace(conn);
+    regist_client(conn);
   }
 }
 
-static auto init_conf() -> void {
-  conf = {
-      .ip = g_m_conf["master_service"]["ip"].get<std::string>(),
-      .port = g_m_conf["master_service"]["port"].get<std::uint16_t>(),
-      .thread_count = g_m_conf["master_service"]["thread_count"].get<std::uint16_t>(),
-      .master_magic = g_m_conf["master_service"]["master_magic"].get<std::uint32_t>(),
-      .group_size = g_m_conf["master_service"]["group_size"].get<std::uint16_t>(),
-      .heart_timeout = g_m_conf["network"]["heart_timeout"].get<std::uint32_t>(),
-      .heart_interval = g_m_conf["network"]["heart_interval"].get<std::uint32_t>(),
-  };
-}
-
-auto master_service() -> asio::awaitable<void> {
-  init_conf();
+auto master_service(master_service_conf config) -> asio::awaitable<void> {
+  ms_config = config;
   asio::co_spawn(co_await asio::this_coro::executor, master(), asio::detached);
   co_return;
 }

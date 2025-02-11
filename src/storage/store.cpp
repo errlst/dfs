@@ -1,32 +1,32 @@
-#include "store.h"
-#include "./global.h"
-#include "global.h"
-#include <cstring>
+#include "./store.h"
+#include "../common/util.h"
+#include <filesystem>
+#include <fstream>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 
 store_ctx_t::store_ctx_t(const std::string &path)
     : m_base_path{path} {
   if (mkdir(path.data(), 0755) != 0 && errno != EEXIST) {
-    g_s_log->log_fatal(std::format("failed to create directory: {}", path));
+    //->log_fatal(std::format("failed to create directory: {}", path));
     exit(-1);
   }
 
   for (auto i = 0; i < 256; i++) {
     auto sub_path_0 = std::format("{}/{:02X}", path, i);
     if (mkdir(sub_path_0.data(), 0755) != 0 && errno != EEXIST) {
-      g_s_log->log_fatal(std::format("failed to create directory: {}", sub_path_0));
+      //->log_fatal(std::format("failed to create directory: {}", sub_path_0));
       exit(-1);
     }
     for (auto j = 0; j < 256; j++) {
       auto sub_path_1 = std::format("{}/{:02X}", sub_path_0, j);
       if (mkdir(sub_path_1.data(), 0755) != 0 && errno != EEXIST) {
-        g_s_log->log_fatal(std::format("failed to create directory: {}", sub_path_0));
+        //->log_fatal(std::format("failed to create directory: {}", sub_path_0));
         exit(-1);
       }
     }
   }
-  g_s_log->log_info(std::format("store {} init suc", path));
+  //->log_info(std::format("store {} init suc", path));
 }
 
 auto store_ctx_t::create_file(uint64_t file_id, uint64_t file_size) -> bool {
@@ -38,14 +38,14 @@ auto store_ctx_t::create_file(uint64_t file_id, uint64_t file_size) -> bool {
   auto abs_path = absolute_path(rel_path);
   auto ofs = std::make_shared<std::ofstream>(abs_path, std::ios::binary | std::ios::trunc);
   if (!ofs->is_open()) {
-    g_s_log->log_error(std::format("failed to create file: {}", abs_path));
+    //->log_error(std::format("failed to create file: {}", abs_path));
     return false;
   }
   ofs->seekp(file_size - 1);
   ofs->put(0);
   ofs->seekp(0);
   m_files[file_id] = std::make_tuple(rel_path, ofs);
-  g_s_log->log_debug(std::format("create file: {}", abs_path));
+  //->log_debug(std::format("create file: {}", abs_path));
   return true;
 }
 
@@ -57,23 +57,23 @@ auto store_ctx_t::create_file(uint64_t file_id, uint64_t file_size, std::string_
   auto abs_path = absolute_path(std::string{rel_path});
   auto ofs = std::make_shared<std::ofstream>(abs_path, std::ios::binary | std::ios::trunc);
   if (!ofs->is_open()) {
-    g_s_log->log_error(std::format("failed to create file: {}", abs_path));
+    //->log_error(std::format("failed to create file: {}", abs_path));
     return false;
   }
   ofs->seekp(file_size - 1);
   ofs->put(0);
   ofs->seekp(0);
   m_files[file_id] = std::make_tuple(rel_path, ofs);
-  g_s_log->log_debug(std::format("create file: {}", abs_path));
+  //->log_debug(std::format("create file: {}", abs_path));
   return true;
 }
 
-auto store_ctx_t::write_file(uint64_t file_id, std::span<uint8_t> data) -> bool {
+auto store_ctx_t::write_file(uint64_t file_id, std::span<char> data) -> bool {
   if (auto res = get_ofstream(file_id); res.has_value()) {
     const auto &[rel_path, ofs] = res.value();
     ofs->write((const char *)data.data(), data.size());
     if (!ofs->good()) {
-      g_s_log->log_error(std::format("write file: {} failed", absolute_path(rel_path)));
+      //->log_error(std::format("write file: {} failed", absolute_path(rel_path)));
       return false;
     }
     // g_log->log_debug(std::format("write file: {}, size: {} suc", absolute_path(rel_path), data.size()));
@@ -99,7 +99,7 @@ auto store_ctx_t::close_file(uint64_t file_id, std::string_view filename) -> std
     } while (std::filesystem::exists(new_abs_path));
 
     /* 重命名 */
-    g_s_log->log_debug(std::format("close file: {} -> {}", old_base_path, new_abs_path));
+    //->log_debug(std::format("close file: {} -> {}", old_base_path, new_abs_path));
     std::filesystem::rename(old_base_path, new_abs_path);
     return new_rel_path;
   }
@@ -111,7 +111,7 @@ auto store_ctx_t::close_file(uint64_t file_id) -> bool {
     m_files.erase(file_id);
     const auto &[rel_path, ofs] = res.value();
     ofs->close();
-    g_s_log->log_debug(std::format("close file : {}", rel_path));
+    //->log_debug(std::format("close file : {}", rel_path));
     return true;
   }
   return false;
@@ -129,36 +129,36 @@ auto store_ctx_t::open_file(uint64_t file_id, const std::string &rel_path) -> st
   return file_size;
 }
 
-auto store_ctx_t::read_file(uint64_t file_id, uint64_t offset, uint64_t size) -> std::optional<std::vector<uint8_t>> {
+auto store_ctx_t::read_file(uint64_t file_id, uint64_t offset, uint64_t size) -> std::optional<std::vector<char>> {
   if (auto _ = get_ifstream(file_id); _.has_value()) {
     auto &[rel_path, ifs] = _.value();
     ifs->seekg(offset);
     if (!ifs->good()) {
-      g_s_log->log_error(std::format("seekg file {} failed", absolute_path(rel_path)));
+      //->log_error(std::format("seekg file {} failed", absolute_path(rel_path)));
       return std::nullopt;
     }
-    auto data = std::vector<uint8_t>(size, 0);
+    auto data = std::vector<char>(size, 0);
     data.resize(ifs->readsome((char *)data.data(), size));
     if (!ifs->good()) {
-      g_s_log->log_error(std::format("read file {} failed", absolute_path(rel_path)));
+      //->log_error(std::format("read file {} failed", absolute_path(rel_path)));
       return std::nullopt;
     }
-    g_s_log->log_debug(std::format("read file {} offset {} size {} suc", absolute_path(rel_path), offset, size));
+    //->log_debug(std::format("read file {} offset {} size {} suc", absolute_path(rel_path), offset, size));
     return data;
   }
   return std::nullopt;
 }
 
-auto store_ctx_t::read_file(uint64_t file_id, uint64_t size) -> std::optional<std::vector<uint8_t>> {
+auto store_ctx_t::read_file(uint64_t file_id, uint64_t size) -> std::optional<std::vector<char>> {
   if (auto _ = get_ifstream(file_id); _.has_value()) {
     auto &[rel_path, ifs] = _.value();
     if (ifs->eof()) {
-      return std::vector<uint8_t>{};
+      return std::vector<char>{};
     }
     if (!ifs->good()) {
       return std::nullopt;
     }
-    auto data = std::vector<uint8_t>(size, 0);
+    auto data = std::vector<char>(size, 0);
     data.resize(ifs->readsome((char *)data.data(), size));
     if (!ifs->good()) {
       return std::nullopt;
@@ -166,6 +166,17 @@ auto store_ctx_t::read_file(uint64_t file_id, uint64_t size) -> std::optional<st
     return data;
   }
   return std::nullopt;
+}
+
+auto store_ctx_t::read_file(uint64_t file_id, char *dst, uint64_t size) -> uint64_t {
+  if (auto _ = get_ifstream(file_id); _.has_value()) {
+    auto &[__, ifs] = _.value();
+    if (ifs->eof() || !ifs) {
+      return 0;
+    }
+    return ifs->readsome(dst, size);
+  }
+  return 0;
 }
 
 auto store_ctx_t::free_space() -> uint64_t {
@@ -183,7 +194,7 @@ auto store_ctx_t::base_path() -> std::string {
 auto store_ctx_t::check_disk_enough(uint64_t size) -> bool {
   auto [free, total] = fs_free_size(m_base_path);
   if (free < size || free < total * 0.05) {
-    g_s_log->log_error(std::format("store {} no enough space for {}GB, left {}GB", m_base_path, 1.0 * size / 1024 / 1024 / 1024, 1.0 * free / 1024 / 1024 / 1024));
+    //->log_error(std::format("store {} no enough space for {}GB, left {}GB", m_base_path, 1.0 * size / 1024 / 1024 / 1024, 1.0 * free / 1024 / 1024 / 1024));
     return false;
   }
   return true;
@@ -204,12 +215,12 @@ auto store_ctx_t::next_idx() -> uint16_t {
 auto store_ctx_t::get_ifstream(uint64_t file_id) -> std::optional<std::tuple<std::string, std::shared_ptr<std::ifstream>>> {
   auto it = m_files.find(file_id);
   if (it == m_files.end()) {
-    g_s_log->log_debug(std::format("invalid fileid", m_base_path, file_id));
+    //->log_debug(std::format("invalid fileid", m_base_path, file_id));
     return std::nullopt;
   }
   const auto &[path, file] = it->second;
   if (file.index() != 1) {
-    g_s_log->log_debug(std::format("invalid fileid", m_base_path, file_id));
+    //->log_debug(std::format("invalid fileid", m_base_path, file_id));
     return std::nullopt;
   }
   return std::make_tuple(path, std::get<1>(file));
@@ -219,12 +230,12 @@ auto store_ctx_t::get_ofstream(uint64_t file_id) -> std::optional<std::tuple<std
 
   auto it = m_files.find(file_id);
   if (it == m_files.end()) {
-    g_s_log->log_debug(std::format("invalid fileid {}", m_base_path, file_id));
+    //->log_debug(std::format("invalid fileid {}", m_base_path, file_id));
     return std::nullopt;
   }
   const auto &[path, file] = it->second;
   if (file.index() != 0) {
-    g_s_log->log_debug(std::format("invalid fileid", m_base_path, file_id));
+    //->log_debug(std::format("invalid fileid", m_base_path, file_id));
     return std::nullopt;
   }
   return std::make_tuple(path, std::get<0>(file));
@@ -259,7 +270,7 @@ auto store_ctx_group_t::create_file(uint64_t file_size, std::string_view rel_pat
   return std::nullopt;
 }
 
-auto store_ctx_group_t::write_file(uint64_t file_id, std::span<uint8_t> data) -> bool {
+auto store_ctx_group_t::write_file(uint64_t file_id, std::span<char> data) -> bool {
   if (auto idx = map_to_store_idx(file_id); idx.has_value()) {
     return m_stores[idx.value()].write_file(file_id, data);
   }
@@ -287,26 +298,33 @@ auto store_ctx_group_t::open_file(const std::string &relpath) -> std::optional<s
   for (auto i = 0, idx = (int)next_idx(); i < m_stores.size(); ++i, idx = (idx + 1) % m_stores.size()) {
     if (auto res = m_stores[idx].open_file(file_id, relpath); res.has_value()) {
       m_store_idx_map[file_id] = idx;
-      g_s_log->log_debug(std::format("store group ‘{}’ open file '{}' suc", m_name, relpath));
+      //->log_debug(std::format("store group ‘{}’ open file '{}' suc", m_name, relpath));
       return std::make_tuple(file_id, res.value());
     }
   }
-  g_s_log->log_error(std::format("store group ‘{}’ no file '{}'", m_name, relpath));
+  //->log_error(std::format("store group ‘{}’ no file '{}'", m_name, relpath));
   return std::nullopt;
 }
 
-auto store_ctx_group_t::read_file(uint64_t file_id, uint64_t offset, uint64_t size) -> std::optional<std::vector<uint8_t>> {
+auto store_ctx_group_t::read_file(uint64_t file_id, uint64_t offset, uint64_t size) -> std::optional<std::vector<char>> {
   if (auto idx = map_to_store_idx(file_id); idx.has_value()) {
     return m_stores[idx.value()].read_file(file_id, offset, size);
   }
   return std::nullopt;
 }
 
-auto store_ctx_group_t::read_file(uint64_t file_id, uint64_t size) -> std::optional<std::vector<uint8_t>> {
+auto store_ctx_group_t::read_file(uint64_t file_id, uint64_t size) -> std::optional<std::vector<char>> {
   if (auto idx = map_to_store_idx(file_id); idx.has_value()) {
     return m_stores[idx.value()].read_file(file_id, size);
   }
   return std::nullopt;
+}
+
+auto store_ctx_group_t::read_file(uint64_t file_id, char *dst, uint64_t size) -> uint64_t {
+  if (auto idx = map_to_store_idx(file_id); idx.has_value()) {
+    return m_stores[idx.value()].read_file(file_id, dst, size);
+  }
+  return 0;
 }
 
 auto store_ctx_group_t::max_free_space() -> uint64_t {
@@ -326,7 +344,7 @@ auto store_ctx_group_t::monitor_disk() -> std::vector<std::tuple<std::string, ui
   struct statvfs svfs;
   for (auto &store : m_stores) {
     if (statvfs(store.base_path().c_str(), &svfs) != 0) {
-      g_s_log->log_error(std::format("failed to get statvfs: {}", store.base_path()));
+      //->log_error(std::format("failed to get statvfs: {}", store.base_path()));
       res.emplace_back(store.base_path(), 0, 0);
     } else {
       res.emplace_back(store.base_path(), svfs.f_bavail * svfs.f_bsize, svfs.f_blocks * svfs.f_bsize);
@@ -350,7 +368,7 @@ auto store_ctx_group_t::store_idx(uint16_t idx) -> uint16_t {
 auto store_ctx_group_t::map_to_store_idx(uint64_t file_id) -> std::optional<uint16_t> {
   auto it = m_store_idx_map.find(file_id);
   if (it == m_store_idx_map.end()) {
-    g_s_log->log_error(std::format("store group '{}' no file, fileid '{}'", m_name, file_id));
+    //->log_error(std::format("store group '{}' no file, fileid '{}'", m_name, file_id));
     return std::nullopt;
   }
   return it->second;

@@ -137,7 +137,7 @@ enum proto_cmd : uint16_t {
 
   /*
     开始同步上传的文件
-    request: uint64 filesize, string filename   xx/xx/<filename>_<file_suffix>
+    request: uint64 filesize, string filepath   xx/xx/<filename>_<file_suffix>
     response: void
   */
   ss_upload_sync_open,

@@ -283,19 +283,19 @@ auto main() -> int {
 
   auto cmd = std::string{};
   while (true) {
-    std::this_thread::sleep_for(std::chrono::seconds(2));
-    asio::co_spawn(io, upload_file("bigfile"), asio::detached);
-    // std::cout << ": " << std::flush;
-    // std::cin >> cmd;
-    // if (cmd == "upload") {
-    //   std::string path;
-    //   std::cin >> path;
-    //   asio::co_spawn(io, upload_file(path), asio::detached);
-    // } else if (cmd == "download") {
-    //   std::string src, dst;
-    //   std::cin >> src >> dst;
-    //   // asio::co_spawn(*io, download_file(src, dst), asio::detached);
-    // }
+    // std::this_thread::sleep_for(std::chrono::seconds(2));
+    // asio::co_spawn(io, upload_file("bigfile"), asio::detached);
+    std::cout << ": " << std::flush;
+    std::cin >> cmd;
+    if (cmd == "upload") {
+      std::string path;
+      std::cin >> path;
+      asio::co_spawn(io, upload_file(path), asio::detached);
+    } else if (cmd == "download") {
+      std::string src, dst;
+      std::cin >> src >> dst;
+      // asio::co_spawn(*io, download_file(src, dst), asio::detached);
+    }
   }
 
   return 0;

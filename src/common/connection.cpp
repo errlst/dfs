@@ -11,7 +11,7 @@ connection::connection(asio::ip::tcp::socket &&sock)
 }
 
 connection::~connection() {
-  LOG_DEBUG(std::format("connection destoryed"));
+  LOG_ERROR(std::format("connection destoryed"));
   sock_.close();
 }
 
@@ -25,22 +25,23 @@ auto connection::close() -> asio::awaitable<void> {
   if (closed_) {
     co_return;
   }
-  // LOG_DEBUG(std::format("close"));
   closed_ = true;
-  for (auto &_ : res_frames_) {
+  for (auto &_ : response_frames_) {
     _.second.second->cancel();
   }
   if (heart_timer_) {
     heart_timer_->cancel();
   }
-  asio::co_spawn(strand_, on_recv_request_(nullptr, shared_from_this()), asio::detached);
-  // LOG_DEBUG("close end");
+  co_await on_recv_request_(nullptr, shared_from_this());
+  for (auto on_close : on_close_works_) {
+    on_close();
+  }
 }
 
 auto connection::recv_response(uint16_t id) -> asio::awaitable<std::shared_ptr<proto_frame>> {
   co_await asio::post(strand_, asio::use_awaitable);
   LOG_DEBUG(std::format("waiting response {}", id));
-  auto &[frame, waiter] = res_frames_[id];
+  auto &[frame, waiter] = response_frames_[id];
   if (frame == nullptr) {
     waiter = std::make_shared<asio::steady_timer>(strand_, std::chrono::days{365});
     co_await waiter->async_wait(asio::as_tuple(asio::use_awaitable));
@@ -49,7 +50,7 @@ auto connection::recv_response(uint16_t id) -> asio::awaitable<std::shared_ptr<p
     }
   }
   auto ret = frame;
-  res_frames_.erase(id);
+  response_frames_.erase(id);
   co_return ret;
 }
 
@@ -84,6 +85,10 @@ auto connection::send_request(proto_frame *frame) -> asio::awaitable<std::option
 
 auto connection::send_request(proto_frame frame) -> asio::awaitable<std::optional<uint16_t>> {
   co_await asio::post(strand_, asio::use_awaitable);
+  if (closed_) {
+    co_return std::nullopt;
+  }
+
   frame.id = request_frame_id_++;
   frame.type = REQUEST_FRAME;
   frame.data_len = 0;
@@ -110,6 +115,10 @@ auto connection::send_request(proto_frame frame) -> asio::awaitable<std::optiona
 
 auto connection::send_response(proto_frame *frame, std::shared_ptr<proto_frame> req_frame) -> asio::awaitable<bool> {
   co_await asio::post(strand_, asio::use_awaitable);
+  if (closed_) {
+    co_return false;
+  }
+
   frame->id = req_frame->id;
   frame->type = RESPONSE_FRAME;
   frame->cmd = req_frame->cmd;
@@ -136,6 +145,10 @@ auto connection::send_response(proto_frame *frame, std::shared_ptr<proto_frame> 
 
 auto connection::send_response(proto_frame frame, std::shared_ptr<proto_frame> req_frame) -> asio::awaitable<bool> {
   co_await asio::post(strand_, asio::use_awaitable);
+  if (closed_) {
+    co_return false;
+  }
+
   frame.id = req_frame->id;
   frame.type = RESPONSE_FRAME;
   frame.cmd = req_frame->cmd;
@@ -159,8 +172,9 @@ auto connection::send_response(proto_frame frame, std::shared_ptr<proto_frame> r
   co_return true;
 }
 
-auto connection::add_exetension_work(std::function<asio::awaitable<void>(std::shared_ptr<connection>)> work) -> void {
+auto connection::add_exetension_work(std::function<asio::awaitable<void>(std::shared_ptr<connection>)> work, std::function<void()> on_close) -> void {
   asio::co_spawn(strand_, work(shared_from_this()), asio::detached);
+  on_close_works_.emplace_back(on_close);
 }
 
 auto connection::ip() -> std::string {
@@ -300,7 +314,7 @@ auto connection::start_recv() -> asio::awaitable<void> {
       LOG_DEBUG(std::format("recv request cmd: {}", frame->cmd));
       asio::co_spawn(strand_, on_recv_request_(frame, shared_from_this()), asio::detached);
     } else if (frame->type == RESPONSE_FRAME) {
-      auto &[res_frame, waiter] = res_frames_[frame->id];
+      auto &[res_frame, waiter] = response_frames_[frame->id];
       res_frame = frame;
       if (waiter != nullptr) {
         waiter->cancel();

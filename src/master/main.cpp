@@ -1,8 +1,7 @@
-#include "../common/loop.h"
-#include "../common/util.h"
-#include "./global.h"
+#include "../common/log.h"
 #include "./master_service.h"
-#include <print>
+#include <fstream>
+#include <nlohmann/json.hpp>
 
 auto show_usage() -> void {
   std::println("usgae: storage [options]");
@@ -12,38 +11,40 @@ auto show_usage() -> void {
   std::println("  -d\trun as a daemon");
 }
 
-auto init_conf(std::string_view file) -> void {
+auto read_config(std::string_view file) -> nlohmann::json {
   auto ifs = std::ifstream{file.data()};
   if (!ifs) {
-    std::println("failed to open file: {}", file);
+    LOG_ERROR(std::format("failed to open configure : {}", file));
     exit(-1);
   }
 
-  g_m_conf = nlohmann::json::parse(ifs, nullptr, false, true); // 允许 json 注释
-  if (g_m_conf.empty()) {
-    std::println("failed to parse configure {}", file);
+  auto ret = nlohmann::json::parse(ifs, nullptr, false, true); // 允许 json 注释
+  if (ret.empty()) {
+    LOG_ERROR(std::format("parse config failed"));
     exit(-1);
   }
 
-  check_directory(g_m_conf["common"]["base_path"].get<std::string>());
-}
+  if (!std::filesystem::is_directory(ret["common"]["base_path"].get<std::string>())) {
+    LOG_ERROR(std::format("base_path is not a valid directory"));
+    exit(-1);
+  }
 
-auto init_log() -> void {
-  auto base_path = g_m_conf["common"]["base_path"].get<std::string>();
-  check_directory(std::format("{}/{}", base_path, "log"));
-
-  auto path = std::format("{}/{}", base_path, "log/master.log");
-  auto level = g_m_conf["common"]["log_level"].get<uint8_t>();
-  g_m_log = std::make_shared<log_t>(path, static_cast<log_level_e>(level), false);
+  return ret;
 }
 
 auto main(int argc, char *argv[]) -> int {
-  init_conf("/home/jin/project/dfs/conf/master.conf.json");
-  init_log();
-
-  asio::co_spawn(*g_m_io_ctx, master_service(), asio::detached);
-  auto guard = asio::make_work_guard(*g_m_io_ctx);
-  g_m_io_ctx->run();
-
-  return 0;
+  auto config = read_config("/home/jin/project/dfs/conf/master.conf.json");
+  auto io = asio::io_context{};
+  asio::co_spawn(io, master_service(master_service_conf{
+                         .ip = config["master_service"]["ip"].get<std::string>(),
+                         .port = config["master_service"]["port"].get<uint16_t>(),
+                         .thread_count = config["master_service"]["thread_count"].get<uint16_t>(),
+                         .group_size = config["master_service"]["group_size"].get<uint16_t>(),
+                         .master_magic = config["master_service"]["master_magic"].get<uint32_t>(),
+                         .heart_timeout = config["network"]["heart_timeout"].get<uint32_t>(),
+                         .heart_interval = config["network"]["heart_interval"].get<uint32_t>(),
+                     }),
+                 asio::detached);
+  auto guard = asio::make_work_guard(io);
+  return io.run();
 }

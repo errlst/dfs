@@ -1,5 +1,4 @@
 #pragma once
-#include "../common/util.h"
 #include <atomic>
 #include <fstream>
 #include <map>
@@ -21,7 +20,7 @@ public:
   auto create_file(uint64_t file_id, uint64_t file_size) -> bool;
   auto create_file(uint64_t file_id, uint64_t file_size, std::string_view rel_path) -> bool;
 
-  auto write_file(uint64_t file_id, std::span<uint8_t> data) -> bool;
+  auto write_file(uint64_t file_id, std::span<char> data) -> bool;
 
   /* 返回最后的相对路径 */
   auto close_file(uint64_t file_id, std::string_view filename) -> std::optional<std::string>;
@@ -29,8 +28,9 @@ public:
 
   auto open_file(uint64_t file_id, const std::string &filepath) -> std::optional<uint64_t>;
 
-  auto read_file(uint64_t file_id, uint64_t offset, uint64_t size) -> std::optional<std::vector<uint8_t>>;
-  auto read_file(uint64_t file_id, uint64_t size) -> std::optional<std::vector<uint8_t>>;
+  auto read_file(uint64_t file_id, uint64_t offset, uint64_t size) -> std::optional<std::vector<char>>;
+  auto read_file(uint64_t file_id, uint64_t size) -> std::optional<std::vector<char>>;
+  auto read_file(uint64_t file_id, char *dst, uint64_t size) -> uint64_t;
 
   auto free_space() -> uint64_t;
 
@@ -67,7 +67,7 @@ public:
   auto create_file(uint64_t file_size, std::string_view rel_path) -> std::optional<uint64_t>;
 
   /* append 写入文件 */
-  auto write_file(uint64_t file_id, std::span<uint8_t> data) -> bool;
+  auto write_file(uint64_t file_id, std::span<char> data) -> bool;
 
   // 返回：relpath
   auto close_file(uint64_t file_id, std::string_view filename) -> std::optional<std::string>;
@@ -77,8 +77,9 @@ public:
   // 返回: (file_id, file_size)
   auto open_file(const std::string &relpath) -> std::optional<std::tuple<uint64_t, uint64_t>>;
 
-  auto read_file(uint64_t file_id, uint64_t offset, uint64_t size) -> std::optional<std::vector<uint8_t>>;
-  auto read_file(uint64_t file_id, uint64_t size) -> std::optional<std::vector<uint8_t>>;
+  auto read_file(uint64_t file_id, uint64_t offset, uint64_t size) -> std::optional<std::vector<char>>;
+  auto read_file(uint64_t file_id, uint64_t size) -> std::optional<std::vector<char>>;
+  auto read_file(uint64_t file_id, char *dst, uint64_t size) -> uint64_t;
 
   /* 最大空闲空间 */
   auto max_free_space() -> uint64_t;

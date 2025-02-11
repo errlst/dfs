@@ -1,9 +1,8 @@
-#include "../common/loop.h"
-#include "../common/util.h"
-#include "./global.h"
-#include "./monitor_service.h"
+#include "../common/log.h"
 #include "./storage_service.h"
-#include <print>
+#include <fstream>
+#include <nlohmann/json.hpp>
+#include <random>
 
 auto show_usage() -> void {
   std::println("usgae: storage [options]");
@@ -13,34 +12,29 @@ auto show_usage() -> void {
   std::println("  -d\trun as a daemon");
 }
 
-auto init_conf(std::string_view file) -> void {
+auto read_config(std::string_view file) -> nlohmann::json {
   auto ifs = std::ifstream{file.data()};
   if (!ifs) {
-    std::println("failed to open file: {}", file);
+    LOG_ERROR(std::format("failed to open configure : {}", file));
     exit(-1);
   }
 
-  g_s_conf = nlohmann::json::parse(ifs, nullptr, false, true); // 允许 json 注释
-  if (g_s_conf.empty()) {
-    std::println("failed to parse configure {}", file);
+  auto ret = nlohmann::json::parse(ifs, nullptr, false, true); // 允许 json 注释
+  if (ret.empty()) {
+    LOG_ERROR(std::format("parse config failed"));
     exit(-1);
   }
 
-  check_directory(g_s_conf["common"]["base_path"].get<std::string>());
-}
+  if (!std::filesystem::is_directory(ret["common"]["base_path"].get<std::string>())) {
+    LOG_ERROR(std::format("base_path is not a valid directory"));
+    exit(-1);
+  }
 
-auto init_log() -> void {
-  auto base_path = g_s_conf["common"]["base_path"].get<std::string>();
-  check_directory(std::format("{}/{}", base_path, "log"));
-
-  auto path = std::format("{}/{}", base_path, "log/master.log");
-  auto level = g_s_conf["common"]["log_level"].get<uint8_t>();
-  g_s_log = std::make_shared<log_t>(path, static_cast<log_level_e>(level), false);
+  return ret;
 }
 
 auto main(int argc, char *argv[]) -> int {
-  auto conf_file = "/home/jin/project/dfs/conf/storage.conf.json";
-
+  auto config_file = "/home/jin/project/dfs/conf/storage.conf.json";
   for (auto i = 1; i < argc; ++i) {
     if (std::string_view(argv[i]) == "-h") {
       show_usage();
@@ -50,25 +44,33 @@ auto main(int argc, char *argv[]) -> int {
         show_usage();
         return -1;
       }
-      conf_file = argv[i + 1];
+      config_file = argv[i + 1];
       i += 1;
     } else {
       show_usage();
     }
   }
 
-  init_conf(conf_file);
-  init_log();
+  auto config = read_config(config_file);
 
-  // asio::co_spawn(*g_s_io_ctx, monitor_service(), asio::detached);
-  asio::co_spawn(*g_s_io_ctx, storage_service(), asio::detached);
-  auto guard = asio::make_work_guard(g_s_io_ctx);
-  g_s_io_ctx->run();
-
-  // auto loop = loop_t{};
-  // loop.regist_service(monitor_service);
-  // loop.regist_service(storage_service);
-  // loop.run();
-
-  return 0;
+  auto io = asio::io_context{};
+  auto gurad = asio::make_work_guard(io);
+  asio::co_spawn(io, storage_service(storage_service_config{
+                         .id = config["storage_service"]["id"].get<uint32_t>(),
+                         .ip = config["storage_service"]["ip"].get<std::string>(),
+                         .port = config["storage_service"]["port"].get<uint16_t>(),
+                         .master_ip = config["storage_service"]["master_ip"].get<std::string>(),
+                         .master_port = config["storage_service"]["master_port"].get<uint16_t>(),
+                         .thread_count = config["storage_service"]["thread_count"].get<uint16_t>(),
+                         .storage_magic = (uint16_t)std::random_device{}(),
+                         .master_magic = config["storage_service"]["master_magic"].get<uint32_t>(),
+                         .sync_interval = config["storage_service"]["sync_interval"].get<uint32_t>(),
+                         .hot_paths = config["storage_service"]["hot_paths"].get<std::vector<std::string>>(),
+                         .warm_paths = config["storage_service"]["warm_paths"].get<std::vector<std::string>>(),
+                         .cold_paths = config["storage_service"]["cold_paths"].get<std::vector<std::string>>(),
+                         .heart_timeout = config["network"]["heart_timeout"].get<uint32_t>(),
+                         .heart_interval = config["network"]["heart_interval"].get<uint32_t>(),
+                     }),
+                 asio::detached);
+  return io.run();
 }

@@ -1,6 +1,0 @@
-[34m [Sat Feb  8 12:33:42 2025] [DEBUG] [src/client/main.cpp:20] [0m upload file size : 153
-[32m [Sat Feb  8 12:33:42 2025] [INFO] [src/client/main.cpp:50] [0m get valid storage 0.0.0.0:8890 13000
-[32m [Sat Feb  8 12:33:42 2025] [INFO] [src/client/main.cpp:58] [0m connect to storage 0.0.0.0:8890 suc
-[32m [Sat Feb  8 12:33:43 2025] [INFO] [src/client/main.cpp:106] [0m upload 153 bytes
-[32m [Sat Feb  8 12:33:43 2025] [INFO] [src/client/main.cpp:133] [0m upload suc file: 1/00/02/xmake.lua_ghn6WbuF
-[34m [Sat Feb  8 12:33:53 2025] [DEBUG] [src/client/main.cpp:20] [0m upload file size : 153

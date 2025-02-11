@@ -1,7 +1,9 @@
-#include "./master_service_global.h"
+#include "./master_service_handles.h"
+#include "../common/util.h"
+#include "../proto/proto.pb.h"
 
 /* 定期获取 storage 的可用空间 */
-auto request_storage_free_space(std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
+auto request_storage_free_space(std::shared_ptr<common::connection> conn, std::shared_ptr<asio::steady_timer> timer) -> asio::awaitable<void> {
   while (true) {
     auto id = co_await conn->send_request(common::proto_frame{.cmd = common::proto_cmd::ms_get_free_space});
     if (!id) {
@@ -16,7 +18,9 @@ auto request_storage_free_space(std::shared_ptr<common::connection> conn) -> asi
     auto free_space = htonll(*(uint64_t *)response_recved->data);
     conn->set_data<uint64_t>(conn_data::storage_free_space, free_space);
     LOG_DEBUG(std::format("get storage free space {}", free_space));
-    co_await co_sleep_for(std::chrono::seconds{100});
+
+    timer->expires_after(std::chrono::seconds{60});
+    co_await timer->async_wait(asio::as_tuple(asio::use_awaitable));
   }
 }
 
@@ -28,13 +32,13 @@ auto sm_regist_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void> {
     co_return;
   }
 
-  if (request_data.master_magic() != conf.master_magic) {
+  if (request_data.master_magic() != ms_config.master_magic) {
     LOG_ERROR(std::format("invalid master magic {}", request_data.master_magic()));
     co_await conn->send_response(common::proto_frame{.stat = 2}, request_recved);
     co_return;
   }
 
-  if (storage_registed(request_data.s_info().id())) {
+  if (storage_exists(request_data.s_info().id())) {
     LOG_ERROR(std::format("storage {} has registed", request_data.s_info().id()));
     co_await conn->send_response(common::proto_frame{.stat = 3}, request_recved);
     co_return;
@@ -72,9 +76,17 @@ auto sm_regist_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void> {
   conn->set_data<uint32_t>(conn_data::storage_magic, request_data.s_info().magic());
   conn->set_data<uint16_t>(conn_data::storage_port, request_data.s_info().port());
   conn->set_data<std::string>(conn_data::storage_ip, request_data.s_info().ip());
-  conn->set_data<uint8_t>(conn_data::type, CONN_TYPE_STORAGE);
-  regist_storage(request_data.s_info().id(), conn);
-  conn->add_exetension_work(request_storage_free_space);
+  regist_storage(conn);
+
+  /* 开始获取信息 */
+  auto request_storage_free_space_timer = std::make_shared<asio::steady_timer>(co_await asio::this_coro::executor);
+  conn->add_exetension_work(
+      [request_storage_free_space_timer](std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
+        co_await request_storage_free_space(conn, request_storage_free_space_timer);
+      },
+      [request_storage_free_space_timer] {
+        request_storage_free_space_timer->cancel();
+      });
 }
 
 auto cm_fetch_one_storage_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void> {
