@@ -27,3 +27,7 @@ message ss_regist_request {
 message cm_fetch_one_storage_response {
   storage_info s_info = 1;
 }
+
+message cm_fetch_group_storages_response {
+  repeated storage_info s_infos = 1;
+}

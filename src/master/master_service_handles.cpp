@@ -120,3 +120,26 @@ auto cm_fetch_one_storage_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>
   co_await conn->send_response(response_to_send, request_recved);
   free(response_to_send);
 }
+
+auto cm_fetch_group_storages_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void> {
+  if (request_recved->data_len != sizeof(uint32_t)) {
+    LOG_ERROR("cm_fetch_group_storages request data_len invalid");
+    co_await conn->send_response(common::proto_frame{.stat = 1}, request_recved);
+    co_return;
+  }
+
+  auto group_id = ntohl(*(uint32_t *)request_recved->data);
+  auto storages = group_storages(group_id);
+  auto response_data_to_send = proto::cm_fetch_group_storages_response{};
+  for (auto storage : storages) {
+    auto s_info = response_data_to_send.add_s_infos();
+    s_info->set_id(storage->get_data<uint32_t>(conn_data::storage_id).value());
+    s_info->set_magic(storage->get_data<uint32_t>(conn_data::storage_magic).value());
+    s_info->set_port(storage->get_data<uint16_t>(conn_data::storage_port).value());
+    s_info->set_ip(storage->get_data<std::string>(conn_data::storage_ip).value());
+  }
+  auto response_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + response_data_to_send.ByteSizeLong()), [](auto p) { free(p); }};
+  *response_to_send = {.data_len = (uint32_t)response_data_to_send.ByteSizeLong()};
+  response_data_to_send.SerializeToArray(response_to_send->data, response_to_send->data_len);
+  co_await conn->send_response(response_to_send.get(), request_recved);
+}

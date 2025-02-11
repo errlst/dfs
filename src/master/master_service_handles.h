@@ -81,3 +81,5 @@ using request_handle = std::function<asio::awaitable<void>(std::shared_ptr<commo
 auto sm_regist_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;
 
 auto cm_fetch_one_storage_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;
+
+auto cm_fetch_group_storages_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;

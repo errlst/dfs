@@ -11,11 +11,11 @@
 /*
   相对路径为 xx/xx/<filename>
 */
-class store_ctx_t {
+class store_ctx {
 public:
-  store_ctx_t(const std::string &path);
+  store_ctx(const std::string &path);
 
-  ~store_ctx_t() = default;
+  ~store_ctx() = default;
 
   auto create_file(uint64_t file_id, uint64_t file_size) -> bool;
   auto create_file(uint64_t file_id, uint64_t file_size, std::string_view rel_path) -> bool;
@@ -26,7 +26,7 @@ public:
   auto close_file(uint64_t file_id, std::string_view filename) -> std::optional<std::string>;
   auto close_file(uint64_t file_id) -> bool;
 
-  auto open_file(uint64_t file_id, const std::string &filepath) -> std::optional<uint64_t>;
+  auto open_file(uint64_t file_id, std::string_view rel_path) -> std::optional<uint64_t>;
 
   auto read_file(uint64_t file_id, uint64_t offset, uint64_t size) -> std::optional<std::vector<char>>;
   auto read_file(uint64_t file_id, uint64_t size) -> std::optional<std::vector<char>>;
@@ -42,7 +42,7 @@ private:
 
   auto relative_path(uint16_t idx) -> std::string;
 
-  auto absolute_path(const std::string &rel_path) -> std::string;
+  auto absolute_path(std::string_view rel_path) -> std::string;
 
   auto next_idx() -> uint16_t;
 
@@ -56,11 +56,11 @@ private:
   std::default_random_engine m_rnd = std::default_random_engine(std::random_device()());
 };
 
-class store_ctx_group_t {
+class store_ctx_group {
 public:
-  store_ctx_group_t(const std::string &name, const std::vector<std::string> &path);
+  store_ctx_group(const std::string &name, const std::vector<std::string> &path);
 
-  ~store_ctx_group_t() = default;
+  ~store_ctx_group() = default;
 
   /* 创建文件 返回 file_id */
   auto create_file(uint64_t file_size) -> std::optional<uint64_t>;
@@ -75,7 +75,7 @@ public:
 
   // 打开文件之后可以读取文件内容
   // 返回: (file_id, file_size)
-  auto open_file(const std::string &relpath) -> std::optional<std::tuple<uint64_t, uint64_t>>;
+  auto open_file(std::string_view rel_path) -> std::optional<std::pair<uint64_t, uint64_t>>;
 
   auto read_file(uint64_t file_id, uint64_t offset, uint64_t size) -> std::optional<std::vector<char>>;
   auto read_file(uint64_t file_id, uint64_t size) -> std::optional<std::vector<char>>;
@@ -102,7 +102,7 @@ private:
 
 private:
   std::string m_name;
-  std::vector<store_ctx_t> m_stores = {};
+  std::vector<store_ctx> m_stores = {};
   std::shared_ptr<std::atomic_uint16_t> m_idx = std::make_shared<std::atomic_uint16_t>(0); // m_idx % m_stores.size() == store_idx
   std::shared_ptr<std::atomic_uint64_t> m_file_id = std::make_shared<std::atomic_uint64_t>(0);
   std::map<uint64_t, uint16_t> m_store_idx_map = {}; // file_id -> store_idx

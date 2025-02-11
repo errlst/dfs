@@ -3,8 +3,9 @@
 #include "./master_service_handles.h"
 
 static auto request_handles_for_client = std::map<uint16_t, request_handle>{
-    {common::sm_regist, sm_regist_handle},
-    {common::cm_fetch_one_storage, cm_fetch_one_storage_handle},
+    {common::proto_cmd::sm_regist, sm_regist_handle},
+    {common::proto_cmd::cm_fetch_one_storage, cm_fetch_one_storage_handle},
+    {common::proto_cmd::cm_fetch_group_storages, cm_fetch_group_storages_handle},
 };
 
 static auto request_from_client(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {

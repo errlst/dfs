@@ -1,6 +1,5 @@
 #pragma once
 #include "../common/connection.h"
-#include "../proto/proto.pb.h"
 #include "./storage_service.h"
 #include "./store.h"
 #include <queue>
@@ -14,17 +13,19 @@ constexpr auto CONN_TYPE_STORAGE = 1;
 constexpr auto CONN_TYPE_MASTER = 2;
 
 enum conn_data : uint64_t {
-  type,                        // uint8_t
-  client_upload_file_id,       // uint64_t
-  storage_sync_upload_file_id, // uint64_t
+  type,                        // u8
+  client_upload_file_id,       // u64
+  client_download_file_id,     // u64
+  client_download_store_group, // ptr store_ctx_group
+  storage_sync_upload_file_id, // u64
 };
 
 inline auto ss_config = storage_service_config{};
 
-inline auto hot_stores = std::shared_ptr<store_ctx_group_t>{};
-inline auto warm_stores = std::shared_ptr<store_ctx_group_t>{};
-inline auto cold_stores = std::shared_ptr<store_ctx_group_t>{};
-inline auto stores = std::vector<std::shared_ptr<store_ctx_group_t>>{}; // 方便遍历 hot、warm 和 cold
+inline auto hot_store_group = std::shared_ptr<store_ctx_group>{};
+inline auto warm_store_group = std::shared_ptr<store_ctx_group>{};
+inline auto cold_store_group = std::shared_ptr<store_ctx_group>{};
+inline auto store_groups = std::vector<std::shared_ptr<store_ctx_group>>{}; // 方便遍历 hot、warm 和 cold
 
 inline auto master_conn = std::shared_ptr<common::connection>{};
 
@@ -87,3 +88,7 @@ auto cs_upload_open_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;
 auto cs_upload_append_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;
 
 auto cs_upload_close_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;
+
+auto cs_download_open_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;
+
+auto cs_download_append_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;

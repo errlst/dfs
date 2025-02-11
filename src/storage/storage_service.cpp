@@ -1,5 +1,6 @@
 #include "../common/acceptor.h"
 #include "../common/util.h"
+#include "../proto/proto.pb.h"
 #include "./storage_service_handles.h"
 
 static auto request_handle_for_master = std::map<uint16_t, request_handle>{
@@ -45,6 +46,8 @@ static auto request_handle_for_client = std::map<uint16_t, request_handle>{
     {common::proto_cmd::cs_upload_open, cs_upload_open_handle},
     {common::proto_cmd::cs_upload_append, cs_upload_append_handle},
     {common::proto_cmd::cs_upload_close, cs_upload_close_handle},
+    {common::proto_cmd::cs_download_open, cs_download_open_handle},
+    {common::proto_cmd::cs_download_append, cs_download_append_handle},
 };
 
 static auto request_from_client(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
@@ -99,7 +102,8 @@ static auto regist_to_master() -> asio::awaitable<bool> {
       break;
     }
     LOG_ERROR(std::format("connect to master {}:{} failed", ss_config.master_ip, ss_config.master_port));
-    co_await co_sleep_for(std::chrono::seconds(i));
+    auto timer = asio::steady_timer{co_await asio::this_coro::executor, std::chrono::seconds{i}};
+    co_await timer.async_wait(asio::as_tuple(asio::use_awaitable));
   }
   LOG_INFO(std::format("connect to master suc"));
   master_conn->set_data<uint8_t>(conn_data::type, CONN_TYPE_MASTER);
@@ -189,7 +193,8 @@ static auto regist_to_master() -> asio::awaitable<bool> {
 /* 同步上传文件 */
 static auto sync_upload_files() -> asio::awaitable<void> {
   while (true) {
-    co_await co_sleep_for(std::chrono::seconds(ss_config.sync_interval));
+    auto timer = asio::steady_timer{co_await asio::this_coro::executor, std::chrono::seconds(ss_config.sync_interval)};
+    co_await timer.async_wait(asio::as_tuple(asio::use_awaitable));
     if (unsync_uploaded_files.empty()) {
       continue;
     }
@@ -200,7 +205,7 @@ static auto sync_upload_files() -> asio::awaitable<void> {
     }
 
     auto file_path = get_one_unsync_uploaded_file();
-    auto res = hot_stores->open_file(file_path);
+    auto res = hot_store_group->open_file(file_path);
     if (!res) {
       LOG_ERROR(std::format("open file {} failed", file_path));
       continue;
@@ -238,7 +243,7 @@ static auto sync_upload_files() -> asio::awaitable<void> {
     /* 上传数据 */
     request_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + 5 * 1024 * 1024), [](auto p) { free(p); }};
     while (true) {
-      auto size = hot_stores->read_file(file_id, request_to_send->data, 5 * 1024 * 1024);
+      auto size = hot_store_group->read_file(file_id, request_to_send->data, 5 * 1024 * 1024);
       *request_to_send = {.cmd = common::proto_cmd::ss_upload_sync_append, .data_len = (uint32_t)size};
       for (auto storage : syncable_storages) {
         auto id = co_await storage->send_request(request_to_send.get());
@@ -315,10 +320,10 @@ static auto storage() -> asio::awaitable<void> {
 // }
 
 static auto init_stores() -> void {
-  hot_stores = std::make_shared<store_ctx_group_t>("hot_store_group", ss_config.hot_paths);
-  warm_stores = std::make_shared<store_ctx_group_t>("warm_store_group", ss_config.warm_paths);
-  cold_stores = std::make_shared<store_ctx_group_t>("cold_store_group", ss_config.cold_paths);
-  stores = {hot_stores, warm_stores, cold_stores};
+  hot_store_group = std::make_shared<store_ctx_group>("hot_store_group", ss_config.hot_paths);
+  warm_store_group = std::make_shared<store_ctx_group>("warm_store_group", ss_config.warm_paths);
+  cold_store_group = std::make_shared<store_ctx_group>("cold_store_group", ss_config.cold_paths);
+  store_groups = {hot_store_group, warm_store_group, cold_store_group};
 }
 
 auto storage_service(storage_service_config config) -> asio::awaitable<void> {

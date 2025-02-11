@@ -52,6 +52,9 @@ struct TableStruct_proto_2eproto {
 extern const ::google::protobuf::internal::DescriptorTable
     descriptor_table_proto_2eproto;
 namespace proto {
+class cm_fetch_group_storages_response;
+struct cm_fetch_group_storages_responseDefaultTypeInternal;
+extern cm_fetch_group_storages_responseDefaultTypeInternal _cm_fetch_group_storages_response_default_instance_;
 class cm_fetch_one_storage_response;
 struct cm_fetch_one_storage_responseDefaultTypeInternal;
 extern cm_fetch_one_storage_responseDefaultTypeInternal _cm_fetch_one_storage_response_default_instance_;
@@ -1125,6 +1128,203 @@ class cm_fetch_one_storage_response final : public ::google::protobuf::Message
   union { Impl_ _impl_; };
   friend struct ::TableStruct_proto_2eproto;
 };
+// -------------------------------------------------------------------
+
+class cm_fetch_group_storages_response final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:proto.cm_fetch_group_storages_response) */ {
+ public:
+  inline cm_fetch_group_storages_response() : cm_fetch_group_storages_response(nullptr) {}
+  ~cm_fetch_group_storages_response() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(cm_fetch_group_storages_response* msg, std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(cm_fetch_group_storages_response));
+  }
+#endif
+
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR cm_fetch_group_storages_response(
+      ::google::protobuf::internal::ConstantInitialized);
+
+  inline cm_fetch_group_storages_response(const cm_fetch_group_storages_response& from) : cm_fetch_group_storages_response(nullptr, from) {}
+  inline cm_fetch_group_storages_response(cm_fetch_group_storages_response&& from) noexcept
+      : cm_fetch_group_storages_response(nullptr, std::move(from)) {}
+  inline cm_fetch_group_storages_response& operator=(const cm_fetch_group_storages_response& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline cm_fetch_group_storages_response& operator=(cm_fetch_group_storages_response&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::google::protobuf::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::google::protobuf::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const cm_fetch_group_storages_response& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const cm_fetch_group_storages_response* internal_default_instance() {
+    return reinterpret_cast<const cm_fetch_group_storages_response*>(
+        &_cm_fetch_group_storages_response_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages = 5;
+  friend void swap(cm_fetch_group_storages_response& a, cm_fetch_group_storages_response& b) { a.Swap(&b); }
+  inline void Swap(cm_fetch_group_storages_response* other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(cm_fetch_group_storages_response* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  cm_fetch_group_storages_response* New(::google::protobuf::Arena* arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<cm_fetch_group_storages_response>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const cm_fetch_group_storages_response& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const cm_fetch_group_storages_response& from) { cm_fetch_group_storages_response::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(
+      ::google::protobuf::MessageLite& to_msg,
+      const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  static ::uint8_t* _InternalSerialize(
+      const MessageLite& msg, ::uint8_t* target,
+      ::google::protobuf::io::EpsCopyOutputStream* stream);
+
+  public:
+  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target,
+      ::google::protobuf::io::EpsCopyOutputStream* stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  ::size_t ByteSizeLong() const final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target,
+      ::google::protobuf::io::EpsCopyOutputStream* stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(cm_fetch_group_storages_response* other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(
+      ::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "proto.cm_fetch_group_storages_response"; }
+
+ protected:
+  explicit cm_fetch_group_storages_response(::google::protobuf::Arena* arena);
+  cm_fetch_group_storages_response(::google::protobuf::Arena* arena, const cm_fetch_group_storages_response& from);
+  cm_fetch_group_storages_response(::google::protobuf::Arena* arena, cm_fetch_group_storages_response&& from) noexcept
+      : cm_fetch_group_storages_response(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* GetClassData() const PROTOBUF_FINAL;
+  static void* PlacementNew_(const void*, void* mem,
+                             ::google::protobuf::Arena* arena);
+  static constexpr auto InternalNewImpl_();
+  static const ::google::protobuf::internal::ClassDataFull _class_data_;
+
+ public:
+  ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kSInfosFieldNumber = 1,
+  };
+  // repeated .proto.storage_info s_infos = 1;
+  int s_infos_size() const;
+  private:
+  int _internal_s_infos_size() const;
+
+  public:
+  void clear_s_infos() ;
+  ::proto::storage_info* mutable_s_infos(int index);
+  ::google::protobuf::RepeatedPtrField<::proto::storage_info>* mutable_s_infos();
+
+  private:
+  const ::google::protobuf::RepeatedPtrField<::proto::storage_info>& _internal_s_infos() const;
+  ::google::protobuf::RepeatedPtrField<::proto::storage_info>* _internal_mutable_s_infos();
+  public:
+  const ::proto::storage_info& s_infos(int index) const;
+  ::proto::storage_info* add_s_infos();
+  const ::google::protobuf::RepeatedPtrField<::proto::storage_info>& s_infos() const;
+  // @@protoc_insertion_point(class_scope:proto.cm_fetch_group_storages_response)
+ private:
+  class _Internal;
+  friend class ::google::protobuf::internal::TcParser;
+  static const ::google::protobuf::internal::TcParseTable<
+      0, 1, 1,
+      0, 2>
+      _table_;
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(
+        ::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(::google::protobuf::internal::InternalVisibility visibility,
+                          ::google::protobuf::Arena* arena);
+    inline explicit Impl_(::google::protobuf::internal::InternalVisibility visibility,
+                          ::google::protobuf::Arena* arena, const Impl_& from,
+                          const cm_fetch_group_storages_response& from_msg);
+    ::google::protobuf::RepeatedPtrField< ::proto::storage_info > s_infos_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_proto_2eproto;
+};
 
 // ===================================================================
 
@@ -1599,6 +1799,59 @@ inline void cm_fetch_one_storage_response::set_allocated_s_info(::proto::storage
 
   _impl_.s_info_ = reinterpret_cast<::proto::storage_info*>(value);
   // @@protoc_insertion_point(field_set_allocated:proto.cm_fetch_one_storage_response.s_info)
+}
+
+// -------------------------------------------------------------------
+
+// cm_fetch_group_storages_response
+
+// repeated .proto.storage_info s_infos = 1;
+inline int cm_fetch_group_storages_response::_internal_s_infos_size() const {
+  return _internal_s_infos().size();
+}
+inline int cm_fetch_group_storages_response::s_infos_size() const {
+  return _internal_s_infos_size();
+}
+inline void cm_fetch_group_storages_response::clear_s_infos() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.s_infos_.Clear();
+}
+inline ::proto::storage_info* cm_fetch_group_storages_response::mutable_s_infos(int index)
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable:proto.cm_fetch_group_storages_response.s_infos)
+  return _internal_mutable_s_infos()->Mutable(index);
+}
+inline ::google::protobuf::RepeatedPtrField<::proto::storage_info>* cm_fetch_group_storages_response::mutable_s_infos()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable_list:proto.cm_fetch_group_storages_response.s_infos)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _internal_mutable_s_infos();
+}
+inline const ::proto::storage_info& cm_fetch_group_storages_response::s_infos(int index) const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:proto.cm_fetch_group_storages_response.s_infos)
+  return _internal_s_infos().Get(index);
+}
+inline ::proto::storage_info* cm_fetch_group_storages_response::add_s_infos() ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::proto::storage_info* _add = _internal_mutable_s_infos()->Add();
+  // @@protoc_insertion_point(field_add:proto.cm_fetch_group_storages_response.s_infos)
+  return _add;
+}
+inline const ::google::protobuf::RepeatedPtrField<::proto::storage_info>& cm_fetch_group_storages_response::s_infos() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_list:proto.cm_fetch_group_storages_response.s_infos)
+  return _internal_s_infos();
+}
+inline const ::google::protobuf::RepeatedPtrField<::proto::storage_info>&
+cm_fetch_group_storages_response::_internal_s_infos() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.s_infos_;
+}
+inline ::google::protobuf::RepeatedPtrField<::proto::storage_info>*
+cm_fetch_group_storages_response::_internal_mutable_s_infos() {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return &_impl_.s_infos_;
 }
 
 #ifdef __GNUC__
