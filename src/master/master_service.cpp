@@ -1,9 +1,7 @@
-#define NO_LOG
 #include "./master_service.h"
 #include "../common/acceptor.h"
 #include "./master_service_handles.h"
 #include "./metrics_service.h"
-
 
 static auto request_handles_for_client = std::map<uint16_t, request_handle>{
     {common::proto_cmd::sm_regist, sm_regist_handle},
@@ -47,6 +45,7 @@ static auto storage_disconnect(std::shared_ptr<common::connection> conn) -> asio
 
 static auto request_from_connection(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
   if (request == nullptr) {
+    metrics::pop_one_connection();
     switch (conn->get_data<uint8_t>(conn_data::type).value()) {
       case CONN_TYPE_CLIENT:
         co_return co_await client_disconnect(conn);
@@ -56,7 +55,7 @@ static auto request_from_connection(std::shared_ptr<common::proto_frame> request
     co_return;
   }
 
-  auto bt = metrics::request_begin();
+  auto bt = metrics::push_one_request();
   auto info = metrics::request_end_info{};
   switch (conn->get_data<uint8_t>(conn_data::type).value()) {
     case CONN_TYPE_CLIENT: {
@@ -68,7 +67,7 @@ static auto request_from_connection(std::shared_ptr<common::proto_frame> request
       break;
     }
   }
-  metrics::request_end(bt, info);
+  metrics::pop_one_request(bt, info);
 }
 
 static auto master() -> asio::awaitable<void> {
@@ -92,6 +91,7 @@ static auto master() -> asio::awaitable<void> {
     auto conn = co_await acceptor.accept();
     conn->start(request_from_connection);
     regist_client(conn);
+    metrics::push_one_connection();
   }
 }
 

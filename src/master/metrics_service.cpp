@@ -3,11 +3,14 @@
 #include "../common/util.h"
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <sys/sysinfo.h>
 
 namespace metrics {
 static metrics_service_config ms_config;
 
 static struct {
+  std::atomic_uint64_t connection_count;
+
   /* 短请求，每个桶表示 10ms，整个范围为 0~100ms */
   std::array<std::atomic_uint64_t, 10> count_in_short_consumption{0};
   /* 中请求，每个桶表示 100ms，整个范围为 100ms~1s */
@@ -24,19 +27,18 @@ static struct {
     uint64_t total_bk;
     std::atomic_uint64_t success; // 成功请求数量
     uint64_t success_bk;
-    std::atomic_uint64_t peak; // 峰值请求
+    std::atomic_uint64_t peak; // 同时峰值请求
     uint64_t peak_bk;
   } count_last_second, count_last_minute, count_last_hour, count_last_day, count_since_start, count_sentinel;
 } request_metrics;
 
-auto request_begin() -> std::chrono::steady_clock::time_point {
+auto push_one_request() -> std::chrono::steady_clock::time_point {
   auto bt = std::chrono::steady_clock::now();
   ++request_metrics.count_concurrent;
-  // LOG_INFO(std::format("{}", request_metrics.count_concurrent.load()));
   return bt;
 }
 
-auto request_end(std::chrono::steady_clock::time_point begin_time, request_end_info info) -> void {
+auto pop_one_request(std::chrono::steady_clock::time_point begin_time, request_end_info info) -> void {
   auto consumption = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - begin_time).count();
   if (consumption < 100) {
     ++request_metrics.count_in_short_consumption[consumption / 10];
@@ -56,7 +58,7 @@ auto request_end(std::chrono::steady_clock::time_point begin_time, request_end_i
 }
 
 /* 定期重置 request 信息 */
-auto flush_request() -> asio::awaitable<void> {
+static auto flush_request() -> asio::awaitable<void> {
   auto timer = asio::steady_timer{co_await asio::this_coro::executor};
   auto times = 0;
   while (true) {
@@ -96,8 +98,15 @@ auto flush_request() -> asio::awaitable<void> {
   }
 }
 
+auto push_one_connection() -> void {
+  ++request_metrics.connection_count;
+}
+auto pop_one_connection() -> void {
+  --request_metrics.connection_count;
+}
+
 /* request 信息到 json */
-auto request_metrics_to_json() -> nlohmann::json {
+static auto request_metrics_to_json() -> nlohmann::json {
   static auto convert_atomic_array = []<size_t N>(const std::array<std::atomic_uint64_t, N> &arr) {
     auto ret = std::vector<uint64_t>{};
     for (auto i = 0; i < N; ++i) {
@@ -106,16 +115,13 @@ auto request_metrics_to_json() -> nlohmann::json {
     return ret;
   };
   static auto convert_time_window = [](const auto &time_window) {
-    // return nlohmann::json{
-    //     {"total", time_window.total_bk},
-    //     {"success", time_window.success_bk},
-    //     {"peak", time_window.peak_bk}};
     return nlohmann::json{
         {"total", std::max(time_window.total.load(), time_window.total_bk)},
         {"success", std::max(time_window.success.load(), time_window.success_bk)},
         {"peak", std::max(time_window.peak.load(), time_window.peak_bk)}};
   };
   return {
+      {"connection_count", request_metrics.connection_count.load()},
       {"count_in_short_consumption", convert_atomic_array(request_metrics.count_in_short_consumption)},
       {"count_in_mid_consumption", convert_atomic_array(request_metrics.count_in_mid_consumption)},
       {"count_in_long_consumption", convert_atomic_array(request_metrics.count_in_long_consumption)},
@@ -128,6 +134,164 @@ auto request_metrics_to_json() -> nlohmann::json {
   };
 }
 
+static struct {
+  struct {
+    double load_1, load_5, load_15;
+    double usage_percent;
+    std::vector<double> core_usages_percent;
+
+    struct last_info {
+      uint64_t last_total_ticks;
+      uint64_t last_idle_ticks;
+    };
+    last_info all;
+    std::vector<last_info> cores;
+  } cpu;
+
+  struct {
+    uint64_t total, available;
+  } mem;
+
+  struct {
+    uint64_t total_send, total_recv;
+    uint64_t packets_send, packets_recv;
+    uint64_t errin, errout;
+    uint64_t dropin, dropout;
+  } net;
+
+} system_metrics;
+
+static auto read_proc_stat() -> void {
+  auto ifs = std::ifstream{"/proc/stat"};
+  auto line = std::string{};
+  auto core_idx = 0;
+  while (std::getline(ifs, line)) {
+    auto iss = std::istringstream{line};
+    auto name = std::string{};
+    iss >> name;
+    double user, nice, system, idle, iowait, irq, softirq, steal;
+    if (name == "cpu") {
+      iss >> user >> nice >> system >> idle >> iowait >> irq >> softirq >> steal;
+      auto current_total_ticks = user + nice + system + idle + iowait + irq + softirq + steal;
+      if (system_metrics.cpu.all.last_total_ticks != 0) {
+        auto delta_total = current_total_ticks - system_metrics.cpu.all.last_total_ticks;
+        auto delta_idle = idle - system_metrics.cpu.all.last_idle_ticks;
+        system_metrics.cpu.usage_percent = (uint64_t)(10000.0 * (delta_total - delta_idle) / delta_total) / 100.;
+      }
+      system_metrics.cpu.all.last_total_ticks = current_total_ticks;
+      system_metrics.cpu.all.last_idle_ticks = idle;
+    } else if (name.starts_with("cpu")) {
+      if (core_idx >= system_metrics.cpu.cores.size()) {
+        system_metrics.cpu.cores.emplace_back();
+        system_metrics.cpu.core_usages_percent.emplace_back();
+      }
+      iss >> user >> nice >> system >> idle >> iowait >> irq >> softirq >> steal;
+      auto current_total_ticks = user + nice + system + idle + iowait + irq + softirq + steal;
+      if (system_metrics.cpu.cores[core_idx].last_total_ticks != 0) {
+        auto delta_total = current_total_ticks - system_metrics.cpu.cores[core_idx].last_total_ticks;
+        auto delta_idle = idle - system_metrics.cpu.cores[core_idx].last_idle_ticks;
+        system_metrics.cpu.core_usages_percent[core_idx] = (uint64_t)(10000.0 * (delta_total - delta_idle) / delta_total) / 100.;
+        if (system_metrics.cpu.core_usages_percent[core_idx] >= 100) {
+          LOG_ERROR(std::format("{}", line));
+          LOG_ERROR(std::format("delta_total: {}, delta_idle: {}, last_idle: {}, idle: {}", delta_total, delta_idle,
+                                system_metrics.cpu.cores[core_idx].last_idle_ticks,
+                                idle));
+        }
+      }
+      system_metrics.cpu.cores[core_idx].last_total_ticks = current_total_ticks;
+      system_metrics.cpu.cores[core_idx].last_idle_ticks = idle;
+      ++core_idx;
+    } else {
+      break;
+    }
+  }
+}
+
+static auto read_proc_loadavg() -> void {
+  auto ifs = std::ifstream{"/proc/loadavg"};
+  auto line = std::string{};
+  std::getline(ifs, line);
+  std::istringstream iss{line};
+  iss >> system_metrics.cpu.load_1 >> system_metrics.cpu.load_5 >> system_metrics.cpu.load_15;
+}
+
+static auto read_proc_meminfo() -> void {
+  auto ifs = std::ifstream{"/proc/meminfo"};
+  auto line = std::string{};
+  while (std::getline(ifs, line)) {
+    auto iss = std::istringstream{line};
+    auto name = std::string{};
+    iss >> name;
+    if (name == "MemTotal:") {
+      iss >> system_metrics.mem.total;
+      system_metrics.mem.total *= 1_KB;
+    } else if (name == "MemAvailable:") {
+      iss >> system_metrics.mem.available;
+      system_metrics.mem.available *= 1_KB;
+    }
+  }
+}
+
+static auto read_proc_net_dev() -> void {
+  auto ifs = std::ifstream{"/proc/net/dev"};
+  auto line = std::string{};
+  std::getline(ifs, line);
+  std::getline(ifs, line);
+  system_metrics.net = {};
+  while (std::getline(ifs, line)) {
+    auto iss = std::istringstream{line};
+    auto name = std::string{};
+    iss >> name;
+    if (name == "lo") {
+      continue;
+    }
+
+    uint64_t bytes, packets, err, drop, ignore;
+    iss >> bytes >> packets >> err >> drop >> ignore >> ignore >> ignore >> ignore;
+    system_metrics.net.total_recv += bytes;
+    system_metrics.net.packets_recv += packets;
+    system_metrics.net.errin += err;
+    system_metrics.net.dropin += drop;
+    iss >> bytes >> packets >> err >> drop >> ignore >> ignore >> ignore >> ignore;
+    system_metrics.net.total_send += bytes;
+    system_metrics.net.packets_send += packets;
+    system_metrics.net.errin += err;
+    system_metrics.net.dropin += drop;
+    break;
+  }
+}
+
+static auto system_metrics_to_json() -> nlohmann::json {
+  read_proc_stat();
+  read_proc_loadavg();
+  read_proc_meminfo();
+  read_proc_net_dev();
+
+  return {
+      {"cpu", {
+                  {"usage_percent", system_metrics.cpu.usage_percent},
+                  {"load_1", system_metrics.cpu.load_1},
+                  {"load_5", system_metrics.cpu.load_5},
+                  {"load_15", system_metrics.cpu.load_15},
+                  {"core_usages", system_metrics.cpu.core_usages_percent},
+              }},
+      {"mem", {
+                  {"total", system_metrics.mem.total},
+                  {"available", system_metrics.mem.available},
+              }},
+      {"net", {
+                  {"total_send", system_metrics.net.total_send},
+                  {"total_recv", system_metrics.net.total_recv},
+                  {"packets_send", system_metrics.net.packets_send},
+                  {"packets_recv", system_metrics.net.packets_recv},
+                  {"errin", system_metrics.net.errin},
+                  {"errout", system_metrics.net.errout},
+                  {"dropin", system_metrics.net.dropin},
+                  {"dropout", system_metrics.net.dropout},
+              }},
+  };
+}
+
 auto metrics() -> asio::awaitable<void> {
   asio::co_spawn(co_await asio::this_coro::executor, flush_request(), asio::detached);
   auto timer = asio::steady_timer{co_await asio::this_coro::executor};
@@ -136,7 +300,11 @@ auto metrics() -> asio::awaitable<void> {
     co_await timer.async_wait(asio::as_tuple(asio::use_awaitable));
 
     auto ofs = std::ofstream{ms_config.base_path + "/data/metrics.json"};
-    auto str = nlohmann::json{{"request_metrics", request_metrics_to_json()}}.dump(2);
+    auto str = nlohmann::json{
+        {"system_metrics", system_metrics_to_json()},
+        {"request_metrics", request_metrics_to_json()},
+    }
+                   .dump(2);
     ofs.write(str.data(), str.size());
   }
 }

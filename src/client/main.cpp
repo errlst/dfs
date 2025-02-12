@@ -30,6 +30,10 @@ auto upload_file(std::string path) -> asio::awaitable<void> {
     LOG_ERROR("failed to recv cm_fetch_one_storage response");
     co_return;
   }
+  if (response_recved->stat != 0) {
+    LOG_ERROR(std::format("cm_fetch_one_storage response stat {}", response_recved->stat));
+    co_return;
+  }
 
   auto response_data_recved = proto::cm_fetch_one_storage_response{};
   if (!response_data_recved.ParseFromArray(response_recved->data, response_recved->data_len)) {
@@ -88,7 +92,7 @@ auto upload_file(std::string path) -> asio::awaitable<void> {
         .cmd = common::proto_cmd::cs_upload_append,
         .data_len = (uint32_t)ifs.readsome(request_to_send->data, 5_MB),
     };
-    if (request_to_send->data_len == 0) {
+    if (request_to_send->data_len == 0 && !ifs.eof()) {
       LOG_ERROR(std::format("read file failed {}", strerror(errno)));
       break;
     }

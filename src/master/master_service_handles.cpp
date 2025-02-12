@@ -1,4 +1,3 @@
-#define NO_LOG
 #include "./master_service_handles.h"
 #include "../common/util.h"
 #include "../proto/proto.pb.h"

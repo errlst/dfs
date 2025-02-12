@@ -4,7 +4,6 @@
 #include "./util.h"
 #include <asio/experimental/parallel_group.hpp>
 
-#define NO_LOG
 
 namespace common {
 

@@ -1,5 +1,4 @@
 #pragma once
-#define NO_LOG
 #include "./log.h"
 #include "./protocol.h"
 #include <any>

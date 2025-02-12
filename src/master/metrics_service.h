@@ -11,8 +11,10 @@ struct metrics_service_config {
 struct request_end_info {
   bool success;
 };
-auto request_begin() -> std::chrono::steady_clock::time_point;
-auto request_end(std::chrono::steady_clock::time_point begin_time, request_end_info info) -> void;
+auto push_one_request() -> std::chrono::steady_clock::time_point;
+auto pop_one_request(std::chrono::steady_clock::time_point begin_time, request_end_info info) -> void;
+auto push_one_connection() -> void;
+auto pop_one_connection() -> void;
 
 auto metrics_service(metrics_service_config conf) -> asio::awaitable<void>;
 

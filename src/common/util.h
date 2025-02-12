@@ -17,6 +17,10 @@ auto random_string(uint32_t len) -> std::string;
 auto htonll(uint64_t host_value) -> uint64_t;
 auto ntohll(uint64_t net_value) -> uint64_t;
 
+inline auto operator""_KB(unsigned long long val) -> uint64_t {
+  return val * 1024;
+}
+
 inline auto operator""_MB(unsigned long long val) -> uint64_t {
   return val * 1024 * 1024;
 }
