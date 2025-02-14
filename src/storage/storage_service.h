@@ -1,8 +1,10 @@
 #pragma once
+#include "../common/metrics_service.h"
 #include <asio.hpp>
 
 struct storage_service_config {
   uint32_t id;
+  uint32_t group_id;
   std::string ip;
   uint16_t port;
   std::string master_ip;
@@ -17,5 +19,7 @@ struct storage_service_config {
   uint32_t heart_timeout;
   uint32_t heart_interval;
 };
+
+auto storage_metrics() -> nlohmann::json;
 
 auto storage_service(storage_service_config config) -> asio::awaitable<void>;

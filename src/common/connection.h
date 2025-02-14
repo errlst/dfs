@@ -4,6 +4,7 @@
 #include <any>
 #include <asio.hpp>
 #include <map>
+#include <source_location>
 
 namespace common {
 class connection : public std::enable_shared_from_this<connection> {
@@ -19,8 +20,8 @@ public:
   auto recv_response(uint16_t id) -> asio::awaitable<std::shared_ptr<proto_frame>>;
 
   /* frame 只需要设置 cmd 和 data_len */
-  auto send_request(proto_frame *frame) -> asio::awaitable<std::optional<uint16_t>>;
-  auto send_request(proto_frame frame) -> asio::awaitable<std::optional<uint16_t>>;
+  auto send_request(proto_frame *frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<std::optional<uint16_t>>;
+  auto send_request(proto_frame frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<std::optional<uint16_t>>;
 
   /* frame 只需要设置 stat 和 data_len */
   auto send_response(proto_frame *frame, std::shared_ptr<proto_frame> req_frame) -> asio::awaitable<bool>;

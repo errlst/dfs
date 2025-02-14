@@ -191,12 +191,12 @@ static auto read_proc_stat() -> void {
         auto delta_total = current_total_ticks - system_metrics.cpu.cores[core_idx].last_total_ticks;
         auto delta_idle = idle - system_metrics.cpu.cores[core_idx].last_idle_ticks;
         system_metrics.cpu.core_usages_percent[core_idx] = (uint64_t)(10000.0 * (delta_total - delta_idle) / delta_total) / 100.;
-        if (system_metrics.cpu.core_usages_percent[core_idx] >= 100) {
-          LOG_ERROR(std::format("{}", line));
-          LOG_ERROR(std::format("delta_total: {}, delta_idle: {}, last_idle: {}, idle: {}", delta_total, delta_idle,
-                                system_metrics.cpu.cores[core_idx].last_idle_ticks,
-                                idle));
-        }
+        // if (system_metrics.cpu.core_usages_percent[core_idx] >= 100) {
+        //   LOG_ERROR(std::format("{}", line));
+        //   LOG_ERROR(std::format("delta_total: {}, delta_idle: {}, last_idle: {}, idle: {}", delta_total, delta_idle,
+        //                         system_metrics.cpu.cores[core_idx].last_idle_ticks,
+        //                         idle));
+        // }
       }
       system_metrics.cpu.cores[core_idx].last_total_ticks = current_total_ticks;
       system_metrics.cpu.cores[core_idx].last_idle_ticks = idle;
@@ -292,7 +292,16 @@ static auto system_metrics_to_json() -> nlohmann::json {
   };
 }
 
-auto metrics() -> asio::awaitable<void> {
+static auto metrics_string = std::string{};
+static auto metrics_string_mut = std::mutex{};
+
+auto get_metrics_as_string() -> std::string {
+  auto lock = std::unique_lock{metrics_string_mut};
+  return metrics_string;
+}
+
+auto metrics_service(metrics_service_config conf) -> asio::awaitable<void> {
+  ms_config = conf;
   asio::co_spawn(co_await asio::this_coro::executor, flush_request(), asio::detached);
   auto timer = asio::steady_timer{co_await asio::this_coro::executor};
   while (true) {
@@ -300,18 +309,17 @@ auto metrics() -> asio::awaitable<void> {
     co_await timer.async_wait(asio::as_tuple(asio::use_awaitable));
 
     auto ofs = std::ofstream{ms_config.base_path + "/data/metrics.json"};
-    auto str = nlohmann::json{
+    auto json = nlohmann::json{
         {"system_metrics", system_metrics_to_json()},
         {"request_metrics", request_metrics_to_json()},
+    };
+    for (auto [name, extension] : ms_config.extensions) {
+      json[name] = extension();
     }
-                   .dump(2);
-    ofs.write(str.data(), str.size());
-  }
-}
 
-auto metrics_service(metrics_service_config conf) -> asio::awaitable<void> {
-  ms_config = conf;
-  asio::co_spawn(co_await asio::this_coro::executor, metrics(), asio::detached);
-  co_return;
+    auto lock = std::unique_lock{metrics_string_mut};
+    metrics_string = json.dump(2);
+    ofs.write(metrics_string.data(), metrics_string.size());
+  }
 }
 } // namespace metrics

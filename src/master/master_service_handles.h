@@ -51,6 +51,10 @@ inline auto unregist_storage(std::shared_ptr<common::connection> conn) -> void {
     storage_conns_vec.emplace_back(conn);
   }
 }
+inline auto get_storages() -> std::vector<std::shared_ptr<common::connection>> {
+  auto lock = std::unique_lock{storage_conns_mut};
+  return storage_conns_vec;
+}
 inline auto storage_exists(uint32_t id) -> bool {
   auto lock = std::unique_lock{storage_conns_mut};
   return storage_conns.contains(id);

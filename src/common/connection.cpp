@@ -1,9 +1,7 @@
-#define LOG_NO_DEBUG
 #include "connection.h"
 #include "./log.h"
 #include "./util.h"
 #include <asio/experimental/parallel_group.hpp>
-
 
 namespace common {
 
@@ -57,7 +55,7 @@ auto connection::recv_response(uint16_t id) -> asio::awaitable<std::shared_ptr<p
   co_return ret;
 }
 
-auto connection::send_request(proto_frame *frame) -> asio::awaitable<std::optional<uint16_t>> {
+auto connection::send_request(proto_frame *frame, std::source_location loc) -> asio::awaitable<std::optional<uint16_t>> {
   co_await asio::post(strand_, asio::use_awaitable);
   frame->id = request_frame_id_++;
   frame->type = REQUEST_FRAME;
@@ -73,7 +71,7 @@ auto connection::send_request(proto_frame *frame) -> asio::awaitable<std::option
   if (frame->magic != 0x55aa) {
     LOG_DEBUG("");
   }
-  LOG_DEBUG(std::format(R"(send request : {{
+  LOG_DEBUG(std::format(R"(send request {}:{} {{
     magic: {:x},
     id: {},
     cmd: {},
@@ -81,12 +79,12 @@ auto connection::send_request(proto_frame *frame) -> asio::awaitable<std::option
     stat: {},
     data_len: {}
   }})",
-                        untransed_frame.magic, untransed_frame.id, untransed_frame.cmd, untransed_frame.type, untransed_frame.stat, frame_len - sizeof(proto_frame)));
+                        loc.file_name(), loc.line(), untransed_frame.magic, untransed_frame.id, untransed_frame.cmd, untransed_frame.type, untransed_frame.stat, frame_len - sizeof(proto_frame)));
 
   co_return untransed_frame.id;
 }
 
-auto connection::send_request(proto_frame frame) -> asio::awaitable<std::optional<uint16_t>> {
+auto connection::send_request(proto_frame frame, std::source_location loc) -> asio::awaitable<std::optional<uint16_t>> {
   co_await asio::post(strand_, asio::use_awaitable);
   if (closed_) {
     co_return std::nullopt;
@@ -103,7 +101,7 @@ auto connection::send_request(proto_frame frame) -> asio::awaitable<std::optiona
     co_await close();
     co_return std::nullopt;
   }
-  LOG_DEBUG(std::format(R"(send request : {{
+  LOG_DEBUG(std::format(R"(send request {}:{} {{
     magic: {:x},
     id: {},
     cmd: {},
@@ -111,7 +109,7 @@ auto connection::send_request(proto_frame frame) -> asio::awaitable<std::optiona
     stat: {},
     data_len: {}
   }})",
-                        untransed_frame.magic, untransed_frame.id, untransed_frame.cmd, untransed_frame.type, untransed_frame.stat, 0));
+                        loc.file_name(), loc.line(), untransed_frame.magic, untransed_frame.id, untransed_frame.cmd, untransed_frame.type, untransed_frame.stat, 0));
 
   co_return untransed_frame.id;
 }

@@ -1,4 +1,5 @@
 #pragma once
+#include "../common/metrics_service.h"
 #include <asio.hpp>
 
 struct master_service_conf {
@@ -10,5 +11,7 @@ struct master_service_conf {
   uint32_t heart_timeout;
   uint32_t heart_interval;
 };
+
+auto master_metrics_of_storages() -> nlohmann::json;
 
 auto master_service(master_service_conf config) -> asio::awaitable<void>;

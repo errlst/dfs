@@ -1,8 +1,6 @@
 #include "../common/log.h"
 #include "./master_service.h"
-#include "./metrics_service.h"
 #include <fstream>
-#include <nlohmann/json.hpp>
 
 auto show_usage() -> void {
   std::println("usgae: storage [options]");
@@ -49,6 +47,9 @@ auto main(int argc, char *argv[]) -> int {
   asio::co_spawn(io, metrics::metrics_service(metrics::metrics_service_config{
                          .base_path = config["common"]["base_path"].get<std::string>(),
                          .interval = 1000,
+                         .extensions = {
+                             {"storages_metrics", master_metrics_of_storages},
+                         },
                      }),
                  asio::detached);
   auto guard = asio::make_work_guard(io);

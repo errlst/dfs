@@ -48,6 +48,13 @@ enum proto_cmd : uint16_t {
   ms_get_free_space,
 
   /*
+    获取 metrics
+    request: void
+    response: string metrics
+  */
+  ms_get_metrics,
+
+  /*
     获取可用的 storage
     request: uint64 need_space
     response: cm_fetch_one_storage_response

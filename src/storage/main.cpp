@@ -1,7 +1,6 @@
 #include "../common/log.h"
 #include "./storage_service.h"
 #include <fstream>
-#include <nlohmann/json.hpp>
 #include <random>
 
 auto show_usage() -> void {
@@ -54,7 +53,6 @@ auto main(int argc, char *argv[]) -> int {
   auto config = read_config(config_file);
 
   auto io = asio::io_context{};
-  auto gurad = asio::make_work_guard(io);
   asio::co_spawn(io, storage_service(storage_service_config{
                          .id = config["storage_service"]["id"].get<uint32_t>(),
                          .ip = config["storage_service"]["ip"].get<std::string>(),
@@ -72,5 +70,15 @@ auto main(int argc, char *argv[]) -> int {
                          .heart_interval = config["network"]["heart_interval"].get<uint32_t>(),
                      }),
                  asio::detached);
+  asio::co_spawn(io, metrics::metrics_service(metrics::metrics_service_config{
+                         .base_path = config["common"]["base_path"].get<std::string>(),
+                         .interval = 1000,
+                         .extensions = {
+                             {"storage_metrics", storage_metrics},
+                         },
+                     }),
+                 asio::detached);
+
+  auto gurad = asio::make_work_guard(io);
   return io.run();
 }

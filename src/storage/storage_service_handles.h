@@ -5,7 +5,7 @@
 #include <queue>
 #include <set>
 
-using request_handle = std::function<asio::awaitable<void>(std::shared_ptr<common::proto_frame>, std::shared_ptr<common::connection>)>;
+using request_handle = std::function<asio::awaitable<bool>(std::shared_ptr<common::proto_frame>, std::shared_ptr<common::connection>)>;
 #define REQUEST_HANDLE_PARAMS std::shared_ptr<common::proto_frame> request_recved, std::shared_ptr<common::connection> conn
 
 constexpr auto CONN_TYPE_CLIENT = 0;
@@ -41,7 +41,6 @@ inline auto unregist_client(std::shared_ptr<common::connection> conn) -> void {
   client_conns.erase(conn);
 }
 
-inline uint32_t storage_group_id;
 inline std::mutex storage_conns_mut;
 inline std::set<std::shared_ptr<common::connection>> storage_conns;
 inline auto regist_storage(std::shared_ptr<common::connection> conn) -> void {
@@ -75,20 +74,22 @@ inline auto get_one_unsync_uploaded_file() -> std::string {
   return ret;
 }
 
-auto ms_get_free_space_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;
+auto ms_get_free_space_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
 
-auto ss_regist_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;
+auto ms_get_metrics_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
 
-auto ss_upload_sync_open_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;
+auto ss_regist_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
 
-auto ss_upload_sync_append_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;
+auto ss_upload_sync_open_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
 
-auto cs_upload_open_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;
+auto ss_upload_sync_append_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
 
-auto cs_upload_append_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;
+auto cs_upload_open_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
 
-auto cs_upload_close_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;
+auto cs_upload_append_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
 
-auto cs_download_open_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;
+auto cs_upload_close_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
 
-auto cs_download_append_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<void>;
+auto cs_download_open_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
+
+auto cs_download_append_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
