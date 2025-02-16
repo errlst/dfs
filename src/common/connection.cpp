@@ -41,7 +41,6 @@ auto connection::close() -> asio::awaitable<void> {
 
 auto connection::recv_response(uint16_t id) -> asio::awaitable<std::shared_ptr<proto_frame>> {
   co_await asio::post(strand_, asio::use_awaitable);
-  LOG_DEBUG(std::format("waiting response {}", id));
   auto &[frame, waiter] = response_frames_[id];
   if (frame == nullptr) {
     waiter = std::make_shared<asio::steady_timer>(strand_, std::chrono::days{365});
@@ -114,7 +113,7 @@ auto connection::send_request(proto_frame frame, std::source_location loc) -> as
   co_return untransed_frame.id;
 }
 
-auto connection::send_response(proto_frame *frame, std::shared_ptr<proto_frame> req_frame) -> asio::awaitable<bool> {
+auto connection::send_response(proto_frame *frame, std::shared_ptr<proto_frame> req_frame, std::source_location loc) -> asio::awaitable<bool> {
   co_await asio::post(strand_, asio::use_awaitable);
   if (closed_) {
     co_return false;
@@ -132,7 +131,7 @@ auto connection::send_response(proto_frame *frame, std::shared_ptr<proto_frame> 
     co_await close();
     co_return false;
   }
-  LOG_DEBUG(std::format(R"(send response : {{
+  LOG_DEBUG(std::format(R"(send response {}:{} {{
     magic: {:x},
     id: {},
     cmd: {},
@@ -140,11 +139,11 @@ auto connection::send_response(proto_frame *frame, std::shared_ptr<proto_frame> 
     stat: {},
     data_len: {}
   }})",
-                        untransed_frame.magic, untransed_frame.id, untransed_frame.cmd, untransed_frame.type, untransed_frame.stat, frame_len - sizeof(proto_frame)));
+                        loc.file_name(), loc.line(), untransed_frame.magic, untransed_frame.id, untransed_frame.cmd, untransed_frame.type, untransed_frame.stat, frame_len - sizeof(proto_frame)));
   co_return true;
 }
 
-auto connection::send_response(proto_frame frame, std::shared_ptr<proto_frame> req_frame) -> asio::awaitable<bool> {
+auto connection::send_response(proto_frame frame, std::shared_ptr<proto_frame> req_frame, std::source_location loc) -> asio::awaitable<bool> {
   co_await asio::post(strand_, asio::use_awaitable);
   if (closed_) {
     co_return false;
@@ -161,7 +160,7 @@ auto connection::send_response(proto_frame frame, std::shared_ptr<proto_frame> r
     co_await close();
     co_return false;
   }
-  LOG_DEBUG(std::format(R"(send response : {{
+  LOG_DEBUG(std::format(R"(send response {}:{} {{
     magic: {:x},
     id: {},
     cmd: {},
@@ -169,7 +168,7 @@ auto connection::send_response(proto_frame frame, std::shared_ptr<proto_frame> r
     stat: {},
     data_len: {}
   }})",
-                        untransed_frame.magic, untransed_frame.id, untransed_frame.cmd, untransed_frame.type, untransed_frame.stat, 0));
+                        loc.file_name(), loc.line(), untransed_frame.magic, untransed_frame.id, untransed_frame.cmd, untransed_frame.type, untransed_frame.stat, 0));
   co_return true;
 }
 

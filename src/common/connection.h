@@ -24,8 +24,8 @@ public:
   auto send_request(proto_frame frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<std::optional<uint16_t>>;
 
   /* frame 只需要设置 stat 和 data_len */
-  auto send_response(proto_frame *frame, std::shared_ptr<proto_frame> req_frame) -> asio::awaitable<bool>;
-  auto send_response(proto_frame frame, std::shared_ptr<proto_frame> req_frame) -> asio::awaitable<bool>;
+  auto send_response(proto_frame *frame, std::shared_ptr<proto_frame> req_frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<bool>;
+  auto send_response(proto_frame frame, std::shared_ptr<proto_frame> req_frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<bool>;
 
   /* 在 strand 中增加任务 */
   auto add_exetension_work(std::function<asio::awaitable<void>(std::shared_ptr<connection>)> work, std::function<void()> on_close) -> void;
