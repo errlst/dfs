@@ -1,34 +1,13 @@
-#include "../common/log.h"
+#include "../common/util.h"
 #include "./master_service.h"
-#include <fstream>
+#include <iostream>
 
 auto show_usage() -> void {
-  std::println("usgae: storage [options]");
-  std::println("options:");
-  std::println("  -h\tshow this help message and exit");
-  std::println("  -c\tspecify the configuration file");
-  std::println("  -d\trun as a daemon");
-}
-
-auto read_config(std::string_view file) -> nlohmann::json {
-  auto ifs = std::ifstream{file.data()};
-  if (!ifs) {
-    LOG_ERROR(std::format("failed to open configure : {}", file));
-    exit(-1);
-  }
-
-  auto ret = nlohmann::json::parse(ifs, nullptr, false, true); // 允许 json 注释
-  if (ret.empty()) {
-    LOG_ERROR(std::format("parse config failed"));
-    exit(-1);
-  }
-
-  if (!std::filesystem::is_directory(ret["common"]["base_path"].get<std::string>())) {
-    LOG_ERROR(std::format("base_path {} is not a valid directory", ret["common"]["base_path"].get<std::string>()));
-    exit(-1);
-  }
-
-  return ret;
+  std::cout << "usgae: storage [options]\n";
+  std::cout << "options:\n";
+  std::cout << "  -h\tshow this help message and exit\n";
+  std::cout << "  -c\tspecify the configuration file\n";
+  std::cout << "  -d\trun as a daemon\n";
 }
 
 auto main(int argc, char *argv[]) -> int {
@@ -50,6 +29,8 @@ auto main(int argc, char *argv[]) -> int {
   }
 
   auto config = read_config(config_file);
+  init_base_path(config);
+
   auto io = asio::io_context{};
   asio::co_spawn(io, master_service(master_service_conf{
                          .ip = config["master_service"]["ip"].get<std::string>(),

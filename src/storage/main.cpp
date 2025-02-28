@@ -1,40 +1,18 @@
-#include "../common/log.h"
+#include "../common/util.h"
 #include "./storage_service.h"
-#include <fstream>
+#include <iostream>
 #include <random>
 
 auto show_usage() -> void {
-  std::println("usgae: storage [options]");
-  std::println("options:");
-  std::println("  -h\tshow this help message and exit");
-  std::println("  -c\tspecify the configuration file");
-  std::println("  -d\trun as a daemon");
-}
-
-auto read_config(std::string_view file) -> nlohmann::json {
-  auto ifs = std::ifstream{file.data()};
-  if (!ifs) {
-    LOG_ERROR(std::format("failed to open configure : {}", file));
-    exit(-1);
-  }
-
-  auto ret = nlohmann::json::parse(ifs, nullptr, false, true); // 允许 json 注释
-  if (ret.empty()) {
-    LOG_ERROR(std::format("parse config failed"));
-    exit(-1);
-  }
-
-  if (!std::filesystem::is_directory(ret["common"]["base_path"].get<std::string>())) {
-    LOG_ERROR(std::format("base_path is not a valid directory {}", ret["common"]["base_path"].get<std::string>()));
-    exit(-1);
-  }
-
-  return ret;
+  std::cout << "usgae: storage [options]\n";
+  std::cout << "options:\n";
+  std::cout << "  -h\tshow this help message and exit\n";
+  std::cout << "  -c\tspecify the configuration file\n";
+  std::cout << "  -d\trun as a daemon\n";
 }
 
 auto main(int argc, char *argv[]) -> int {
-  // auto config_file = "/home/errlst/dfs/conf/storage.conf.json";
-  auto config_file = std::string{};
+  auto config_path = std::string{};
   for (auto i = 1; i < argc; ++i) {
     if (std::string_view(argv[i]) == "-h") {
       show_usage();
@@ -44,14 +22,15 @@ auto main(int argc, char *argv[]) -> int {
         show_usage();
         return -1;
       }
-      config_file = argv[i + 1];
+      config_path = argv[i + 1];
       i += 1;
     } else {
       show_usage();
     }
   }
 
-  auto config = read_config(config_file);
+  auto config = read_config(config_path);
+  init_base_path(config);
 
   auto io = asio::io_context{};
   asio::co_spawn(io, storage_service(storage_service_config{
@@ -65,7 +44,6 @@ auto main(int argc, char *argv[]) -> int {
                          .master_magic = config["storage_service"]["master_magic"].get<uint32_t>(),
                          .sync_interval = config["storage_service"]["sync_interval"].get<uint32_t>(),
                          .hot_paths = config["storage_service"]["hot_paths"].get<std::vector<std::string>>(),
-                         .warm_paths = config["storage_service"]["warm_paths"].get<std::vector<std::string>>(),
                          .cold_paths = config["storage_service"]["cold_paths"].get<std::vector<std::string>>(),
                          .heart_timeout = config["network"]["heart_timeout"].get<uint32_t>(),
                          .heart_interval = config["network"]["heart_interval"].get<uint32_t>(),

@@ -1,4 +1,5 @@
 #include "./store.h"
+#include "../common/log.h"
 #include "../common/util.h"
 #include <filesystem>
 #include <fstream>
@@ -7,26 +8,26 @@
 
 store_ctx::store_ctx(const std::string &path)
     : m_base_path{path} {
-  if (mkdir(path.data(), 0755) != 0 && errno != EEXIST) {
-    //->log_fatal(std::format("failed to create directory: {}", path));
+  LOG_INFO(std::format("start init store '{}'", path));
+  try {
+    std::filesystem::create_directories(path);
+  } catch (...) {
+    LOG_ERROR(std::format("init store '{}' failed", path));
     exit(-1);
   }
 
   for (auto i = 0; i < 256; i++) {
-    auto sub_path_0 = std::format("{}/{:02X}", path, i);
-    if (mkdir(sub_path_0.data(), 0755) != 0 && errno != EEXIST) {
-      //->log_fatal(std::format("failed to create directory: {}", sub_path_0));
-      exit(-1);
-    }
-    for (auto j = 0; j < 256; j++) {
-      auto sub_path_1 = std::format("{}/{:02X}", sub_path_0, j);
-      if (mkdir(sub_path_1.data(), 0755) != 0 && errno != EEXIST) {
-        //->log_fatal(std::format("failed to create directory: {}", sub_path_0));
+    for (auto j = 0; j < 256; ++j) {
+      auto sub_path = std::format("{}/{:02X}/{:02X}", path, i, j);
+      try {
+        std::filesystem::create_directories(sub_path);
+      } catch (...) {
+        LOG_ERROR(std::format("create store '{}' failed", sub_path));
         exit(-1);
       }
     }
   }
-  //->log_info(std::format("store {} init suc", path));
+  LOG_INFO(std::format("init store '{}' suc", path));
 }
 
 auto store_ctx::create_file(uint64_t file_id, uint64_t file_size) -> bool {

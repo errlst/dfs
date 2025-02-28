@@ -14,7 +14,6 @@ struct storage_service_config {
   uint32_t master_magic;
   uint32_t sync_interval;
   std::vector<std::string> hot_paths;
-  std::vector<std::string> warm_paths;
   std::vector<std::string> cold_paths;
   uint32_t heart_timeout;
   uint32_t heart_interval;

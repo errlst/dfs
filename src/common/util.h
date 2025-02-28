@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <nlohmann/json.hpp>
 #include <string_view>
 
 auto check_directory(std::string_view path) -> void;
@@ -36,3 +37,7 @@ inline auto operator""_hour(unsigned long long val) -> uint64_t {
 inline auto operator""_day(unsigned long long val) -> uint64_t {
   return val * 60 * 60 * 24;
 }
+
+/* 读取配置文件 */
+auto read_config(std::string_view path) -> nlohmann::json;
+auto init_base_path(const nlohmann::json &json) -> void;

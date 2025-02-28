@@ -23,9 +23,8 @@ enum conn_data : uint64_t {
 inline auto ss_config = storage_service_config{};
 
 inline auto hot_store_group = std::shared_ptr<store_ctx_group>{};
-inline auto warm_store_group = std::shared_ptr<store_ctx_group>{};
 inline auto cold_store_group = std::shared_ptr<store_ctx_group>{};
-inline auto store_groups = std::vector<std::shared_ptr<store_ctx_group>>{}; // 方便遍历 hot、warm 和 cold
+inline auto store_groups = std::vector<std::shared_ptr<store_ctx_group>>{}; // 方便遍历 hot 和 cold
 
 inline auto master_conn = std::shared_ptr<common::connection>{};
 

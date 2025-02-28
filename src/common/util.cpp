@@ -1,6 +1,6 @@
 #include "util.h"
 #include <filesystem>
-#include <iostream>
+#include <fstream>
 #include <print>
 #include <random>
 #include <sys/statvfs.h>
@@ -8,21 +8,16 @@
 auto check_directory(std::string_view path) -> void {
   if (std::filesystem::exists(path)) {
     if (!std::filesystem::is_directory(path)) {
-      std::cerr << path << " is not a directory\n";
+      std::println("{} is not a directory", path);
       exit(-1);
     }
   } else {
     if (!std::filesystem::create_directories(path)) {
-      std::cerr << "failed to create directory: " << path << "\n";
+      std::println("failed to create directory: {}", path);
       exit(-1);
     }
   }
 }
-
-// auto co_sleep_for(std::chrono::milliseconds ms) -> asio::awaitable<void> {
-//   auto timer = asio::steady_timer{co_await asio::this_coro::executor, ms};
-//   co_await timer.async_wait(asio::use_awaitable);
-// }
 
 auto fs_free_size(std::string_view path) -> std::tuple<uint64_t, uint64_t> {
   struct statvfs stat;
@@ -59,4 +54,31 @@ auto htonll(uint64_t host_value) -> uint64_t {
 
 auto ntohll(uint64_t net_value) -> uint64_t {
   return htonll(net_value); // 直接复用 htonll
+}
+
+auto read_config(std::string_view path) -> nlohmann::json {
+  auto ifs = std::ifstream{path.data()};
+  if (!ifs) {
+    std::println("failed open configure '{}'", path);
+    exit(-1);
+  }
+
+  auto json = nlohmann::json::parse(ifs, nullptr, false, true); // 允许 json 注释
+  if (json.empty()) {
+    std::println("failed parse configure '{}'", path);
+    exit(-1);
+  }
+  std::println("read configure suc '{}'", path);
+  return json;
+}
+
+auto init_base_path(const nlohmann::json &json) -> void {
+  auto base_path = json["common"]["base_path"].get<std::string>();
+  try {
+    std::filesystem::create_directories(std::format("{}/data", base_path));
+  } catch (...) {
+    std::println("init base path failed '{}'", base_path);
+    exit(-1);
+  }
+  std::println("init base path suc '{}'", base_path);
 }

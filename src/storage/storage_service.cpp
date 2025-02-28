@@ -184,9 +184,8 @@ static auto sync_upload_files() -> asio::awaitable<void> {
 
 static auto init_stores() -> void {
   hot_store_group = std::make_shared<store_ctx_group>("hot_store_group", ss_config.hot_paths);
-  warm_store_group = std::make_shared<store_ctx_group>("warm_store_group", ss_config.warm_paths);
   cold_store_group = std::make_shared<store_ctx_group>("cold_store_group", ss_config.cold_paths);
-  store_groups = {hot_store_group, warm_store_group, cold_store_group};
+  store_groups = {hot_store_group, cold_store_group};
 }
 
 static auto regist_to_master() -> asio::awaitable<bool> {
@@ -305,6 +304,7 @@ auto storage_service(storage_service_config config) -> asio::awaitable<void> {
   LOG_INFO(std::format("regist to maste suc"));
 
   asio::co_spawn(ex, sync_upload_files(), asio::detached);
+
   auto acceptor = common::acceptor{ex, common::acceptor_conf{
                                            .ip = ss_config.ip,
                                            .port = ss_config.port,
