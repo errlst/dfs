@@ -24,7 +24,7 @@ auto read_config(std::string_view file) -> nlohmann::json {
   }
 
   if (!std::filesystem::is_directory(ret["common"]["base_path"].get<std::string>())) {
-    LOG_ERROR(std::format("base_path is not a valid directory"));
+    LOG_ERROR(std::format("base_path {} is not a valid directory", ret["common"]["base_path"].get<std::string>()));
     exit(-1);
   }
 
@@ -32,7 +32,24 @@ auto read_config(std::string_view file) -> nlohmann::json {
 }
 
 auto main(int argc, char *argv[]) -> int {
-  auto config = read_config("/home/jin/project/dfs/conf/master.conf.json");
+  auto config_file = std::string{};
+  for (auto i = 1; i < argc; ++i) {
+    if (std::string_view(argv[i]) == "-h") {
+      show_usage();
+      return 0;
+    } else if (std::string_view(argv[i]) == "-c") {
+      if (i + 1 >= argc) {
+        show_usage();
+        return -1;
+      }
+      config_file = argv[i + 1];
+      i += 1;
+    } else {
+      show_usage();
+    }
+  }
+
+  auto config = read_config(config_file);
   auto io = asio::io_context{};
   asio::co_spawn(io, master_service(master_service_conf{
                          .ip = config["master_service"]["ip"].get<std::string>(),
