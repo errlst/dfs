@@ -9,10 +9,6 @@ message storage_info {
   string ip = 4;
 }
 
-message storage_monitor_info {
-  
-}
-
 message sm_regist_request {
   uint32 master_magic = 1;
   storage_info s_info = 2;

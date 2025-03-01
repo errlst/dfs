@@ -5,7 +5,7 @@
 #include "./storage_service_handles.h"
 
 static auto request_handle_for_master = std::map<uint16_t, request_handle>{
-    {common::proto_cmd::ms_get_free_space, ms_get_free_space_handle},
+    {common::proto_cmd::ms_get_max_free_space, ms_get_max_free_space_handle},
     {common::proto_cmd::ms_get_metrics, ms_get_metrics_handle},
 };
 
@@ -330,7 +330,7 @@ auto storage_service(const nlohmann::json &json) -> asio::awaitable<void> {
 
   asio::co_spawn(ex, sync_upload_files(), asio::detached);
 
-  auto acceptor = common::acceptor{ex, common::acceptor_conf{
+  auto acceptor = common::acceptor{ex, common::acceptor_config{
                                            .ip = ss_config.ip,
                                            .port = ss_config.port,
                                            .h_timeout = ss_config.heart_timeout,

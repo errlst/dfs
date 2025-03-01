@@ -79,7 +79,7 @@ auto ss_upload_sync_append_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool
   co_return true;
 }
 
-auto ms_get_free_space_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
+auto ms_get_max_free_space_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
   auto response_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + sizeof(uint64_t)), free};
   *response_to_send = {.data_len = sizeof(uint64_t)};
   *(uint64_t *)response_to_send->data = ntohll(hot_store_group->max_free_space());

@@ -73,7 +73,7 @@ inline auto get_one_unsync_uploaded_file() -> std::string {
   return ret;
 }
 
-auto ms_get_free_space_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
+auto ms_get_max_free_space_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
 
 auto ms_get_metrics_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
 

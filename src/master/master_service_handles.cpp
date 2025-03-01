@@ -5,7 +5,7 @@
 /* 定期获取 storage 的可用空间 */
 auto request_storage_free_space(std::shared_ptr<common::connection> conn, std::shared_ptr<asio::steady_timer> timer) -> asio::awaitable<void> {
   while (true) {
-    auto id = co_await conn->send_request(common::proto_frame{.cmd = common::proto_cmd::ms_get_free_space});
+    auto id = co_await conn->send_request(common::proto_frame{.cmd = common::proto_cmd::ms_get_max_free_space});
     if (!id) {
       co_return;
     }

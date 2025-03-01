@@ -114,7 +114,7 @@ auto master_service(master_service_conf config) -> asio::awaitable<void> {
   ms_config = config;
   auto ex = co_await asio::this_coro::executor;
   auto acceptor = common::acceptor{ex,
-                                   common::acceptor_conf{
+                                   common::acceptor_config{
                                        .ip = ms_config.ip,
                                        .port = ms_config.port,
                                        .h_timeout = ms_config.heart_timeout,

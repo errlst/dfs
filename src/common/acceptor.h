@@ -2,7 +2,8 @@
 #include "connection.h"
 
 namespace common {
-struct acceptor_conf {
+
+struct acceptor_config {
   std::string ip;
   uint16_t port;
   uint32_t h_timeout;
@@ -11,13 +12,17 @@ struct acceptor_conf {
 
 class acceptor {
 public:
-  acceptor(asio::any_io_executor, acceptor_conf conf);
+  acceptor(asio::any_io_executor, acceptor_config conf);
 
-  /* 返回建立心跳的 connection */
+  /**
+   * @brief 接受一个新连接，且建立心跳
+   *
+   */
   auto accept() -> asio::awaitable<std::shared_ptr<connection>>;
 
 private:
-  asio::ip::tcp::acceptor acceptor_;
-  acceptor_conf conf_;
+  asio::ip::tcp::acceptor m_acceptor;
+  acceptor_config m_config;
 };
+
 } // namespace common

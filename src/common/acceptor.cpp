@@ -3,14 +3,14 @@
 
 namespace common {
 
-acceptor::acceptor(asio::any_io_executor io, acceptor_conf conf)
-    : acceptor_{io}, conf_{conf} {
+acceptor::acceptor(asio::any_io_executor io, acceptor_config conf)
+    : m_acceptor{io}, m_config{conf} {
   auto ep = asio::ip::tcp::endpoint(asio::ip::make_address(conf.ip), conf.port);
-  acceptor_.open(ep.protocol());
-  acceptor_.set_option(asio::socket_base::reuse_address(true));
-  acceptor_.bind(ep);
-  acceptor_.listen();
-  if (!acceptor_.is_open()) {
+  m_acceptor.open(ep.protocol());
+  m_acceptor.set_option(asio::socket_base::reuse_address(true));
+  m_acceptor.bind(ep);
+  m_acceptor.listen();
+  if (!m_acceptor.is_open()) {
     LOG_DEBUG(std::format("acceptor open failed"));
   }
   LOG_DEBUG(std::format("acceptor open suc"));
@@ -19,7 +19,7 @@ acceptor::acceptor(asio::any_io_executor io, acceptor_conf conf)
 auto acceptor::accept() -> asio::awaitable<std::shared_ptr<connection>> {
   while (true) {
     auto sock = asio::ip::tcp::socket{co_await asio::this_coro::executor};
-    auto [ec] = co_await acceptor_.async_accept(sock, asio::as_tuple(asio::use_awaitable));
+    auto [ec] = co_await m_acceptor.async_accept(sock, asio::as_tuple(asio::use_awaitable));
     if (ec) {
       LOG_DEBUG(std::format("acceptor accept failed, {}", ec.message()));
       continue;
@@ -35,8 +35,8 @@ auto acceptor::accept() -> asio::awaitable<std::shared_ptr<connection>> {
     };
     trans_frame_to_net(req_frame);
     *(xx_heart_establish_request *)req_frame->data = {
-        .timeout = htonl(conf_.h_timeout),
-        .interval = htonl(conf_.h_interval),
+        .timeout = htonl(m_config.h_timeout),
+        .interval = htonl(m_config.h_interval),
     };
     auto [ec_1, n_1] = co_await asio::async_write(sock, asio::const_buffer(request_to_send, sizeof(request_to_send)), asio::as_tuple(asio::use_awaitable));
     if (ec_1 || n_1 != sizeof(request_to_send)) {
@@ -56,8 +56,8 @@ auto acceptor::accept() -> asio::awaitable<std::shared_ptr<connection>> {
 
     LOG_DEBUG(std::format("recv new connection"));
     auto conn = std::make_shared<connection>(std::move(sock));
-    conn->h_timeout_ = conf_.h_timeout;
-    conn->h_interval_ = conf_.h_interval;
+    conn->m_heart_timeout = m_config.h_timeout;
+    conn->m_heart_interval = m_config.h_interval;
     co_return conn;
   }
 }
