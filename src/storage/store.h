@@ -40,8 +40,10 @@ private:
   /* 检查磁盘空间是否够，留 5% */
   auto check_disk_enough(uint64_t size) -> bool;
 
+  /* 根据 idx 创建的相对路径，如 00/00 */
   auto relative_path(uint16_t idx) -> std::string;
 
+  /* 根据相对路径创建的绝对路径，<base_path>/00/00 */
   auto absolute_path(std::string_view rel_path) -> std::string;
 
   auto next_idx() -> uint16_t;
@@ -69,7 +71,7 @@ public:
   /* append 写入文件 */
   auto write_file(uint64_t file_id, std::span<char> data) -> bool;
 
-  // 返回：relpath
+  /*   */ 
   auto close_file(uint64_t file_id, std::string_view filename) -> std::optional<std::string>;
   auto close_file(uint64_t file_id) -> bool;
 

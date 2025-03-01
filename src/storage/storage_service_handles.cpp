@@ -1,6 +1,7 @@
 #include "./storage_service_handles.h"
 #include "../common/util.h"
 #include "../proto/proto.pb.h"
+#include "./migrate_service.h"
 
 auto ss_regist_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
   auto request_data_recved = proto::ss_regist_request{};
@@ -168,12 +169,13 @@ auto cs_upload_close_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
     unsync_uploaded_files.emplace(file_path.value());
   }
 
-  file_path = std::format("{}/{}", ss_config.group_id, file_path.value());
+  auto res_file_path = std::format("{}/{}", ss_config.group_id, file_path.value());
   auto response_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + file_path->size()), free};
-  *response_to_send = {.data_len = (uint32_t)file_path->size()};
-  std::copy(file_path->begin(), file_path->end(), response_to_send->data);
+  *response_to_send = {.data_len = (uint32_t)res_file_path.size()};
+  std::copy(res_file_path.begin(), res_file_path.end(), response_to_send->data);
   co_await conn->send_response(response_to_send.get(), request_recved);
 
+  // migrate_service::new_hot_file(file_path.value());
   conn->del_data(conn_data::client_upload_file_id);
   co_return true;
 }

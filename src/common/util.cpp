@@ -82,3 +82,11 @@ auto init_base_path(const nlohmann::json &json) -> void {
   }
   std::println("init base path suc '{}'", base_path);
 }
+
+auto iterate_normal_file(std::string_view path) -> std::generator<std::string> {
+  for (const auto &dir_entry : std::filesystem::recursive_directory_iterator(path)) {
+    if (dir_entry.is_regular_file()) {
+      co_yield dir_entry.path().string();
+    }
+  }
+}

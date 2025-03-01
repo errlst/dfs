@@ -1,6 +1,7 @@
 #include "../common/acceptor.h"
 #include "../common/util.h"
 #include "../proto/proto.pb.h"
+#include "./migrate_service.h"
 #include "./storage_service_handles.h"
 
 static auto request_handle_for_master = std::map<uint16_t, request_handle>{
@@ -291,11 +292,30 @@ auto storage_metrics() -> nlohmann::json {
   };
 }
 
-auto storage_service(storage_service_config config) -> asio::awaitable<void> {
-  ss_config = config;
+static auto init_config(const nlohmann::json &json) {
+  ss_config = storage_service_config{
+      .id = json["storage_service"]["id"].get<uint32_t>(),
+      .ip = json["storage_service"]["ip"].get<std::string>(),
+      .port = json["storage_service"]["port"].get<uint16_t>(),
+      .master_ip = json["storage_service"]["master_ip"].get<std::string>(),
+      .master_port = json["storage_service"]["master_port"].get<uint16_t>(),
+      .thread_count = json["storage_service"]["thread_count"].get<uint16_t>(),
+      .storage_magic = (uint16_t)std::random_device{}(),
+      .master_magic = json["storage_service"]["master_magic"].get<uint32_t>(),
+      .sync_interval = json["storage_service"]["sync_interval"].get<uint32_t>(),
+      .hot_paths = json["storage_service"]["hot_paths"].get<std::vector<std::string>>(),
+      .cold_paths = json["storage_service"]["cold_paths"].get<std::vector<std::string>>(),
+      .heart_timeout = json["network"]["heart_timeout"].get<uint32_t>(),
+      .heart_interval = json["network"]["heart_interval"].get<uint32_t>(),
+  };
+}
+
+auto storage_service(const nlohmann::json &json) -> asio::awaitable<void> {
+  init_config(json);
   init_stores();
   auto ex = co_await asio::this_coro::executor;
   auto &io = (asio::io_context &)(ex.context());
+  co_await migrate_service::start_migrate_service(json);
 
   if (!co_await regist_to_master()) {
     LOG_ERROR("regist to master failed");

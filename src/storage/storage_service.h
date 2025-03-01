@@ -21,4 +21,4 @@ struct storage_service_config {
 
 auto storage_metrics() -> nlohmann::json;
 
-auto storage_service(storage_service_config config) -> asio::awaitable<void>;
+auto storage_service(const nlohmann::json &json) -> asio::awaitable<void>;

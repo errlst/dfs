@@ -97,7 +97,7 @@ static auto request_storage_metrics() -> asio::awaitable<void> {
       storage_metrics[storage->get_data<uint32_t>(conn_data::storage_id).value()] = metrics;
     }
 
-    timer.expires_after(std::chrono::seconds{1});
+    timer.expires_after(std::chrono::seconds{100});
     co_await timer.async_wait(asio::use_awaitable);
   }
 }

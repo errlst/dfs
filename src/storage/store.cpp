@@ -195,7 +195,7 @@ auto store_ctx::base_path() -> std::string {
 auto store_ctx::check_disk_enough(uint64_t size) -> bool {
   auto [free, total] = fs_free_size(m_base_path);
   if (free < size || free < total * 0.05) {
-    //->log_error(std::format("store {} no enough space for {}GB, left {}GB", m_base_path, 1.0 * size / 1024 / 1024 / 1024, 1.0 * free / 1024 / 1024 / 1024));
+    LOG_ERROR(std::format("store '{}' has no enough space for {}GB, left {}GB", m_base_path, 1.0 * size / 1024 / 1024 / 1024, 1.0 * free / 1024 / 1024 / 1024));
     return false;
   }
   return true;
@@ -329,7 +329,7 @@ auto store_ctx_group::read_file(uint64_t file_id, char *dst, uint64_t size) -> u
 }
 
 auto store_ctx_group::max_free_space() -> uint64_t {
-  auto res = 0ul;
+  auto res = uint64_t{0};
   for (auto &stores : m_stores) {
     res = std::max(res, stores.free_space());
   }

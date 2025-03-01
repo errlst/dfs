@@ -12,7 +12,7 @@ connection::connection(asio::ip::tcp::socket &&sock)
 }
 
 connection::~connection() {
-  LOG_ERROR(std::format("connection destoryed"));
+  // LOG_ERROR(std::format("connection destoryed"));
   // asio::co_spawn(strand_, close(), asio::use_future).get();
 }
 
