@@ -175,7 +175,7 @@ auto cs_upload_close_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
   std::copy(res_file_path.begin(), res_file_path.end(), response_to_send->data);
   co_await conn->send_response(response_to_send.get(), request_recved);
 
-  // migrate_service::new_hot_file(file_path.value());
+  migrate_service::new_hot_file(file_path.value());
   conn->del_data(conn_data::client_upload_file_id);
   co_return true;
 }
@@ -228,9 +228,12 @@ auto cs_download_append_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
   }
 
   auto response_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + 5_MB), free};
-  *response_to_send = {
-      .data_len = (uint32_t)store_group.value()->read_file(file_id.value(), response_to_send->data, 5_MB),
-  };
+  auto read_len = store_group.value()->read_file(file_id.value(), response_to_send->data, 5_MB);
+  if (!read_len.has_value()) {
+    co_await conn->send_response(common::proto_frame{.stat = 3}, request_recved);
+    co_return false;
+  }
+  *response_to_send = {.data_len = (uint32_t)read_len.value()};
   co_await conn->send_response(response_to_send.get(), request_recved);
   co_return true;
 }

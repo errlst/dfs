@@ -55,7 +55,7 @@ static auto request_handle_for_client = std::map<uint16_t, request_handle>{
 };
 
 static auto request_from_client(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<bool> {
-  LOG_INFO(std::format("recv from client"));
+  LOG_INFO(std::format("recv cmd {} from client", request->cmd));
   auto it = request_handle_for_client.find(request->cmd);
   if (it != request_handle_for_client.end()) {
     co_return co_await it->second(request, conn);
@@ -156,8 +156,13 @@ static auto sync_upload_files() -> asio::awaitable<void> {
     /* 上传数据 */
     request_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + 5 * 1024 * 1024), [](auto p) { free(p); }};
     while (true) {
-      auto size = hot_store_group->read_file(file_id, request_to_send->data, 5 * 1024 * 1024);
-      *request_to_send = {.cmd = common::proto_cmd::ss_upload_sync_append, .data_len = (uint32_t)size};
+      auto read_len = hot_store_group->read_file(file_id, request_to_send->data, 5 * 1024 * 1024);
+      if (!read_len.has_value()) {
+        LOG_ERROR(std::format("read file failed"));
+        exit(-1);
+      }
+
+      *request_to_send = {.cmd = common::proto_cmd::ss_upload_sync_append, .data_len = (uint32_t)read_len.value()};
       for (auto storage : syncable_storages) {
         auto id = co_await storage->send_request(request_to_send.get());
         if (!id) {
@@ -176,7 +181,7 @@ static auto sync_upload_files() -> asio::awaitable<void> {
       }
 
       /* 上传完成 */
-      if (size == 0) {
+      if (read_len == 0) {
         break;
       }
     }

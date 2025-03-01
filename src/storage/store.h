@@ -1,111 +1,234 @@
 #pragma once
 #include <atomic>
 #include <fstream>
+#include <generator>
 #include <map>
 #include <memory>
-#include <random>
+#include <mutex>
 #include <string>
-#include <variant>
 #include <vector>
 
 /*
-  相对路径为 xx/xx/<filename>
+  对于本系统的存储路径，给出以下定义：
+  root_path，存储的根路径，如 /home/errlst/dfs/build/base_path/storage_1/hot
+  flat_path，扁平路径，如 00/00
+  rel_path，相对路径，如 00/00/abc.txt_nIk6cAOx
+  abs_path，绝对路径，如 /home/errlst/dfs/build/base_path/storage_1/hot/00/00/abc
+  user_file_name，用户上传提供的文件名（包含后缀），如 abc.txt
+  store_file_name，实际存储时的文件名（包括随机后缀），如 abc.txt_nIk6cAOx
 */
+
 class store_ctx {
 public:
-  store_ctx(const std::string &path);
+  store_ctx(std::string_view root_path);
 
   ~store_ctx() = default;
 
+  /**
+   * @brief 创建文件，用于 client 上传文件时调用
+   *
+   * @param file_size 文件所需大小
+   */
   auto create_file(uint64_t file_id, uint64_t file_size) -> bool;
+
+  /**
+   * @brief 创建文件，用于 storage 同步文件时调用，且提供文件相对路径，如 00/00/abc.txt_nIk6cAOx
+   *
+   * @param file_size 文件所需大小
+   */
   auto create_file(uint64_t file_id, uint64_t file_size, std::string_view rel_path) -> bool;
 
-  auto write_file(uint64_t file_id, std::span<char> data) -> bool;
+  /**
+   * @brief 文件追加写入，client 上传和 storge 同步均调用此函数
+   *
+   */
+  auto append_data(uint64_t file_id, std::span<char> data) -> bool;
 
-  /* 返回最后的相对路径 */
-  auto close_file(uint64_t file_id, std::string_view filename) -> std::optional<std::string>;
+  /**
+   * @brief 关闭文件，用于 client 上传文件时调用
+   *
+   * @param user_file_name 用户提供文件名
+   *
+   * @return 如果成功，返回 rel_path
+   */
+  auto close_file(uint64_t file_id, std::string_view user_file_name) -> std::optional<std::string>;
+
+  /**
+   * @brief 关闭文件，用于 storage 间同步调用
+   *
+   */
   auto close_file(uint64_t file_id) -> bool;
 
+  /**
+   * @brief 打开文件，用于 client 下载文件调用
+   *
+   * @return 如果成功，返回文件大小
+   */
   auto open_file(uint64_t file_id, std::string_view rel_path) -> std::optional<uint64_t>;
 
-  auto read_file(uint64_t file_id, uint64_t offset, uint64_t size) -> std::optional<std::vector<char>>;
+  /**
+   * @brief 读取文件内容
+   *
+   * @return 成功返回文件内容，否则返回 std::nullopt
+   */
   auto read_file(uint64_t file_id, uint64_t size) -> std::optional<std::vector<char>>;
-  auto read_file(uint64_t file_id, char *dst, uint64_t size) -> uint64_t;
 
-  auto free_space() -> uint64_t;
+  /**
+   * @brief 读取文件内容
+   *
+   * @return 返回实际读取的字节数
+   */
+  auto read_file(uint64_t file_id, char *dst, uint64_t size) -> std::optional<uint64_t>;
 
-  auto base_path() -> std::string;
+  /**
+   * @brief 获取剩余可用空间
+   *
+   */
+  auto free_space() -> uint64_t { return m_disk_free; }
+
+  /**
+   * @brief 获取 root_path
+   *
+   */
+  auto root_path() -> std::string { return m_root_path; }
 
 private:
-  /* 检查磁盘空间是否够，留 5% */
-  auto check_disk_enough(uint64_t size) -> bool;
+  /**
+   * @brief 获取 ofstream
+   *
+   */
+  auto peek_ofstream(uint64_t file_id) -> std::pair<std::shared_ptr<std::ofstream>, std::string>;
 
-  /* 根据 idx 创建的相对路径，如 00/00 */
-  auto relative_path(uint16_t idx) -> std::string;
+  /**
+   * @brief 获取 ofstream 且会移除
+   *
+   */
+  auto pop_ofstream(uint64_t file_id) -> std::pair<std::shared_ptr<std::ofstream>, std::string>;
 
-  /* 根据相对路径创建的绝对路径，<base_path>/00/00 */
-  auto absolute_path(std::string_view rel_path) -> std::string;
+  /**
+   * @brief 获取 ifstream
+   *
+   */
+  auto peek_ifstream(uint64_t file_id) -> std::shared_ptr<std::ifstream>;
 
-  auto next_idx() -> uint16_t;
+  /**
+   * @brief 获取 ifstream 且会移除
+   *
+   */
+  auto pop_ifstream(uint64_t file_id) -> std::shared_ptr<std::ifstream>;
 
-  auto get_ifstream(uint64_t file_id) -> std::optional<std::tuple<std::string, std::shared_ptr<std::ifstream>>>;
-  auto get_ofstream(uint64_t file_id) -> std::optional<std::tuple<std::string, std::shared_ptr<std::ofstream>>>;
+  /**
+   * @brief 创建 ofstream，并填充空洞
+   *
+   */
+  auto create_ofstream(std::string_view rel_path, uint64_t file_size) -> std::shared_ptr<std::ofstream>;
+
+  /**
+   * @brief 获取下一个扁平路径
+   *
+   */
+  auto next_flat_path() -> std::string;
+
+  /**
+   * @brief 截取扁平路径
+   *
+   */
+  auto flat_of_rel_path(std::string_view rel_path) -> std::string;
+
+  /**
+   * @brief 获取一个有效的相对路径（文件不存在即有效
+   *
+   * @return std::string
+   */
+  auto valid_rel_path(std::string_view flat_path) -> std::string;
+
+  /**
+   * @brief 更新磁盘剩余空间，且为了保证准确性，每隔一定次数都会通过系统调用获取准确的剩余空间
+   *
+   */
+  auto update_disk_free(uint64_t size) -> void;
+
+  /**
+   * @brief 检查磁盘空间是否够用，且留余 5% 空间
+   *
+   */
+  auto disk_space_is_enough(uint64_t size) -> bool;
 
 private:
-  std::string m_base_path; // basepath/xx/xx/filename == basepath/relpath
-  std::shared_ptr<std::atomic_uint16_t> m_idx = std::make_shared<std::atomic_uint16_t>(0);
-  std::map<uint64_t, std::tuple<std::string, std::variant<std::shared_ptr<std::ofstream>, std::shared_ptr<std::ifstream>>>> m_files = {}; // 存放相对路径
-  std::default_random_engine m_rnd = std::default_random_engine(std::random_device()());
+  /* 根路径 */
+  std::string m_root_path;
+
+  /* 扁平路径索引 */
+  std::atomic_uint16_t m_flat_idx = 0;
+
+  /* 磁盘剩余空间的缓存 */
+  std::atomic_uint64_t m_disk_free = 0;
+
+  /* 磁盘总空间 */
+  uint64_t m_disk_total = 0;
+
+  /* 文件流 */
+  std::map<uint64_t, std::shared_ptr<std::ifstream>> m_ifstreams;
+  std::mutex m_ifstreams_mtx;
+
+  /* 文件流 + 相对路径 */
+  std::map<uint64_t, std::pair<std::shared_ptr<std::ofstream>, std::string>> m_ofstreams;
+  std::mutex m_ofstream_mut;
 };
 
+/**
+ * @brief store_ctx_group 的函数调用均是对 store_ctx 的封装，具体说明参考 store_ctx
+ *
+ */
 class store_ctx_group {
 public:
   store_ctx_group(const std::string &name, const std::vector<std::string> &path);
 
   ~store_ctx_group() = default;
 
-  /* 创建文件 返回 file_id */
   auto create_file(uint64_t file_size) -> std::optional<uint64_t>;
+
   auto create_file(uint64_t file_size, std::string_view rel_path) -> std::optional<uint64_t>;
 
-  /* append 写入文件 */
   auto write_file(uint64_t file_id, std::span<char> data) -> bool;
 
-  /*   */ 
-  auto close_file(uint64_t file_id, std::string_view filename) -> std::optional<std::string>;
+  auto close_file(uint64_t file_id, std::string_view user_file_name) -> std::optional<std::string>;
+
   auto close_file(uint64_t file_id) -> bool;
 
-  // 打开文件之后可以读取文件内容
-  // 返回: (file_id, file_size)
+  /**
+   * @brief
+   *
+   * @return 成功返回 file_id 和 file_size
+   */
   auto open_file(std::string_view rel_path) -> std::optional<std::pair<uint64_t, uint64_t>>;
 
-  auto read_file(uint64_t file_id, uint64_t offset, uint64_t size) -> std::optional<std::vector<char>>;
   auto read_file(uint64_t file_id, uint64_t size) -> std::optional<std::vector<char>>;
-  auto read_file(uint64_t file_id, char *dst, uint64_t size) -> uint64_t;
 
-  /* 最大空闲空间 */
+  auto read_file(uint64_t file_id, char *dst, uint64_t size) -> std::optional<uint64_t>;
+
+  /**
+   * @brief 最大空闲空间
+   *
+   * @return uint64_t
+   */
   auto max_free_space() -> uint64_t;
 
-  auto next_path() -> std::string;
-
-  auto valid() -> bool;
-
-  /* <path, avaliable, total> */
-  auto monitor_disk() -> std::vector<std::tuple<std::string, uint64_t, uint64_t>>;
+private:
+  /**
+   * @brief 从 idx 开始遍历所有 store
+   *
+   * @return storage 和其对应的 idx
+   */
+  auto iterate_storages(uint64_t start_idx) -> std::generator<std::pair<std::shared_ptr<store_ctx>, uint64_t>>;
 
 private:
-  auto next_idx() -> uint16_t;
-
-  auto next_file_id() -> uint64_t;
-
-  auto store_idx(uint16_t idx) -> uint16_t;
-
-  auto map_to_store_idx(uint64_t file_id) -> std::optional<uint16_t>;
-
-private:
+  /* 组名，如 "hot_storgae_group" 、"cold_storage_group" */
   std::string m_name;
-  std::vector<store_ctx> m_stores = {};
-  std::shared_ptr<std::atomic_uint16_t> m_idx = std::make_shared<std::atomic_uint16_t>(0); // m_idx % m_stores.size() == store_idx
-  std::shared_ptr<std::atomic_uint64_t> m_file_id = std::make_shared<std::atomic_uint64_t>(0);
-  std::map<uint64_t, uint16_t> m_store_idx_map = {}; // file_id -> store_idx
+
+  /* 组中的 stores */
+  std::vector<std::shared_ptr<store_ctx>> m_stores = {};
+
+  /* 表达式 `idx % m_stores.size()` 可以获取具体的 store，对于 store，可以通过 idx 获取具体的文件 */
+  std::atomic_uint64_t m_store_idx = 0;
 };

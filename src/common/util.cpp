@@ -19,7 +19,7 @@ auto check_directory(std::string_view path) -> void {
   }
 }
 
-auto fs_free_size(std::string_view path) -> std::tuple<uint64_t, uint64_t> {
+auto disk_space(std::string_view path) -> std::tuple<uint64_t, uint64_t> {
   struct statvfs stat;
   if (statvfs(path.data(), &stat) != 0) {
     return std::make_tuple(0ull, 0ull);

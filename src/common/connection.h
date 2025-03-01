@@ -43,13 +43,6 @@ public:
     if (it == datas_.end()) {
       return std::nullopt;
     }
-    // if (it->second.type() != typeid(T)) {
-    //   auto &i = it->second.type();
-    //   auto &j = typeid(T);
-    //   // std::println(std::format("need type is {} but stored type is {}", typeid(T).name(), it->second.type().name()));
-    //   // LOG_ERROR(std::format("need type is {} but stored type is {}", typeid(T).name(), it->second.type().name()));
-    //   abort();
-    // }
     return std::any_cast<T>(it->second);
   }
 
@@ -60,9 +53,9 @@ public:
   /* 如果成功，返回已经建立心跳的 connection，但没有 start */
   static auto connect_to(std::string_view ip, uint16_t port) -> asio::awaitable<std::shared_ptr<connection>>;
 
-private:
   auto close() -> asio::awaitable<void>;
 
+private:
   auto start_heart() -> asio::awaitable<void>;
 
   auto start_recv() -> asio::awaitable<void>;

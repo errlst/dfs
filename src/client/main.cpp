@@ -148,6 +148,8 @@ auto upload_file(std::string path) -> asio::awaitable<void> {
 
   auto file_path = std::string_view{response_recved->data, response_recved->data_len};
   LOG_INFO(std::format("upload suc file: {}", file_path));
+
+  co_await conn->close();
 }
 
 auto download_file(std::string src, std::string dst) -> asio::awaitable<void> {

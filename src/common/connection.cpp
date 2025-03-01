@@ -14,6 +14,7 @@ connection::connection(asio::ip::tcp::socket &&sock)
 connection::~connection() {
   // LOG_ERROR(std::format("connection destoryed"));
   // asio::co_spawn(strand_, close(), asio::use_future).get();
+  asio::co_spawn(strand_, close(), asio::use_future).wait();
 }
 
 auto connection::start(std::function<asio::awaitable<void>(std::shared_ptr<proto_frame>, std::shared_ptr<connection>)> on_recv_request) -> void {
