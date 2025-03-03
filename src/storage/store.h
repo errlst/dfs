@@ -45,19 +45,19 @@ public:
   auto append_data(uint64_t file_id, std::span<char> data) -> bool;
 
   /**
-   * @brief 关闭文件，用于 client 上传文件时调用
+   * @brief 关闭写入文件，用于 client 上传文件时调用
    *
    * @param user_file_name 用户提供文件名
    *
-   * @return 如果成功，返回 rel_path
+   * @return 如果成功，返回最终存储的 root_path + rel_path
    */
-  auto close_file(uint64_t file_id, std::string_view user_file_name) -> std::optional<std::string>;
+  auto close_write_file(uint64_t file_id, std::string_view user_file_name) -> std::optional<std::pair<std::string, std::string>>;
 
   /**
-   * @brief 关闭文件，用于 storage 间同步调用
+   * @brief 关闭写入文件，用于 storage 间同步调用
    *
    */
-  auto close_file(uint64_t file_id) -> bool;
+  auto close_write_file(uint64_t file_id) -> std::optional<std::pair<std::string, std::string>>;
 
   /**
    * @brief 打开文件，用于 client 下载文件调用
@@ -109,13 +109,13 @@ private:
    * @brief 获取 ifstream
    *
    */
-  auto peek_ifstream(uint64_t file_id) -> std::shared_ptr<std::ifstream>;
+  auto peek_ifstream(uint64_t file_id) -> std::pair<std::shared_ptr<std::ifstream>, std::string>;
 
   /**
    * @brief 获取 ifstream 且会移除
    *
    */
-  auto pop_ifstream(uint64_t file_id) -> std::shared_ptr<std::ifstream>;
+  auto pop_ifstream(uint64_t file_id) -> std::pair<std::shared_ptr<std::ifstream>, std::string>;
 
   /**
    * @brief 创建 ofstream，并填充空洞
@@ -167,11 +167,9 @@ private:
   /* 磁盘总空间 */
   uint64_t m_disk_total = 0;
 
-  /* 文件流 */
-  std::map<uint64_t, std::shared_ptr<std::ifstream>> m_ifstreams;
-  std::mutex m_ifstreams_mtx;
-
   /* 文件流 + 相对路径 */
+  std::map<uint64_t, std::pair<std::shared_ptr<std::ifstream>, std::string>> m_ifstreams;
+  std::mutex m_ifstreams_mtx;
   std::map<uint64_t, std::pair<std::shared_ptr<std::ofstream>, std::string>> m_ofstreams;
   std::mutex m_ofstream_mut;
 };
@@ -192,9 +190,9 @@ public:
 
   auto write_file(uint64_t file_id, std::span<char> data) -> bool;
 
-  auto close_file(uint64_t file_id, std::string_view user_file_name) -> std::optional<std::string>;
+  auto close_write_file(uint64_t file_id, std::string_view user_file_name) -> std::optional<std::pair<std::string, std::string>> { return m_stores[file_id % m_stores.size()]->close_write_file(file_id, user_file_name); }
 
-  auto close_file(uint64_t file_id) -> bool;
+  auto close_write_file(uint64_t file_id) -> std::optional<std::pair<std::string, std::string>> { return m_stores[file_id % m_stores.size()]->close_write_file(file_id); }
 
   /**
    * @brief
@@ -214,11 +212,17 @@ public:
    */
   auto max_free_space() -> uint64_t;
 
+  /**
+   * @brief 获取跟路径
+   *
+   */
+  auto root_path(uint64_t file_id) -> std::string { return m_stores[file_id % m_stores.size()]->root_path(); }
+
 private:
   /**
    * @brief 从 idx 开始遍历所有 store
    *
-   * @return storage 和其对应的 idx
+   * @return storage 和 file_id
    */
   auto iterate_storages(uint64_t start_idx) -> std::generator<std::pair<std::shared_ptr<store_ctx>, uint64_t>>;
 

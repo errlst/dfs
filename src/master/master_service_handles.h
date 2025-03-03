@@ -21,6 +21,10 @@ enum conn_data : uint64_t {
 
 inline auto ms_config = master_service_conf{};
 
+/**
+ * @brief 客户连接的相关变量和函数
+ *
+ */
 inline auto client_conns_mut = std::mutex{};
 inline auto client_conns = std::set<std::shared_ptr<common::connection>>{};
 inline auto regist_client(std::shared_ptr<common::connection> conn) -> void {
@@ -33,6 +37,10 @@ inline auto unregist_client(std::shared_ptr<common::connection> conn) -> void {
   client_conns.erase(conn);
 }
 
+/**
+ * @brief storage 连接的相关变量和函数
+ *
+ */
 inline auto storage_conns_mut = std::mutex{};
 inline auto storage_conns = std::map<uint32_t, std::shared_ptr<common::connection>>{};
 inline auto storage_conns_vec = std::vector<std::shared_ptr<common::connection>>{};

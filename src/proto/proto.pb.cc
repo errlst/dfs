@@ -25,24 +25,6 @@ namespace _pb = ::google::protobuf;
 namespace _pbi = ::google::protobuf::internal;
 namespace _fl = ::google::protobuf::internal::field_layout;
 namespace proto {
-              template <typename>
-PROTOBUF_CONSTEXPR storage_monitor_info::storage_monitor_info(::_pbi::ConstantInitialized)
-#if defined(PROTOBUF_CUSTOM_VTABLE)
-    : ::google::protobuf::internal::ZeroFieldsBase(_class_data_.base()){}
-#else   // PROTOBUF_CUSTOM_VTABLE
-    : ::google::protobuf::internal::ZeroFieldsBase() {
-}
-#endif  // PROTOBUF_CUSTOM_VTABLE
-struct storage_monitor_infoDefaultTypeInternal {
-  PROTOBUF_CONSTEXPR storage_monitor_infoDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
-  ~storage_monitor_infoDefaultTypeInternal() {}
-  union {
-    storage_monitor_info _instance;
-  };
-};
-
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
-    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 storage_monitor_infoDefaultTypeInternal _storage_monitor_info_default_instance_;
 
 inline constexpr storage_info::Impl_::Impl_(
     ::_pbi::ConstantInitialized) noexcept
@@ -221,14 +203,6 @@ const ::uint32_t
         PROTOBUF_FIELD_OFFSET(::proto::storage_info, _impl_.magic_),
         PROTOBUF_FIELD_OFFSET(::proto::storage_info, _impl_.port_),
         PROTOBUF_FIELD_OFFSET(::proto::storage_info, _impl_.ip_),
-        ~0u,  // no _has_bits_
-        PROTOBUF_FIELD_OFFSET(::proto::storage_monitor_info, _internal_metadata_),
-        ~0u,  // no _extensions_
-        ~0u,  // no _oneof_case_
-        ~0u,  // no _weak_field_map_
-        ~0u,  // no _inlined_string_donated_
-        ~0u,  // no _split_
-        ~0u,  // no sizeof(Split)
         PROTOBUF_FIELD_OFFSET(::proto::sm_regist_request, _impl_._has_bits_),
         PROTOBUF_FIELD_OFFSET(::proto::sm_regist_request, _internal_metadata_),
         ~0u,  // no _extensions_
@@ -285,16 +259,14 @@ const ::uint32_t
 static const ::_pbi::MigrationSchema
     schemas[] ABSL_ATTRIBUTE_SECTION_VARIABLE(protodesc_cold) = {
         {0, -1, -1, sizeof(::proto::storage_info)},
-        {12, -1, -1, sizeof(::proto::storage_monitor_info)},
-        {20, 30, -1, sizeof(::proto::sm_regist_request)},
-        {32, -1, -1, sizeof(::proto::sm_regist_response)},
-        {42, -1, -1, sizeof(::proto::ss_regist_request)},
-        {52, 61, -1, sizeof(::proto::cm_fetch_one_storage_response)},
-        {62, -1, -1, sizeof(::proto::cm_fetch_group_storages_response)},
+        {12, 22, -1, sizeof(::proto::sm_regist_request)},
+        {24, -1, -1, sizeof(::proto::sm_regist_response)},
+        {34, -1, -1, sizeof(::proto::ss_regist_request)},
+        {44, 53, -1, sizeof(::proto::cm_fetch_one_storage_response)},
+        {54, -1, -1, sizeof(::proto::cm_fetch_group_storages_response)},
 };
 static const ::_pb::Message* const file_default_instances[] = {
     &::proto::_storage_info_default_instance_._instance,
-    &::proto::_storage_monitor_info_default_instance_._instance,
     &::proto::_sm_regist_request_default_instance_._instance,
     &::proto::_sm_regist_response_default_instance_._instance,
     &::proto::_ss_regist_request_default_instance_._instance,
@@ -305,29 +277,28 @@ const char descriptor_table_protodef_proto_2eproto[] ABSL_ATTRIBUTE_SECTION_VARI
     protodesc_cold) = {
     "\n\013proto.proto\022\005proto\"C\n\014storage_info\022\n\n\002"
     "id\030\001 \001(\r\022\r\n\005magic\030\002 \001(\r\022\014\n\004port\030\003 \001(\r\022\n\n"
-    "\002ip\030\004 \001(\t\"\026\n\024storage_monitor_info\"N\n\021sm_"
-    "regist_request\022\024\n\014master_magic\030\001 \001(\r\022#\n\006"
-    "s_info\030\002 \001(\0132\023.proto.storage_info\"L\n\022sm_"
-    "regist_response\022\020\n\010group_id\030\001 \001(\r\022$\n\007s_i"
-    "nfos\030\002 \003(\0132\023.proto.storage_info\"@\n\021ss_re"
-    "gist_request\022\024\n\014master_magic\030\001 \001(\r\022\025\n\rst"
-    "orage_magic\030\002 \001(\r\"D\n\035cm_fetch_one_storag"
-    "e_response\022#\n\006s_info\030\001 \001(\0132\023.proto.stora"
-    "ge_info\"H\n cm_fetch_group_storages_respo"
-    "nse\022$\n\007s_infos\030\001 \003(\0132\023.proto.storage_inf"
-    "ob\006proto3"
+    "\002ip\030\004 \001(\t\"N\n\021sm_regist_request\022\024\n\014master"
+    "_magic\030\001 \001(\r\022#\n\006s_info\030\002 \001(\0132\023.proto.sto"
+    "rage_info\"L\n\022sm_regist_response\022\020\n\010group"
+    "_id\030\001 \001(\r\022$\n\007s_infos\030\002 \003(\0132\023.proto.stora"
+    "ge_info\"@\n\021ss_regist_request\022\024\n\014master_m"
+    "agic\030\001 \001(\r\022\025\n\rstorage_magic\030\002 \001(\r\"D\n\035cm_"
+    "fetch_one_storage_response\022#\n\006s_info\030\001 \001"
+    "(\0132\023.proto.storage_info\"H\n cm_fetch_grou"
+    "p_storages_response\022$\n\007s_infos\030\001 \003(\0132\023.p"
+    "roto.storage_infob\006proto3"
 };
 static ::absl::once_flag descriptor_table_proto_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable descriptor_table_proto_2eproto = {
     false,
     false,
-    489,
+    465,
     descriptor_table_protodef_proto_2eproto,
     "proto.proto",
     &descriptor_table_proto_2eproto_once,
     nullptr,
     0,
-    7,
+    6,
     schemas,
     file_default_instances,
     TableStruct_proto_2eproto::offsets,
@@ -651,109 +622,6 @@ void storage_info::InternalSwap(storage_info* PROTOBUF_RESTRICT other) {
 
 ::google::protobuf::Metadata storage_info::GetMetadata() const {
   return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
-}
-// ===================================================================
-
-class storage_monitor_info::_Internal {
- public:
-};
-
-storage_monitor_info::storage_monitor_info(::google::protobuf::Arena* arena)
-#if defined(PROTOBUF_CUSTOM_VTABLE)
-    : ::google::protobuf::internal::ZeroFieldsBase(arena, _class_data_.base()) {
-#else   // PROTOBUF_CUSTOM_VTABLE
-    : ::google::protobuf::internal::ZeroFieldsBase(arena) {
-#endif  // PROTOBUF_CUSTOM_VTABLE
-  // @@protoc_insertion_point(arena_constructor:proto.storage_monitor_info)
-}
-storage_monitor_info::storage_monitor_info(
-    ::google::protobuf::Arena* arena,
-    const storage_monitor_info& from)
-#if defined(PROTOBUF_CUSTOM_VTABLE)
-    : ::google::protobuf::internal::ZeroFieldsBase(arena, _class_data_.base()) {
-#else   // PROTOBUF_CUSTOM_VTABLE
-    : ::google::protobuf::internal::ZeroFieldsBase(arena) {
-#endif  // PROTOBUF_CUSTOM_VTABLE
-  storage_monitor_info* const _this = this;
-  (void)_this;
-  _internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
-      from._internal_metadata_);
-
-  // @@protoc_insertion_point(copy_constructor:proto.storage_monitor_info)
-}
-
-inline void* storage_monitor_info::PlacementNew_(const void*, void* mem,
-                                        ::google::protobuf::Arena* arena) {
-  return ::new (mem) storage_monitor_info(arena);
-}
-constexpr auto storage_monitor_info::InternalNewImpl_() {
-  return ::google::protobuf::internal::MessageCreator::ZeroInit(sizeof(storage_monitor_info),
-                                            alignof(storage_monitor_info));
-}
-PROTOBUF_CONSTINIT
-PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
-const ::google::protobuf::internal::ClassDataFull storage_monitor_info::_class_data_ = {
-    ::google::protobuf::internal::ClassData{
-        &_storage_monitor_info_default_instance_._instance,
-        &_table_.header,
-        nullptr,  // OnDemandRegisterArenaDtor
-        nullptr,  // IsInitialized
-        &storage_monitor_info::MergeImpl,
-        ::google::protobuf::internal::ZeroFieldsBase::GetNewImpl<storage_monitor_info>(),
-#if defined(PROTOBUF_CUSTOM_VTABLE)
-        &storage_monitor_info::SharedDtor,
-        ::google::protobuf::internal::ZeroFieldsBase::GetClearImpl<storage_monitor_info>(), &storage_monitor_info::ByteSizeLong,
-            &storage_monitor_info::_InternalSerialize,
-#endif  // PROTOBUF_CUSTOM_VTABLE
-        PROTOBUF_FIELD_OFFSET(storage_monitor_info, _impl_._cached_size_),
-        false,
-    },
-    &storage_monitor_info::kDescriptorMethods,
-    &descriptor_table_proto_2eproto,
-    nullptr,  // tracker
-};
-const ::google::protobuf::internal::ClassData* storage_monitor_info::GetClassData() const {
-  ::google::protobuf::internal::PrefetchToLocalCache(&_class_data_);
-  ::google::protobuf::internal::PrefetchToLocalCache(_class_data_.tc_table);
-  return _class_data_.base();
-}
-PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
-const ::_pbi::TcParseTable<0, 0, 0, 0, 2> storage_monitor_info::_table_ = {
-  {
-    0,  // no _has_bits_
-    0, // no _extensions_
-    0, 0,  // max_field_number, fast_idx_mask
-    offsetof(decltype(_table_), field_lookup_table),
-    4294967295,  // skipmap
-    offsetof(decltype(_table_), field_names),  // no field_entries
-    0,  // num_field_entries
-    0,  // num_aux_entries
-    offsetof(decltype(_table_), field_names),  // no aux_entries
-    _class_data_.base(),
-    nullptr,  // post_loop_handler
-    ::_pbi::TcParser::GenericFallback,  // fallback
-    #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
-    ::_pbi::TcParser::GetTable<::proto::storage_monitor_info>(),  // to_prefetch
-    #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
-  }, {{
-    {::_pbi::TcParser::MiniParse, {}},
-  }}, {{
-    65535, 65535
-  }},
-  // no field_entries, or aux_entries
-  {{
-  }},
-};
-
-
-
-
-
-
-
-
-::google::protobuf::Metadata storage_monitor_info::GetMetadata() const {
-  return ::google::protobuf::internal::ZeroFieldsBase::GetMetadataImpl(GetClassData()->full());
 }
 // ===================================================================
 

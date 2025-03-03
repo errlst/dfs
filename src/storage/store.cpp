@@ -58,7 +58,7 @@ auto store_ctx::create_file(uint64_t file_id, uint64_t file_size, std::string_vi
 
   {
     auto lock = std::unique_lock{m_ofstream_mut};
-    m_ofstreams[file_id] = std::make_pair(ofs, "");
+    m_ofstreams[file_id] = std::make_pair(ofs, rel_path);
   }
 
   update_disk_free(file_size);
@@ -68,19 +68,22 @@ auto store_ctx::create_file(uint64_t file_id, uint64_t file_size, std::string_vi
 auto store_ctx::append_data(uint64_t file_id, std::span<char> data) -> bool {
   auto [ofs, _] = peek_ofstream(file_id);
   if (!ofs) {
+    LOG_ERROR(std::format("invalid file_id {}", file_id));
     return false;
   }
 
   ofs->write(data.data(), data.size());
   if (!ofs->good()) {
+    LOG_ERROR(std::format("write file failed for file_id {}", file_id));
     return false;
   }
   return true;
 }
 
-auto store_ctx::close_file(uint64_t file_id, std::string_view user_file_name) -> std::optional<std::string> {
+auto store_ctx::close_write_file(uint64_t file_id, std::string_view user_file_name) -> std::optional<std::pair<std::string, std::string>> {
   auto [ofs, rel_path] = pop_ofstream(file_id);
   if (!ofs) {
+    LOG_ERROR(std::format("invalid file_id {}", file_id));
     return std::nullopt;
   }
 
@@ -95,17 +98,17 @@ auto store_ctx::close_file(uint64_t file_id, std::string_view user_file_name) ->
     LOG_ERROR(std::format("rename from '{}' to '{}' failed, what: ", old_abs_path, new_abs_path, err.what()));
     return std::nullopt;
   }
-  return new_rel_path;
+  return std::pair{m_root_path, new_rel_path};
 }
 
-auto store_ctx::close_file(uint64_t file_id) -> bool {
-  auto [ofs, _] = pop_ofstream(file_id);
+auto store_ctx::close_write_file(uint64_t file_id) -> std::optional<std::pair<std::string, std::string>> {
+  auto [ofs, rel_path] = pop_ofstream(file_id);
   if (!ofs) {
-    return false;
+    return std::nullopt;
   }
 
   ofs->close();
-  return true;
+  return std::pair{m_root_path, rel_path};
 }
 
 auto store_ctx::open_file(uint64_t file_id, std::string_view rel_path) -> std::optional<uint64_t> {
@@ -120,13 +123,13 @@ auto store_ctx::open_file(uint64_t file_id, std::string_view rel_path) -> std::o
 
   {
     auto lock = std::unique_lock{m_ifstreams_mtx};
-    m_ifstreams.emplace(file_id, ifs);
+    m_ifstreams[file_id] = std::make_pair(ifs, rel_path);
   }
   return file_size;
 }
 
 auto store_ctx::read_file(uint64_t file_id, uint64_t size) -> std::optional<std::vector<char>> {
-  auto ifs = peek_ifstream(file_id);
+  auto [ifs, _] = peek_ifstream(file_id);
   if (!ifs || !ifs->good()) {
     return std::nullopt;
   }
@@ -144,7 +147,7 @@ auto store_ctx::read_file(uint64_t file_id, uint64_t size) -> std::optional<std:
 }
 
 auto store_ctx::read_file(uint64_t file_id, char *dst, uint64_t size) -> std::optional<uint64_t> {
-  auto ifs = peek_ifstream(file_id);
+  auto [ifs, _] = peek_ifstream(file_id);
   if (!ifs || !ifs->good()) {
     return std::nullopt;
   }
@@ -176,20 +179,20 @@ auto store_ctx::pop_ofstream(uint64_t file_id) -> std::pair<std::shared_ptr<std:
   return res;
 }
 
-auto store_ctx::peek_ifstream(uint64_t file_id) -> std::shared_ptr<std::ifstream> {
+auto store_ctx::peek_ifstream(uint64_t file_id) -> std::pair<std::shared_ptr<std::ifstream>, std::string> {
   auto lock = std::unique_lock{m_ifstreams_mtx};
   auto it = m_ifstreams.find(file_id);
   if (it == m_ifstreams.end()) {
-    return nullptr;
+    return {nullptr, ""};
   }
   return it->second;
 }
 
-auto store_ctx::pop_ifstream(uint64_t file_id) -> std::shared_ptr<std::ifstream> {
+auto store_ctx::pop_ifstream(uint64_t file_id) -> std::pair<std::shared_ptr<std::ifstream>, std::string> {
   auto lock = std::unique_lock{m_ifstreams_mtx};
   auto it = m_ifstreams.find(file_id);
   if (it == m_ifstreams.end()) {
-    return nullptr;
+    return {nullptr, ""};
   }
   auto res = std::move(it->second);
   m_ifstreams.erase(it);
@@ -254,18 +257,18 @@ store_ctx_group::store_ctx_group(const std::string &name, const std::vector<std:
 }
 
 auto store_ctx_group::create_file(uint64_t file_size) -> std::optional<std::uint64_t> {
-  for (auto [s, idx] : iterate_storages(++m_store_idx)) {
-    if (s->create_file(idx, file_size)) {
-      return idx;
+  for (auto [s, file_id] : iterate_storages(++m_store_idx)) {
+    if (s->create_file(file_id, file_size)) {
+      return file_id;
     }
   }
   return std::nullopt;
 }
 
 auto store_ctx_group::create_file(uint64_t file_size, std::string_view rel_path) -> std::optional<uint64_t> {
-  for (auto [s, idx] : iterate_storages(++m_store_idx)) {
-    if (s->create_file(idx, file_size, rel_path)) {
-      return idx;
+  for (auto [s, file_id] : iterate_storages(++m_store_idx)) {
+    if (s->create_file(file_id, file_size, rel_path)) {
+      return file_id;
     }
   }
   return std::nullopt;
@@ -275,13 +278,13 @@ auto store_ctx_group::write_file(uint64_t file_id, std::span<char> data) -> bool
   return m_stores[file_id % m_stores.size()]->append_data(file_id, data);
 }
 
-auto store_ctx_group::close_file(uint64_t file_id, std::string_view user_file_name) -> std::optional<std::string> {
-  return m_stores[file_id % m_stores.size()]->close_file(file_id, user_file_name);
-}
+// auto store_ctx_group::close_write_file(uint64_t file_id, std::string_view user_file_name) -> std::optional<std::string> {
+//   return m_stores[file_id % m_stores.size()]->close_write_file(file_id, user_file_name);
+// }
 
-auto store_ctx_group::close_file(uint64_t file_id) -> bool {
-  return m_stores[file_id % m_stores.size()]->close_file(file_id);
-}
+// auto store_ctx_group::close_write_file(uint64_t file_id) -> std::optional<std::string> {
+//   return m_stores[file_id % m_stores.size()]->close_write_file(file_id);
+// }
 
 auto store_ctx_group::open_file(std::string_view rel_path) -> std::optional<std::pair<uint64_t, uint64_t>> {
   for (auto [s, idx] : iterate_storages(++m_store_idx)) {
@@ -309,8 +312,7 @@ auto store_ctx_group::max_free_space() -> uint64_t {
 }
 
 auto store_ctx_group::iterate_storages(uint64_t start_idx) -> std::generator<std::pair<std::shared_ptr<store_ctx>, uint64_t>> {
-  for (auto i = 0uz, idx = start_idx, count = m_stores.size(); i < count; ++i, ++idx) {
-    auto tmp = idx % count;
-    co_yield {m_stores[tmp], tmp};
+  for (auto i = 0uz, file_id = start_idx, count = m_stores.size(); i < count; ++i, ++file_id) {
+    co_yield {m_stores[file_id % count], file_id};
   }
 }

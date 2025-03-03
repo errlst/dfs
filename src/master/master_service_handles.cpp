@@ -2,8 +2,11 @@
 #include "../common/util.h"
 #include "../proto/proto.pb.h"
 
-/* 定期获取 storage 的可用空间 */
-auto request_storage_free_space(std::shared_ptr<common::connection> conn, std::shared_ptr<asio::steady_timer> timer) -> asio::awaitable<void> {
+/**
+ * @brief 定期获取 storage 的最大可用空间
+ *
+ */
+static auto request_storage_free_space(std::shared_ptr<common::connection> conn, std::shared_ptr<asio::steady_timer> timer) -> asio::awaitable<void> {
   while (true) {
     auto id = co_await conn->send_request(common::proto_frame{.cmd = common::proto_cmd::ms_get_max_free_space});
     if (!id) {
@@ -81,10 +84,10 @@ auto sm_regist_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
   /* 开始获取信息 */
   auto request_storage_free_space_timer = std::make_shared<asio::steady_timer>(co_await asio::this_coro::executor);
   conn->add_exetension_work(
-      [request_storage_free_space_timer](std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
+      [=](std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
         co_await request_storage_free_space(conn, request_storage_free_space_timer);
       },
-      [request_storage_free_space_timer] {
+      [=] {
         request_storage_free_space_timer->cancel();
       });
   co_return true;

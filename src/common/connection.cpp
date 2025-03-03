@@ -3,16 +3,16 @@
 #include "./util.h"
 #include <asio/experimental/parallel_group.hpp>
 
+// #define DEBUG_FRAME
+
 namespace common {
 
 connection::connection(asio::ip::tcp::socket &&sock)
     : m_sock{std::move(sock)},
-      m_strand(asio::make_strand(m_sock.get_executor())),
-      m_heat_timer{std::make_unique<asio::steady_timer>(m_strand)} {
-}
-
-connection::~connection() {
-  asio::co_spawn(m_strand, close(), asio::use_future).wait();
+      m_strand{asio::make_strand(m_sock.get_executor())},
+      m_heat_timer{std::make_unique<asio::steady_timer>(m_strand)},
+      m_port{m_sock.remote_endpoint().port()},
+      m_ip{m_sock.remote_endpoint().address().to_string()} {
 }
 
 auto connection::start(std::function<asio::awaitable<void>(std::shared_ptr<proto_frame>, std::shared_ptr<connection>)> on_recv_request) -> void {
@@ -42,7 +42,6 @@ auto connection::recv_response(uint16_t id) -> asio::awaitable<std::shared_ptr<p
   co_await asio::post(m_strand, asio::use_awaitable);
   auto &[frame, waiter] = m_response_frames[id];
   if (frame == nullptr) {
-    waiter = std::make_shared<asio::steady_timer>(m_strand, std::chrono::days{365});
     co_await waiter->async_wait(asio::as_tuple(asio::use_awaitable));
     if (m_closed) {
       co_return nullptr;
@@ -55,20 +54,24 @@ auto connection::recv_response(uint16_t id) -> asio::awaitable<std::shared_ptr<p
 
 auto connection::send_request(proto_frame *frame, std::source_location loc) -> asio::awaitable<std::optional<uint16_t>> {
   co_await asio::post(m_strand, asio::use_awaitable);
+  if (m_closed) {
+    co_return std::nullopt;
+  }
+
+  frame->magic = FRAME_MAGIC;
   frame->id = m_request_frame_id++;
   frame->type = REQUEST_FRAME;
   auto frame_len = sizeof(proto_frame) + frame->data_len;
   auto untransed_frame = *frame;
   trans_frame_to_net(frame);
-  auto [ec, n] = co_await asio::async_write(m_sock, asio::const_buffer(frame, frame_len), asio::as_tuple(asio::use_awaitable));
-  if (n != frame_len) {
+
+  if (auto [ec, n] = co_await asio::async_write(m_sock, asio::const_buffer(frame, frame_len), asio::as_tuple(asio::use_awaitable)); n != frame_len) {
     LOG_DEBUG(std::format("send request failed {}", ec.message()));
     co_await close();
     co_return std::nullopt;
   }
-  if (frame->magic != 0x55aa) {
-    LOG_DEBUG("");
-  }
+
+#ifdef DEBUG_FRAME
   LOG_DEBUG(std::format(R"(send request {}:{} {{
     magic: {:x},
     id: {},
@@ -78,7 +81,9 @@ auto connection::send_request(proto_frame *frame, std::source_location loc) -> a
     data_len: {}
   }})",
                         loc.file_name(), loc.line(), untransed_frame.magic, untransed_frame.id, untransed_frame.cmd, untransed_frame.type, untransed_frame.stat, frame_len - sizeof(proto_frame)));
+#endif
 
+  m_response_frames[untransed_frame.id] = {nullptr, std::make_shared<asio::steady_timer>(m_strand, std::chrono::days{365})};
   co_return untransed_frame.id;
 }
 
@@ -88,17 +93,19 @@ auto connection::send_request(proto_frame frame, std::source_location loc) -> as
     co_return std::nullopt;
   }
 
+  frame.magic = FRAME_MAGIC;
   frame.id = m_request_frame_id++;
   frame.type = REQUEST_FRAME;
-  frame.data_len = 0;
   auto untransed_frame = frame;
   trans_frame_to_net(&frame);
-  auto [ec, n] = co_await asio::async_write(m_sock, asio::const_buffer(&frame, sizeof(proto_frame)), asio::as_tuple(asio::use_awaitable));
-  if (n != sizeof(proto_frame)) {
+
+  if (auto [ec, n] = co_await asio::async_write(m_sock, asio::const_buffer(&frame, sizeof(proto_frame)), asio::as_tuple(asio::use_awaitable)); n != sizeof(proto_frame)) {
     LOG_DEBUG(std::format("send request failed {}", ec.message()));
     co_await close();
     co_return std::nullopt;
   }
+
+#ifdef DEBUG_FRAME
   LOG_DEBUG(std::format(R"(send request {}:{} {{
     magic: {:x},
     id: {},
@@ -108,7 +115,9 @@ auto connection::send_request(proto_frame frame, std::source_location loc) -> as
     data_len: {}
   }})",
                         loc.file_name(), loc.line(), untransed_frame.magic, untransed_frame.id, untransed_frame.cmd, untransed_frame.type, untransed_frame.stat, 0));
+#endif
 
+  m_response_frames[untransed_frame.id] = {nullptr, std::make_shared<asio::steady_timer>(m_strand, std::chrono::days{365})};
   co_return untransed_frame.id;
 }
 
@@ -130,6 +139,8 @@ auto connection::send_response(proto_frame *frame, std::shared_ptr<proto_frame> 
     co_await close();
     co_return false;
   }
+
+#ifdef DEBUG_FRAME
   LOG_DEBUG(std::format(R"(send response {}:{} {{
     magic: {:x},
     id: {},
@@ -139,6 +150,8 @@ auto connection::send_response(proto_frame *frame, std::shared_ptr<proto_frame> 
     data_len: {}
   }})",
                         loc.file_name(), loc.line(), untransed_frame.magic, untransed_frame.id, untransed_frame.cmd, untransed_frame.type, untransed_frame.stat, frame_len - sizeof(proto_frame)));
+#endif
+
   co_return true;
 }
 
@@ -159,6 +172,8 @@ auto connection::send_response(proto_frame frame, std::shared_ptr<proto_frame> r
     co_await close();
     co_return false;
   }
+
+#ifdef DEBUG_FRAME
   LOG_DEBUG(std::format(R"(send response {}:{} {{
     magic: {:x},
     id: {},
@@ -168,6 +183,8 @@ auto connection::send_response(proto_frame frame, std::shared_ptr<proto_frame> r
     data_len: {}
   }})",
                         loc.file_name(), loc.line(), untransed_frame.magic, untransed_frame.id, untransed_frame.cmd, untransed_frame.type, untransed_frame.stat, 0));
+#endif
+
   co_return true;
 }
 
@@ -231,7 +248,7 @@ auto connection::start_heart() -> asio::awaitable<void> {
 
     if (auto [ec, n] = co_await asio::async_write(m_sock, asio::const_buffer(&frame, sizeof(frame)), asio::as_tuple(asio::use_awaitable));
         ec || n != sizeof(frame)) {
-      LOG_DEBUG(std::format("heart ping failed {}", ec.message()));
+      // LOG_DEBUG(std::format("heart ping failed {}", ec.message()));
       co_await close();
       co_return;
     }
@@ -253,12 +270,14 @@ auto connection::start_recv() -> asio::awaitable<void> {
     });
     auto [ec, n] = co_await asio::async_read(m_sock, asio::mutable_buffer(&frame_header, sizeof(proto_frame)), asio::as_tuple(asio::use_awaitable));
     if (n != sizeof(proto_frame)) {
-      LOG_DEBUG(std::format("recv frame failed {}", ec.message()));
+      // LOG_DEBUG(std::format("recv frame failed {}", ec.message()));
       timer.cancel();
       co_await close();
       co_return;
     }
     trans_frame_to_host(&frame_header);
+
+#ifdef DEBUG_FRAME
     if (frame_header.cmd != (uint16_t)proto_cmd::xx_heart_ping) {
       LOG_DEBUG(std::format(R"(recv frame : {{
         magic: {:x},
@@ -270,6 +289,7 @@ auto connection::start_recv() -> asio::awaitable<void> {
       }})",
                             frame_header.magic, frame_header.id, frame_header.cmd, frame_header.type, frame_header.stat, frame_header.data_len));
     }
+#endif
 
     /* 校验 magic */
     if (frame_header.magic != FRAME_MAGIC || (frame_header.type != REQUEST_FRAME && frame_header.type != RESPONSE_FRAME)) {
@@ -285,9 +305,7 @@ auto connection::start_recv() -> asio::awaitable<void> {
     }
 
     /* 读取 payload */
-    auto frame = std::shared_ptr<proto_frame>{(proto_frame *)malloc(sizeof(proto_frame) + frame_header.data_len), [](auto p) { 
-      // LOG_DEBUG(std::format("frame destoryed"));
-      free(p); }};
+    auto frame = std::shared_ptr<proto_frame>{(proto_frame *)malloc(sizeof(proto_frame) + frame_header.data_len), free};
     if (frame == nullptr) {
       LOG_DEBUG(std::format("alloc memory failed, requested size is {}MB", frame_header.data_len / 1024 / 1024));
       co_return;
@@ -301,15 +319,15 @@ auto connection::start_recv() -> asio::awaitable<void> {
     *frame = frame_header;
 
     if (frame->type == REQUEST_FRAME) {
-      LOG_DEBUG(std::format("recv request cmd: {}", frame->cmd));
+      // LOG_DEBUG(std::format("recv request cmd: {}", frame->cmd));
       asio::co_spawn(m_strand, m_on_recv_request(frame, shared_from_this()), asio::detached);
     } else if (frame->type == RESPONSE_FRAME) {
+      // LOG_DEBUG(std::format("recv response frame id: {}", frame->id));
       auto &[res_frame, waiter] = m_response_frames[frame->id];
       res_frame = frame;
       if (waiter != nullptr) {
         waiter->cancel();
       }
-      // LOG_DEBUG(std::format("recv response frame id: {}", frame->id));
     }
   }
 }

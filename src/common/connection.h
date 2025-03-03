@@ -14,7 +14,7 @@ class connection : public std::enable_shared_from_this<connection> {
 public:
   connection(asio::ip::tcp::socket &&sock);
 
-  ~connection();
+  ~connection() = default;
 
   /**
    * @brief 开始处理接受数据和心跳
@@ -56,13 +56,20 @@ public:
    * @brief 获取 ip
    *
    */
-  auto ip() -> std::string { return m_sock.remote_endpoint().address().to_string(); }
+  auto ip() -> std::string { return m_ip; }
 
   /**
    * @brief 获取端口
    *
    */
-  auto port() -> uint16_t { return m_sock.remote_endpoint().port(); }
+  auto port() -> uint16_t { return m_port; }
+
+  /**
+   * @brief <ip>:<port>
+   *
+   * @return std::string
+   */
+  auto address() -> std::string { return std::format("{}:{}", ip(), port()); }
 
   /**
    * @brief 设置用户数据
@@ -125,6 +132,10 @@ private:
 
 private:
   asio::ip::tcp::socket m_sock;
+
+  /* 地址 */
+  uint16_t m_port;
+  std::string m_ip;
 
   /* 使用 strand 保证即使一个 connection 运行在多个线程中，同一时刻也只会有一个 connection 在工作，实现无锁线程安全 */
   asio::strand<asio::any_io_executor> m_strand;

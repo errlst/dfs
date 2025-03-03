@@ -191,12 +191,6 @@ static auto read_proc_stat() -> void {
         auto delta_total = current_total_ticks - system_metrics.cpu.cores[core_idx].last_total_ticks;
         auto delta_idle = idle - system_metrics.cpu.cores[core_idx].last_idle_ticks;
         system_metrics.cpu.core_usages_percent[core_idx] = (uint64_t)(10000.0 * (delta_total - delta_idle) / delta_total) / 100.;
-        // if (system_metrics.cpu.core_usages_percent[core_idx] >= 100) {
-        //   LOG_ERROR(std::format("{}", line));
-        //   LOG_ERROR(std::format("delta_total: {}, delta_idle: {}, last_idle: {}, idle: {}", delta_total, delta_idle,
-        //                         system_metrics.cpu.cores[core_idx].last_idle_ticks,
-        //                         idle));
-        // }
       }
       system_metrics.cpu.cores[core_idx].last_total_ticks = current_total_ticks;
       system_metrics.cpu.cores[core_idx].last_idle_ticks = idle;

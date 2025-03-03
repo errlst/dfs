@@ -9,6 +9,8 @@
 #pragma once
 #include <print>
 
+// #define NO_LOG
+
 #ifdef NO_LOG
 #define LOG_NO_DEBUG
 #define LOG_NO_INFO

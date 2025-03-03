@@ -69,7 +69,10 @@ static auto request_from_connection(std::shared_ptr<common::proto_frame> request
   metrics::pop_one_request(bt, info);
 }
 
-/* 获取 storage metrics */
+/**
+ * @brief 定期获取storage 的监控信息
+ *
+ */
 static auto storage_metrics = std::map<uint32_t, nlohmann::json>{};
 static auto storgae_metrics_mut = std::mutex{};
 static auto request_storage_metrics() -> asio::awaitable<void> {

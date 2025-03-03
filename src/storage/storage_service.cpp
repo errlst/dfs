@@ -10,7 +10,7 @@ static auto request_handle_for_master = std::map<uint16_t, request_handle>{
 };
 
 static auto request_from_master(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<bool> {
-  LOG_INFO(std::format("recv from master"));
+  // LOG_INFO(std::format("recv from master"));
   auto it = request_handle_for_master.find(request->cmd);
   if (it != request_handle_for_master.end()) {
     co_return co_await it->second(request, conn);
@@ -87,23 +87,39 @@ static auto request_from_connection(std::shared_ptr<common::proto_frame> request
     co_return;
   }
 
+  LOG_DEBUG(std::format("request from connection {} {}", conn->address(), request->cmd));
+  auto conn_type = conn->get_data<uint8_t>(conn_data::type);
+  if (!conn_type) {
+    LOG_ERROR(std::format("unknown error, conn_type invalid"));
+    co_return;
+  }
+
   auto bt = metrics::push_one_request();
   auto ok = true;
-  switch (conn->get_data<uint8_t>(conn_data::type).value()) {
+  switch (conn_type.value()) {
     case CONN_TYPE_CLIENT:
+      LOG_DEBUG("client");
       ok = co_await request_from_client(request, conn);
       break;
     case CONN_TYPE_STORAGE:
+      LOG_DEBUG("storage");
       ok = co_await request_from_storage(request, conn);
       break;
     case CONN_TYPE_MASTER:
+      LOG_DEBUG("master");
       ok = co_await request_from_master(request, conn);
+      break;
+    default:
+      LOG_ERROR(std::format("unknown connection type {}", conn_type.value()));
       break;
   }
   metrics::pop_one_request(bt, {.success = ok});
 }
 
-/* 同步上传文件 */
+/**
+ * @brief 定期同步上传的文件
+ *
+ */
 static auto sync_upload_files() -> asio::awaitable<void> {
   while (true) {
     auto timer = asio::steady_timer{co_await asio::this_coro::executor, std::chrono::seconds(ss_config.sync_interval)};
@@ -194,6 +210,10 @@ static auto init_stores() -> void {
   store_groups = {hot_store_group, cold_store_group};
 }
 
+/**
+ * @brief 注册到 master
+ *
+ */
 static auto regist_to_master() -> asio::awaitable<bool> {
   /* connect to master */
   for (auto i = 1;; i += 2) {
@@ -320,6 +340,7 @@ auto storage_service(const nlohmann::json &json) -> asio::awaitable<void> {
   init_stores();
   auto ex = co_await asio::this_coro::executor;
   auto &io = (asio::io_context &)(ex.context());
+
   co_await migrate_service::start_migrate_service(json);
 
   if (!co_await regist_to_master()) {
@@ -345,8 +366,9 @@ auto storage_service(const nlohmann::json &json) -> asio::awaitable<void> {
 
   while (true) {
     auto conn = co_await acceptor.accept();
-    conn->start(request_from_connection);
+    /* regist 需要放在 start 之前，否则可能导致接收到了消息，但还没有注册，无法识别连接类型 */
     regist_client(conn);
+    conn->start(request_from_connection);
     metrics::push_one_connection();
   }
 }

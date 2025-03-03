@@ -95,7 +95,8 @@ auto start_migrate_service(const nlohmann::json &json) -> asio::awaitable<void> 
   co_return;
 }
 
-auto new_hot_file(const std::string &file) -> void {
+auto new_hot_file(const std::string &abs_path) -> void {
+  LOG_DEBUG(std::format("new hot file {}", abs_path));
   switch (ms_config.to_cold_rule) {
     case HOT_TO_COLD_DISABLE: {
       break;
@@ -103,7 +104,7 @@ auto new_hot_file(const std::string &file) -> void {
     case HOT_TO_COLD_RULE_ATIME:
     case HOT_TO_COLD_RULE_CTIME: {
       auto lock = std::unique_lock{hot_files_atime_or_ctime_mut};
-      hot_files_atime_or_ctime[file] = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+      hot_files_atime_or_ctime[abs_path] = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
       break;
     }
   }
