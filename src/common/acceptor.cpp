@@ -12,8 +12,9 @@ acceptor::acceptor(asio::any_io_executor io, acceptor_config conf)
   m_acceptor.listen();
   if (!m_acceptor.is_open()) {
     LOG_DEBUG(std::format("acceptor open failed"));
+    exit(-1);
   }
-  LOG_DEBUG(std::format("acceptor open suc"));
+  LOG_INFO(std::format("accept at {}:{}", conf.ip, conf.port));
 }
 
 auto acceptor::accept() -> asio::awaitable<std::shared_ptr<connection>> {
@@ -54,10 +55,10 @@ auto acceptor::accept() -> asio::awaitable<std::shared_ptr<connection>> {
       continue;
     }
 
-    LOG_DEBUG(std::format("recv new connection"));
     auto conn = std::make_shared<connection>(std::move(sock));
     conn->m_heart_timeout = m_config.h_timeout;
     conn->m_heart_interval = m_config.h_interval;
+    LOG_INFO(std::format("accept new connection {}", conn->address()));
     co_return conn;
   }
 }

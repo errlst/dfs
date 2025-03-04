@@ -25,16 +25,16 @@ public:
   ~store_ctx() = default;
 
   /**
-   * @brief 创建文件，用于 client 上传文件时调用
+   * @brief 创建文件
    *
    * @param file_size 文件所需大小
    */
   auto create_file(uint64_t file_id, uint64_t file_size) -> bool;
 
   /**
-   * @brief 创建文件，用于 storage 同步文件时调用，且提供文件相对路径，如 00/00/abc.txt_nIk6cAOx
+   * @brief 创建文件
    *
-   * @param file_size 文件所需大小
+   * @param rel_path 指定相对路径
    */
   auto create_file(uint64_t file_id, uint64_t file_size, std::string_view rel_path) -> bool;
 
@@ -45,7 +45,7 @@ public:
   auto append_data(uint64_t file_id, std::span<char> data) -> bool;
 
   /**
-   * @brief 关闭写入文件，用于 client 上传文件时调用
+   * @brief 关闭写入流
    *
    * @param user_file_name 用户提供文件名
    *
@@ -54,17 +54,17 @@ public:
   auto close_write_file(uint64_t file_id, std::string_view user_file_name) -> std::optional<std::pair<std::string, std::string>>;
 
   /**
-   * @brief 关闭写入文件，用于 storage 间同步调用
+   * @brief 关闭写入流
    *
    */
   auto close_write_file(uint64_t file_id) -> std::optional<std::pair<std::string, std::string>>;
 
   /**
-   * @brief 打开文件，用于 client 下载文件调用
+   * @brief 打开读取流
    *
-   * @return 如果成功，返回文件大小
+   * @return 返回 file_size
    */
-  auto open_file(uint64_t file_id, std::string_view rel_path) -> std::optional<uint64_t>;
+  auto open_read_file(uint64_t file_id, std::string_view rel_path) -> std::optional<uint64_t>;
 
   /**
    * @brief 读取文件内容
@@ -81,10 +81,10 @@ public:
   auto read_file(uint64_t file_id, char *dst, uint64_t size) -> std::optional<uint64_t>;
 
   /**
-   * @brief 获取剩余可用空间
+   * @brief 获取剩余可用空间，每隔一定调用次数，都会更新一次缓存
    *
    */
-  auto free_space() -> uint64_t { return m_disk_free; }
+  auto free_space() -> uint64_t;
 
   /**
    * @brief 获取 root_path
@@ -143,10 +143,10 @@ private:
   auto valid_rel_path(std::string_view flat_path) -> std::string;
 
   /**
-   * @brief 更新磁盘剩余空间，且为了保证准确性，每隔一定次数都会通过系统调用获取准确的剩余空间
+   * @brief 减少磁盘缓存
    *
    */
-  auto update_disk_free(uint64_t size) -> void;
+  auto reduce_disk_free(uint64_t size) -> void { m_disk_free = std::min(m_disk_free.load(), m_disk_free - size); }
 
   /**
    * @brief 检查磁盘空间是否够用，且留余 5% 空间
@@ -195,11 +195,11 @@ public:
   auto close_write_file(uint64_t file_id) -> std::optional<std::pair<std::string, std::string>> { return m_stores[file_id % m_stores.size()]->close_write_file(file_id); }
 
   /**
-   * @brief
+   * @brief 打开文件
    *
-   * @return 成功返回 file_id 和 file_size
+   * @return 返回 <file_id, file_size, abs_path>
    */
-  auto open_file(std::string_view rel_path) -> std::optional<std::pair<uint64_t, uint64_t>>;
+  auto open_read_file(std::string_view rel_path) -> std::optional<std::tuple<uint64_t, uint64_t, std::string>>;
 
   auto read_file(uint64_t file_id, uint64_t size) -> std::optional<std::vector<char>>;
 
@@ -224,7 +224,7 @@ private:
    *
    * @return storage 和 file_id
    */
-  auto iterate_storages(uint64_t start_idx) -> std::generator<std::pair<std::shared_ptr<store_ctx>, uint64_t>>;
+  auto iterate_store(uint64_t start_idx) -> std::generator<std::pair<std::shared_ptr<store_ctx>, uint64_t>>;
 
 private:
   /* 组名，如 "hot_storgae_group" 、"cold_storage_group" */

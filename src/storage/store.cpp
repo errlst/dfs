@@ -36,7 +36,7 @@ auto store_ctx::create_file(uint64_t file_id, uint64_t file_size) -> bool {
     m_ofstreams[file_id] = std::make_pair(ofs, std::move(rel_path));
   }
 
-  update_disk_free(file_size);
+  reduce_disk_free(file_size);
   return true;
 }
 
@@ -61,7 +61,7 @@ auto store_ctx::create_file(uint64_t file_id, uint64_t file_size, std::string_vi
     m_ofstreams[file_id] = std::make_pair(ofs, rel_path);
   }
 
-  update_disk_free(file_size);
+  reduce_disk_free(file_size);
   return true;
 }
 
@@ -111,7 +111,7 @@ auto store_ctx::close_write_file(uint64_t file_id) -> std::optional<std::pair<st
   return std::pair{m_root_path, rel_path};
 }
 
-auto store_ctx::open_file(uint64_t file_id, std::string_view rel_path) -> std::optional<uint64_t> {
+auto store_ctx::open_read_file(uint64_t file_id, std::string_view rel_path) -> std::optional<uint64_t> {
   auto abs_path = std::format("{}/{}", m_root_path, rel_path);
   auto ifs = std::make_shared<std::ifstream>(abs_path, std::ios::binary | std::ios::ate);
   if (!ifs->is_open()) {
@@ -157,6 +157,14 @@ auto store_ctx::read_file(uint64_t file_id, char *dst, uint64_t size) -> std::op
   }
 
   return ifs->readsome(dst, size);
+}
+
+auto store_ctx::free_space() -> uint64_t {
+  static auto times = 0;
+  if (++times % 10 == 0) {
+    std::tie(m_disk_free, m_disk_total) = disk_space(m_root_path);
+  }
+  return m_disk_free;
 }
 
 auto store_ctx::peek_ofstream(uint64_t file_id) -> std::pair<std::shared_ptr<std::ofstream>, std::string> {
@@ -229,19 +237,6 @@ auto store_ctx::valid_rel_path(std::string_view flat_path) -> std::string {
   return rel_path;
 }
 
-auto store_ctx::update_disk_free(uint64_t size) -> void {
-  if (m_disk_free < size) {
-    m_disk_free = 0;
-  } else {
-    m_disk_free -= size;
-  }
-
-  static auto times = 0;
-  if (++times % 100 == 0) {
-    std::tie(m_disk_free, m_disk_total) = disk_space(m_root_path);
-  }
-}
-
 auto store_ctx::disk_space_is_enough(uint64_t size) -> bool {
   if (m_disk_free < size || m_disk_free < m_disk_total * 0.05) {
     return false;
@@ -257,7 +252,7 @@ store_ctx_group::store_ctx_group(const std::string &name, const std::vector<std:
 }
 
 auto store_ctx_group::create_file(uint64_t file_size) -> std::optional<std::uint64_t> {
-  for (auto [s, file_id] : iterate_storages(++m_store_idx)) {
+  for (auto [s, file_id] : iterate_store(++m_store_idx)) {
     if (s->create_file(file_id, file_size)) {
       return file_id;
     }
@@ -266,7 +261,7 @@ auto store_ctx_group::create_file(uint64_t file_size) -> std::optional<std::uint
 }
 
 auto store_ctx_group::create_file(uint64_t file_size, std::string_view rel_path) -> std::optional<uint64_t> {
-  for (auto [s, file_id] : iterate_storages(++m_store_idx)) {
+  for (auto [s, file_id] : iterate_store(++m_store_idx)) {
     if (s->create_file(file_id, file_size, rel_path)) {
       return file_id;
     }
@@ -278,18 +273,10 @@ auto store_ctx_group::write_file(uint64_t file_id, std::span<char> data) -> bool
   return m_stores[file_id % m_stores.size()]->append_data(file_id, data);
 }
 
-// auto store_ctx_group::close_write_file(uint64_t file_id, std::string_view user_file_name) -> std::optional<std::string> {
-//   return m_stores[file_id % m_stores.size()]->close_write_file(file_id, user_file_name);
-// }
-
-// auto store_ctx_group::close_write_file(uint64_t file_id) -> std::optional<std::string> {
-//   return m_stores[file_id % m_stores.size()]->close_write_file(file_id);
-// }
-
-auto store_ctx_group::open_file(std::string_view rel_path) -> std::optional<std::pair<uint64_t, uint64_t>> {
-  for (auto [s, idx] : iterate_storages(++m_store_idx)) {
-    if (auto file_size = s->open_file(idx, rel_path); file_size.has_value()) {
-      return std::make_pair(idx, file_size.value());
+auto store_ctx_group::open_read_file(std::string_view rel_path) -> std::optional<std::tuple<uint64_t, uint64_t, std::string>> {
+  for (auto [s, file_id] : iterate_store(++m_store_idx)) {
+    if (auto file_size = s->open_read_file(file_id, rel_path); file_size.has_value()) {
+      return std::tuple{file_id, file_size.value(), std::format("{}/{}", s->root_path(), rel_path)};
     }
   }
   return std::nullopt;
@@ -311,7 +298,7 @@ auto store_ctx_group::max_free_space() -> uint64_t {
   return res;
 }
 
-auto store_ctx_group::iterate_storages(uint64_t start_idx) -> std::generator<std::pair<std::shared_ptr<store_ctx>, uint64_t>> {
+auto store_ctx_group::iterate_store(uint64_t start_idx) -> std::generator<std::pair<std::shared_ptr<store_ctx>, uint64_t>> {
   for (auto i = 0uz, file_id = start_idx, count = m_stores.size(); i < count; ++i, ++file_id) {
     co_yield {m_stores[file_id % count], file_id};
   }

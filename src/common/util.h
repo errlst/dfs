@@ -9,7 +9,7 @@
  * @brief 获取路径的可用空间
  *
  * @param path
- * @return free_space + total_space
+ * @return <free_space, total_space>
  */
 auto disk_space(std::string_view path) -> std::tuple<uint64_t, uint64_t>;
 
@@ -41,6 +41,7 @@ auto init_base_path(const nlohmann::json &json) -> void;
 /**
  * @brief 递归遍历目录下的所有普通文件
  *
+ * @return 文件的绝对路径
  */
 auto iterate_normal_file(std::string_view path) -> std::generator<std::string>;
 

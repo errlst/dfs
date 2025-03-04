@@ -12,7 +12,7 @@ constexpr auto CONN_TYPE_CLIENT = 0;
 constexpr auto CONN_TYPE_STORAGE = 1;
 constexpr auto CONN_TYPE_MASTER = 2;
 
-enum conn_data : uint64_t {
+enum s_conn_data : uint64_t {
   type,                        // u8
   client_upload_file_id,       // u64
   client_download_file_id,     // u64
@@ -20,7 +20,7 @@ enum conn_data : uint64_t {
   storage_sync_upload_file_id, // u64
 };
 
-inline auto ss_config = storage_service_config{};
+inline auto sss_config = storage_service_config{};
 
 inline auto hot_store_group = std::shared_ptr<store_ctx_group>{};
 inline auto cold_store_group = std::shared_ptr<store_ctx_group>{};
@@ -31,7 +31,7 @@ inline auto master_conn = std::shared_ptr<common::connection>{};
 inline std::mutex client_conn_mut;
 inline std::set<std::shared_ptr<common::connection>> client_conns;
 inline auto regist_client(std::shared_ptr<common::connection> conn) -> void {
-  conn->set_data<uint8_t>(conn_data::type, CONN_TYPE_CLIENT);
+  conn->set_data<uint8_t>(s_conn_data::type, CONN_TYPE_CLIENT);
   auto lock = std::unique_lock{client_conn_mut};
   client_conns.emplace(conn);
 }
@@ -44,7 +44,7 @@ inline std::mutex storage_conns_mut;
 inline std::set<std::shared_ptr<common::connection>> storage_conns;
 inline auto regist_storage(std::shared_ptr<common::connection> conn) -> void {
   unregist_client(conn);
-  conn->set_data<uint8_t>(conn_data::type, CONN_TYPE_STORAGE);
+  conn->set_data<uint8_t>(s_conn_data::type, CONN_TYPE_STORAGE);
   auto lock = std::unique_lock{storage_conns_mut};
   storage_conns.emplace(conn);
 }

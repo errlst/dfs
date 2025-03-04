@@ -12,14 +12,13 @@ auto upload_file(std::string path) -> asio::awaitable<void> {
   }
 
   /* request */
-  auto request_to_send = (common::proto_frame *)malloc(sizeof(common::proto_frame) + sizeof(uint64_t));
+  auto request_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + sizeof(uint64_t)), free};
   *request_to_send = {
       .cmd = common::proto_cmd::cm_fetch_one_storage,
       .data_len = sizeof(uint64_t),
   };
   *((uint64_t *)request_to_send->data) = htonll(std::filesystem::file_size(path));
-  auto id = co_await master_conn->send_request(request_to_send);
-  free(request_to_send);
+  auto id = co_await master_conn->send_request(request_to_send.get());
   if (!id) {
     LOG_ERROR("failed to send cm_fetch_one_storage request");
     co_return;
@@ -54,14 +53,13 @@ auto upload_file(std::string path) -> asio::awaitable<void> {
 
   /* 开始上传 */
   LOG_INFO(std::format("start upload file"));
-  request_to_send = (common::proto_frame *)malloc(sizeof(common::proto_frame) + sizeof(uint64_t));
+  request_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + sizeof(uint64_t)), free};
   *request_to_send = {
       .cmd = common::proto_cmd::cs_upload_open,
       .data_len = sizeof(uint64_t),
   };
   *((uint64_t *)request_to_send->data) = htonll(std::filesystem::file_size(path));
-  id = co_await conn->send_request(request_to_send);
-  free(request_to_send);
+  id = co_await conn->send_request(request_to_send.get());
   if (!id) {
     LOG_ERROR("failed to send cs_upload_open request");
     co_return;
@@ -79,7 +77,7 @@ auto upload_file(std::string path) -> asio::awaitable<void> {
 
   /* 上传数据 */
   bool ok = true;
-  request_to_send = (common::proto_frame *)malloc(sizeof(common::proto_frame) + 5_MB);
+  request_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + 5_MB), free};
   auto idx = 0;
   auto ifs = std::ifstream{std::string{path}, std::ios::binary};
   if (!ifs) {
@@ -92,11 +90,11 @@ auto upload_file(std::string path) -> asio::awaitable<void> {
         .cmd = common::proto_cmd::cs_upload_append,
         .data_len = (uint32_t)ifs.readsome(request_to_send->data, 5_MB),
     };
-    if (request_to_send->data_len == 0 && !ifs.eof()) {
-      LOG_ERROR(std::format("read file failed {}", strerror(errno)));
+    if (request_to_send->data_len == 0) {
       break;
     }
-    id = co_await conn->send_request(request_to_send);
+
+    id = co_await conn->send_request(request_to_send.get());
     if (!id) {
       LOG_ERROR("failed to send cs_upload_append request");
       ok = false;
@@ -115,7 +113,6 @@ auto upload_file(std::string path) -> asio::awaitable<void> {
       break;
     }
   }
-  free(request_to_send);
   if (!ok) {
     co_return;
   }
@@ -123,14 +120,14 @@ auto upload_file(std::string path) -> asio::awaitable<void> {
   /* 结束上传 */
   LOG_INFO(std::format("close upload"));
   auto file_name = path.substr(path.find_last_of('/') + 1);
-  request_to_send = (common::proto_frame *)malloc(sizeof(common::proto_frame) + file_name.size());
+  request_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + file_name.size()), free};
   *request_to_send = {
       .cmd = common::proto_cmd::cs_upload_close,
       .data_len = (uint32_t)file_name.size(),
   };
   std::copy(file_name.begin(), file_name.end(), request_to_send->data);
 
-  id = co_await conn->send_request(request_to_send);
+  id = co_await conn->send_request(request_to_send.get());
   if (!id) {
     LOG_ERROR("failed to send cs_upload_close request");
     co_return;

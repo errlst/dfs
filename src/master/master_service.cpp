@@ -9,7 +9,6 @@ static auto request_handles_for_client = std::map<uint16_t, request_handle>{
 };
 
 static auto request_from_client(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<bool> {
-  LOG_INFO(std::format("recv from client"));
   auto it = request_handles_for_client.find(request->cmd);
   if (it != request_handles_for_client.end()) {
     co_return co_await it->second(request, conn);
@@ -27,7 +26,6 @@ static auto client_disconnect(std::shared_ptr<common::connection> conn) -> asio:
 static auto request_handles_for_storage = std::map<uint16_t, request_handle>{};
 
 static auto request_from_storage(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<bool> {
-  LOG_INFO(std::format("recv from storage"));
   auto it = request_handles_for_storage.find(request->cmd);
   if (it != request_handles_for_storage.end()) {
     co_return co_await it->second(request, conn);
@@ -45,7 +43,7 @@ static auto storage_disconnect(std::shared_ptr<common::connection> conn) -> asio
 static auto request_from_connection(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
   if (request == nullptr) {
     metrics::pop_one_connection();
-    switch (conn->get_data<uint8_t>(conn_data::type).value()) {
+    switch (conn->get_data<uint8_t>(s_conn_data::type).value()) {
       case CONN_TYPE_CLIENT:
         co_return co_await client_disconnect(conn);
       case CONN_TYPE_STORAGE:
@@ -56,7 +54,7 @@ static auto request_from_connection(std::shared_ptr<common::proto_frame> request
 
   auto bt = metrics::push_one_request();
   auto info = metrics::request_end_info{};
-  switch (conn->get_data<uint8_t>(conn_data::type).value()) {
+  switch (conn->get_data<uint8_t>(s_conn_data::type).value()) {
     case CONN_TYPE_CLIENT: {
       info.success = co_await request_from_client(request, conn);
       break;
@@ -97,7 +95,7 @@ static auto request_storage_metrics() -> asio::awaitable<void> {
         continue;
       }
       auto lock = std::unique_lock{storgae_metrics_mut};
-      storage_metrics[storage->get_data<uint32_t>(conn_data::storage_id).value()] = metrics;
+      storage_metrics[storage->get_data<uint32_t>(s_conn_data::storage_id).value()] = metrics;
     }
 
     timer.expires_after(std::chrono::seconds{100});
