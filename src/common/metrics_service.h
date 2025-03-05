@@ -10,15 +10,9 @@ namespace metrics {
  */
 using metrics_extension = std::function<nlohmann::json()>;
 
-struct metrics_service_config {
-  std::string base_path;
-  uint32_t interval;
-  std::vector<std::pair<std::string, metrics_extension>> extensions;
-};
-
 /**
  * @brief 请求结束时的信息
- * 
+ *
  * @param success     请求是否成功
  */
 struct request_end_info {
@@ -60,6 +54,6 @@ auto get_metrics_as_string() -> std::string;
  * @brief 监控服务
  *
  */
-auto metrics_service(metrics_service_config conf) -> asio::awaitable<void>;
+auto metrics_service(const nlohmann::json &json, std::vector<std::pair<std::string, metrics_extension>> exts) -> asio::awaitable<void>;
 
 } // namespace metrics

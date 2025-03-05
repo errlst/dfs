@@ -1,5 +1,6 @@
 #include "./master_service.h"
 #include "../common/acceptor.h"
+#include "../common/log.h"
 #include "./master_service_handles.h"
 
 static auto request_handles_for_client = std::map<uint16_t, request_handle>{

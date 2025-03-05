@@ -14,12 +14,12 @@ static auto request_from_master(std::shared_ptr<common::proto_frame> request, st
   if (it != request_handle_for_master.end()) {
     co_return co_await it->second(request, conn);
   }
-  LOG_ERROR(std::format("unhandled cmd for master {}", request->cmd));
+  LOG_ERROR("unknown request {} from master {}", common::proto_frame_to_string(*request), conn->address());
   co_return false;
 }
 
 static auto master_disconnect(std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
-  LOG_ERROR(std::format("master disconnect"));
+  LOG_WARN("master {} disconnect", conn->address());
   co_return;
 }
 
@@ -33,13 +33,13 @@ static auto request_from_storage(std::shared_ptr<common::proto_frame> request, s
   if (it != request_handle_for_storage.end()) {
     co_return co_await it->second(request, conn);
   }
-  LOG_ERROR(std::format("unhandled cmd for storage {}", request->cmd));
+  LOG_ERROR("unknown request {} from storage {}", common::proto_frame_to_string(*request), conn->address());
   co_return false;
 }
 
 static auto storage_disconnect(std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
-  LOG_INFO(std::format("storage disconnect"));
   unregist_storage(conn);
+  LOG_ERROR("storage {} disconnect", conn->address());
   co_return;
 }
 
@@ -57,13 +57,13 @@ static auto request_from_client(std::shared_ptr<common::proto_frame> request, st
   if (it != request_handle_for_client.end()) {
     co_return co_await it->second(request, conn);
   }
-  LOG_ERROR(std::format("unhandled cmd for client {}", request->cmd));
+  LOG_ERROR("unknown request {} from client {}", common::proto_frame_to_string(*request), conn->address());
   co_return false;
 }
 
 static auto client_disconnect(std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
-  LOG_INFO(std::format("client disconnect"));
   unregist_client(conn);
+  LOG_INFO("client {} disconnect", conn->address());
   co_return;
 }
 
@@ -86,7 +86,7 @@ static auto request_from_connection(std::shared_ptr<common::proto_frame> request
 
   auto conn_type = conn->get_data<uint8_t>(s_conn_data::type);
   if (!conn_type) {
-    LOG_ERROR(std::format("unknown error, conn_type invalid"));
+    LOG_CRITICAL("unknown error, conn_type invalid");
     co_return;
   }
 
@@ -103,95 +103,88 @@ static auto request_from_connection(std::shared_ptr<common::proto_frame> request
       ok = co_await request_from_master(request, conn);
       break;
     default:
-      LOG_ERROR(std::format("unknown connection type {}", conn_type.value()));
+      LOG_CRITICAL("unknown connection type {} of connection {}", conn_type.value(), conn->address());
       break;
   }
   metrics::pop_one_request(bt, {.success = ok});
 }
 
 /**
- * @brief 定期同步上传的文件
+ * @brief 同步上传的文件
  *
  */
 static auto sync_upload_files() -> asio::awaitable<void> {
   while (true) {
     auto timer = asio::steady_timer{co_await asio::this_coro::executor, std::chrono::seconds(sss_config.sync_interval)};
     co_await timer.async_wait(asio::as_tuple(asio::use_awaitable));
-    if (unsync_uploaded_files.empty()) {
-      continue;
-    }
-
     auto storages = get_storage_conns();
     if (storages.empty()) {
       continue;
     }
 
-    auto file_path = get_one_unsync_uploaded_file();
-    auto res = hot_store_group->open_read_file(file_path);
-    if (!res) {
-      LOG_ERROR(std::format("open file {} failed", file_path));
-      continue;
-    }
-    auto [file_id, file_size, _] = res.value();
-
-    /* 请求上传 */
-    LOG_INFO(std::format("request sync upload file {}", file_path));
-    auto syncable_storages = std::set<std::shared_ptr<common::connection>>{};
-    auto request_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + sizeof(uint64_t) + file_path.size()), [](auto p) { free(p); }};
-    *(uint64_t *)request_to_send->data = htonll(file_size);
-    std::copy(file_path.begin(), file_path.end(), request_to_send->data + sizeof(uint64_t));
-    for (auto storage : storages) {
-      *request_to_send = {
-          .cmd = common::proto_cmd::ss_upload_sync_open,
-          .data_len = (uint32_t)sizeof(uint64_t) + (uint32_t)file_path.size(),
-      };
-      auto id = co_await storage->send_request(request_to_send.get());
-      if (!id) {
-        LOG_ERROR(std::format("send ss_upload_sync_open failed"));
+    /* 遍历文件 */
+    for (const auto &rel_path : iterate_and_pop_not_synced_file()) {
+      auto res = hot_store_group->open_read_file(rel_path);
+      if (!res) {
+        LOG_WARN("open not synced file {} failed", rel_path);
         continue;
       }
-      auto response_recved = co_await storage->recv_response(id.value());
-      if (!response_recved) {
-        LOG_ERROR(std::format("recv ss_upload_sync_open failed"));
-        continue;
-      }
-      if (response_recved->stat != 0) {
-        LOG_ERROR(std::format("ss_upload_sync_open failed {}", response_recved->stat));
-        continue;
-      }
-      syncable_storages.emplace(storage);
-    }
+      auto [file_id, file_size, _] = res.value();
 
-    /* 上传数据 */
-    request_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + 5 * 1024 * 1024), [](auto p) { free(p); }};
-    while (true) {
-      auto read_len = hot_store_group->read_file(file_id, request_to_send->data, 5 * 1024 * 1024);
-      if (!read_len.has_value()) {
-        LOG_ERROR(std::format("read file failed"));
-        exit(-1);
-      }
-
-      *request_to_send = {.cmd = common::proto_cmd::ss_upload_sync_append, .data_len = (uint32_t)read_len.value()};
-      for (auto storage : syncable_storages) {
+      /* 请求上传 */
+      auto storages = std::set<std::shared_ptr<common::connection>>{};
+      auto request_to_send = common::create_request_frame(common::proto_cmd::ss_upload_sync_open, sizeof(uint64_t) + rel_path.size());
+      *(uint64_t *)request_to_send->data = htonll(file_size);
+      std::copy(rel_path.begin(), rel_path.end(), request_to_send->data + sizeof(uint64_t));
+      for (auto storage : storages) {
         auto id = co_await storage->send_request(request_to_send.get());
         if (!id) {
-          LOG_ERROR(std::format("send ss_upload_sync_append failed"));
+          LOG_ERROR(std::format("send ss_upload_sync_open failed"));
           continue;
         }
         auto response_recved = co_await storage->recv_response(id.value());
         if (!response_recved) {
-          LOG_ERROR(std::format("recv ss_upload_sync_append failed"));
+          LOG_ERROR(std::format("recv ss_upload_sync_open failed"));
           continue;
         }
         if (response_recved->stat != 0) {
-          LOG_ERROR(std::format("ss_upload_sync_append failed {}", response_recved->stat));
+          LOG_ERROR(std::format("ss_upload_sync_open failed {}", response_recved->stat));
           continue;
         }
+        storages.emplace(storage);
       }
 
-      /* 上传完成 */
-      if (read_len == 0) {
-        break;
+      /* 上传数据 */
+      request_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + 5 * 1024 * 1024), [](auto p) { free(p); }};
+      while (true) {
+        auto read_len = hot_store_group->read_file(file_id, request_to_send->data, 5 * 1024 * 1024);
+        if (!read_len.has_value()) {
+          LOG_ERROR(std::format("read file failed"));
+          exit(-1);
+        }
+
+        *request_to_send = {.cmd = common::proto_cmd::ss_upload_sync_append, .data_len = (uint32_t)read_len.value()};
+        for (auto storage : storages) {
+          auto id = co_await storage->send_request(request_to_send.get());
+          if (!id) {
+            LOG_ERROR(std::format("send ss_upload_sync_append failed"));
+            continue;
+          }
+          auto response_recved = co_await storage->recv_response(id.value());
+          if (!response_recved) {
+            LOG_ERROR(std::format("recv ss_upload_sync_append failed"));
+            continue;
+          }
+          if (response_recved->stat != 0) {
+            LOG_ERROR(std::format("ss_upload_sync_append failed {}", response_recved->stat));
+            continue;
+          }
+        }
+
+        /* 上传完成 */
+        if (read_len == 0) {
+          break;
+        }
       }
     }
   }

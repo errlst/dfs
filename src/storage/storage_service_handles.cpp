@@ -171,10 +171,7 @@ auto cs_upload_close_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
     co_return false;
   }
   const auto &[root_path, rel_path] = res.value();
-  {
-    auto lock = std::unique_lock{unsync_uploaded_files_mut};
-    unsync_uploaded_files.emplace(rel_path);
-  }
+  push_not_synced_file(rel_path);
 
   /* 在 rel_path 前加上组号，用于客户端访问文件 */
   auto rel_path_with_group = std::format("{}/{}", sss_config.group_id, rel_path);

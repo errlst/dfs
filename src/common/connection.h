@@ -1,5 +1,5 @@
 #pragma once
-#include "./log.h"
+#include "../common/log.h"
 #include "./protocol.h"
 #include <any>
 #include <asio.hpp>
@@ -29,7 +29,7 @@ public:
   auto recv_response(uint16_t id) -> asio::awaitable<std::shared_ptr<proto_frame>>;
 
   /**
-   * @brief 发送请求，frame 只需要设置 cmd 和 data_len 字段
+   * @brief 发送请求，frame 只需要设置 cmd 和 data_len 字段。保证发送前后的 frame 一致
    *
    * @return 成功返回对应的 id
    */
@@ -37,7 +37,7 @@ public:
   auto send_request(proto_frame frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<std::optional<uint16_t>>;
 
   /**
-   * @brief 发送响应，frame 只需要设置 sta 和 data_len
+   * @brief 发送响应，frame 只需要设置 sta 和 data_len。保证发送前后的 frame 一致。
    *
    */
   auto send_response(proto_frame *frame, std::shared_ptr<proto_frame> req_frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<bool>;

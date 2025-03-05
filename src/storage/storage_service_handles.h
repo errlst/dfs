@@ -61,16 +61,32 @@ inline auto get_storage_conns() -> std::vector<std::shared_ptr<common::connectio
   return ret;
 }
 
-inline std::mutex unsync_uploaded_files_mut;
-inline std::queue<std::string> unsync_uploaded_files;
-inline auto get_one_unsync_uploaded_file() -> std::string {
-  auto lock = std::unique_lock{unsync_uploaded_files_mut};
-  if (unsync_uploaded_files.empty()) {
+/**
+ * @brief 存放未同步文件的相对路径
+ *
+ */
+inline std::mutex not_synced_file_mut;
+inline std::queue<std::string> not_synced_file;
+inline auto pop_not_synced_file() -> std::string {
+  auto lock = std::unique_lock{not_synced_file_mut};
+  if (not_synced_file.empty()) {
     return "";
   }
-  auto ret = unsync_uploaded_files.front();
-  unsync_uploaded_files.pop();
+  auto ret = not_synced_file.front();
+  not_synced_file.pop();
   return ret;
+}
+inline auto push_not_synced_file(std::string_view rel_path) -> void {
+  auto lock = std::unique_lock{not_synced_file_mut};
+  not_synced_file.emplace(rel_path);
+}
+inline auto iterate_and_pop_not_synced_file() -> std::generator<std::string> {
+  auto lock = std::unique_lock{not_synced_file_mut};
+  while (!not_synced_file.empty()) {
+    auto ret = not_synced_file.front();
+    not_synced_file.pop();
+    co_yield ret;
+  }
 }
 
 auto ms_get_max_free_space_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;

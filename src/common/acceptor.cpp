@@ -31,7 +31,7 @@ auto acceptor::accept() -> asio::awaitable<std::shared_ptr<connection>> {
     auto req_frame = (proto_frame *)request_to_send;
     *req_frame = {
         .cmd = (uint16_t)proto_cmd::xx_heart_establish,
-        .type = REQUEST_FRAME,
+        .type = proto_type::request,
         .data_len = sizeof(xx_heart_establish_request),
     };
     trans_frame_to_net(req_frame);

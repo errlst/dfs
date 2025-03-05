@@ -1,4 +1,5 @@
-#include "util.h"
+#include "./util.h"
+#include "./log.h"
 #include <filesystem>
 #include <fstream>
 #include <print>
@@ -45,16 +46,16 @@ auto ntohll(uint64_t net_value) -> uint64_t {
 auto read_config(std::string_view path) -> nlohmann::json {
   auto ifs = std::ifstream{path.data()};
   if (!ifs) {
-    std::println("failed open configure '{}'", path);
+    LOG_CRITICAL("failed open config file {}", path);
     exit(-1);
   }
 
   auto json = nlohmann::json::parse(ifs, nullptr, false, true); // 允许 json 注释
   if (json.empty()) {
-    std::println("failed parse configure '{}'", path);
+    LOG_CRITICAL("failed parse configure '{}'", path);
     exit(-1);
   }
-  std::println("read configure suc '{}'", path);
+  LOG_INFO("read config file {} suc", path);
   return json;
 }
 
@@ -63,10 +64,10 @@ auto init_base_path(const nlohmann::json &json) -> void {
   try {
     std::filesystem::create_directories(std::format("{}/data", base_path));
   } catch (...) {
-    std::println("init base path failed '{}'", base_path);
+    LOG_CRITICAL("init base path {} failed", base_path);
     exit(-1);
   }
-  std::println("init base path suc '{}'", base_path);
+  LOG_INFO("init base path {} suc", base_path);
 }
 
 auto iterate_normal_file(std::string_view path) -> std::generator<std::string> {

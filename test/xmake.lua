@@ -19,5 +19,5 @@ for _, file in ipairs(os.files("*.cpp")) do
         set_targetdir(os.scriptdir())  -- 设置构建路径为当前路径
         add_files(file)
         add_deps("common", "proto")
-        add_packages("asio", "nlohmann_json", "protobuf-cpp")
+        add_packages("asio", "nlohmann_json", "protobuf-cpp", "spdlog", "boost")
 end

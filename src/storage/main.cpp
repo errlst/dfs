@@ -1,3 +1,4 @@
+#include "../common/log.h"
 #include "../common/util.h"
 #include "./migrate_service.h"
 #include "./storage_service.h"
@@ -31,17 +32,19 @@ auto main(int argc, char *argv[]) -> int {
 
   auto json = read_config(config_path);
   init_base_path(json);
+  init_log(json["common"]["base_path"].get<std::string>(), false, log_level::debug);
 
   auto io = asio::io_context{};
   asio::co_spawn(io, storage_service(json), asio::detached);
-  asio::co_spawn(io, metrics::metrics_service(metrics::metrics_service_config{
-                         .base_path = json["common"]["base_path"].get<std::string>(),
-                         .interval = 1000,
-                         .extensions = {
-                             {"storage_metrics", storage_metrics},
-                         },
-                     }),
-                 asio::detached);
+  asio::co_spawn(io, metrics::metrics_service(json, {{"storage_metrics", storage_metrics}}), asio::detached);
+  // asio::co_spawn(io, metrics::metrics_service(metrics::metrics_service_config{
+  //                        .base_path = json["common"]["base_path"].get<std::string>(),
+  //                        .interval = 1000,
+  //                        .extensions = {
+  //                            {"storage_metrics", storage_metrics},
+  //                        },
+  //                    }),
+  //                asio::detached);
 
   auto gurad = asio::make_work_guard(io);
   return io.run();
