@@ -97,7 +97,11 @@ static auto migrate_to_hot_service() -> asio::awaitable<void> {
   co_return;
 }
 
-static auto migrate_service() -> asio::awaitable<void> {
+auto migrate_service(const nlohmann::json &json) -> asio::awaitable<void> {
+  init_ms_config(json);
+  init_migrate_to_cold(json["storage_service"]["hot_paths"]);
+  init_migrate_to_hot(json["storage_service"]["cold_paths"]);
+
   auto timer = asio::system_timer{co_await asio::this_coro::executor};
   while (true) {
     timer.expires_after(std::chrono::seconds{10});
@@ -105,14 +109,6 @@ static auto migrate_service() -> asio::awaitable<void> {
     co_await migrate_to_hot_service();
     co_await timer.async_wait(asio::use_awaitable);
   }
-}
-
-auto start_migrate_service(const nlohmann::json &json) -> asio::awaitable<void> {
-  init_ms_config(json);
-  init_migrate_to_cold(json["storage_service"]["hot_paths"]);
-  init_migrate_to_hot(json["storage_service"]["cold_paths"]);
-  asio::co_spawn(co_await asio::this_coro::executor, migrate_service, asio::detached);
-  co_return;
 }
 
 auto new_hot_file(const std::string &abs_path) -> void {

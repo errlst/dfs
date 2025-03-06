@@ -45,7 +45,7 @@ auto main(int argc, char *argv[]) -> int {
                      }),
                  asio::detached);
 
-  asio::co_spawn(io, metrics::metrics_service(json, {{"storages_metrics", master_metrics_of_storages}}), asio::detached);
+  asio::co_spawn(io, metrics::metrics_service(json), asio::detached);
   auto guard = asio::make_work_guard(io);
   return io.run();
 }

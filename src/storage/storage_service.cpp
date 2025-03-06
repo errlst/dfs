@@ -19,7 +19,7 @@ static auto request_from_master(std::shared_ptr<common::proto_frame> request, st
 }
 
 static auto master_disconnect(std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
-  LOG_WARN("master {} disconnect", conn->address());
+  LOG_CRITICAL("master {} disconnect", conn->address());
   co_return;
 }
 
@@ -70,21 +70,21 @@ static auto client_disconnect(std::shared_ptr<common::connection> conn) -> asio:
 static auto request_from_connection(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
   if (request == nullptr) {
     metrics::pop_one_connection();
-    switch (conn->get_data<uint8_t>(s_conn_data::type).value()) {
-      case CONN_TYPE_CLIENT:
+    switch (conn->get_data<s_conn_type>(s_conn_data::type).value()) {
+      case s_conn_type::client:
         co_await client_disconnect(conn);
         break;
-      case CONN_TYPE_STORAGE:
+      case s_conn_type::storage:
         co_await storage_disconnect(conn);
         break;
-      case CONN_TYPE_MASTER:
+      case s_conn_type::master:
         co_await master_disconnect(conn);
         break;
     }
     co_return;
   }
 
-  auto conn_type = conn->get_data<uint8_t>(s_conn_data::type);
+  auto conn_type = conn->get_data<s_conn_type>(s_conn_data::type);
   if (!conn_type) {
     LOG_CRITICAL("unknown error, conn_type invalid");
     co_return;
@@ -93,17 +93,17 @@ static auto request_from_connection(std::shared_ptr<common::proto_frame> request
   auto bt = metrics::push_one_request();
   auto ok = true;
   switch (conn_type.value()) {
-    case CONN_TYPE_CLIENT:
+    case s_conn_type::client:
       ok = co_await request_from_client(request, conn);
       break;
-    case CONN_TYPE_STORAGE:
+    case s_conn_type::storage:
       ok = co_await request_from_storage(request, conn);
       break;
-    case CONN_TYPE_MASTER:
+    case s_conn_type::master:
       ok = co_await request_from_master(request, conn);
       break;
     default:
-      LOG_CRITICAL("unknown connection type {} of connection {}", conn_type.value(), conn->address());
+      LOG_CRITICAL("unknown connection type {} of connection {}", static_cast<int>(conn_type.value()), conn->address());
       break;
   }
   metrics::pop_one_request(bt, {.success = ok});
@@ -117,14 +117,14 @@ static auto sync_upload_files() -> asio::awaitable<void> {
   while (true) {
     auto timer = asio::steady_timer{co_await asio::this_coro::executor, std::chrono::seconds(sss_config.sync_interval)};
     co_await timer.async_wait(asio::as_tuple(asio::use_awaitable));
-    auto storages = get_storage_conns();
+    auto storages = registed_storages();
     if (storages.empty()) {
       continue;
     }
 
     /* 遍历文件 */
-    for (const auto &rel_path : iterate_and_pop_not_synced_file()) {
-      auto res = hot_store_group->open_read_file(rel_path);
+    for (const auto &rel_path : pop_not_synced_file()) {
+      auto res = hot_store_group()->open_read_file(rel_path);
       if (!res) {
         LOG_WARN("open not synced file {} failed", rel_path);
         continue;
@@ -157,7 +157,7 @@ static auto sync_upload_files() -> asio::awaitable<void> {
       /* 上传数据 */
       request_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + 5 * 1024 * 1024), [](auto p) { free(p); }};
       while (true) {
-        auto read_len = hot_store_group->read_file(file_id, request_to_send->data, 5 * 1024 * 1024);
+        auto read_len = hot_store_group()->read_file(file_id, request_to_send->data, 5 * 1024 * 1024);
         if (!read_len.has_value()) {
           LOG_ERROR(std::format("read file failed"));
           exit(-1);
@@ -190,21 +190,17 @@ static auto sync_upload_files() -> asio::awaitable<void> {
   }
 }
 
-static auto init_stores() -> void {
-  hot_store_group = std::make_shared<store_ctx_group>("hot_store_group", sss_config.hot_paths);
-  cold_store_group = std::make_shared<store_ctx_group>("cold_store_group", sss_config.cold_paths);
-  store_groups = {hot_store_group, cold_store_group};
-}
-
 /**
  * @brief 注册到 master
  *
  */
-static auto regist_to_master() -> asio::awaitable<bool> {
-  /* connect to master */
+static auto regist_to_master() -> asio::awaitable<void> {
+  /* 连接到 master */
   for (auto i = 1;; i += 2) {
-    master_conn = co_await common::connection::connect_to(sss_config.master_ip, sss_config.master_port);
-    if (master_conn) {
+    auto m_conn = co_await common::connection::connect_to(sss_config.master_ip, sss_config.master_port);
+    if (m_conn) {
+      connected_to_master(m_conn);
+      m_conn->start(request_from_connection);
       break;
     }
     LOG_ERROR(std::format("connect to master {}:{} failed", sss_config.master_ip, sss_config.master_port));
@@ -212,88 +208,57 @@ static auto regist_to_master() -> asio::awaitable<bool> {
     co_await timer.async_wait(asio::as_tuple(asio::use_awaitable));
   }
   LOG_INFO(std::format("connect to master suc"));
-  master_conn->set_data<uint8_t>(s_conn_data::type, CONN_TYPE_MASTER);
-  master_conn->start(request_from_connection);
 
-  /* regist to master */
+  /* 注册到 master */
   auto request_data = proto::sm_regist_request{};
   request_data.set_master_magic(sss_config.master_magic);
   request_data.mutable_s_info()->set_id(sss_config.id);
   request_data.mutable_s_info()->set_magic(sss_config.storage_magic);
   request_data.mutable_s_info()->set_port(sss_config.port);
   request_data.mutable_s_info()->set_ip("127.0.0.1");
-  auto request_to_send = (common::proto_frame *)malloc(sizeof(common::proto_frame) + request_data.ByteSizeLong());
-  *request_to_send = {
-      .cmd = (uint16_t)common::proto_cmd::sm_regist,
-      .data_len = (uint32_t)request_data.ByteSizeLong(),
-  };
+
+  auto request_to_send = common::create_request_frame(common::proto_cmd::sm_regist, request_data.ByteSizeLong());
   request_data.SerializeToArray(request_to_send->data, request_to_send->data_len);
-
-  auto id = co_await master_conn->send_request(request_to_send);
-  free(request_to_send);
-  if (!id) {
-    co_return false;
+  auto response_recved = co_await master_conn()->send_request_and_wait_response(request_to_send.get());
+  if (!response_recved || response_recved->stat != 0) {
+    LOG_ERROR(std::format("regist to master failed {}", response_recved ? response_recved->stat : -1));
+    exit(-1);
   }
 
-  /* wait response */
-  auto response_recved = co_await master_conn->recv_response(id.value());
-  if (!response_recved) {
-    co_return false;
-  }
-  if (response_recved->stat != 0) {
-    LOG_ERROR(std::format("regist to master failed {}", response_recved->stat));
-    co_return false;
-  }
   auto response_data_recved = proto::sm_regist_response{};
   if (!response_data_recved.ParseFromArray(response_recved->data, response_recved->data_len)) {
     LOG_ERROR("failed to parse sm_regist_response");
-    co_return false;
+    exit(-1);
   }
   sss_config.group_id = response_data_recved.group_id();
+  LOG_INFO(std::format("regist to master {} suc", master_conn()->address()));
 
   /* 连接到其他 storage */
   for (const auto &s_info : response_data_recved.s_infos()) {
-    LOG_DEBUG(std::format("try connect to storage {}:{}", s_info.ip(), s_info.port()));
-    auto conn = co_await common::connection::connect_to(s_info.ip(), s_info.port());
-    if (!conn) {
+    auto s_conn = co_await common::connection::connect_to(s_info.ip(), s_info.port());
+    if (!s_conn) {
       LOG_ERROR(std::format("connect to storage {}:{} failed", s_info.ip(), s_info.port()));
       continue;
     }
-    conn->start(request_from_connection);
-    LOG_DEBUG(std::format("connect to storage {}:{} suc", s_info.ip(), s_info.port()));
+    s_conn->start(request_from_connection);
+    LOG_INFO(std::format("connect to storage {}:{} suc", s_info.ip(), s_info.port()));
 
-    /* 注册 */
+    /* 注册到其它 storage */
     auto request_data_to_send = proto::ss_regist_request{};
     request_data_to_send.set_master_magic(sss_config.master_magic);
     request_data_to_send.set_storage_magic(s_info.magic());
-    auto request_to_send = (common::proto_frame *)malloc(sizeof(common::proto_frame) + request_data_to_send.ByteSizeLong());
-    *request_to_send = {
-        .cmd = (uint16_t)common::proto_cmd::ss_regist,
-        .data_len = (uint32_t)request_data_to_send.ByteSizeLong(),
-    };
+
+    auto request_to_send = common::create_request_frame(common::ss_regist, request_data_to_send.ByteSizeLong());
     request_data_to_send.SerializeToArray(request_to_send->data, request_to_send->data_len);
-    auto id = co_await conn->send_request(request_to_send);
-    free(request_to_send);
-    if (!id) {
-      LOG_ERROR(std::format("send ss_regist_request failed"));
+    auto response_recved = co_await s_conn->send_request_and_wait_response(request_to_send.get());
+    if (!response_recved || response_recved->stat != 0) {
+      LOG_ERROR(std::format("regist to storage {}:{} failed {}", s_info.ip(), s_info.port(), response_recved ? response_recved->stat : -1));
       continue;
     }
 
-    auto response_recved = co_await conn->recv_response(id.value());
-    if (!response_recved) {
-      LOG_ERROR(std::format("recv ss_regist_response failed"));
-      continue;
-    }
-    if (response_recved->stat != 0) {
-      LOG_ERROR(std::format("ss_regist_response failed {}", response_recved->stat));
-      continue;
-    }
-
-    regist_storage(conn);
+    regist_storage(s_conn);
     LOG_INFO(std::format("regist to storage {}:{} suc", s_info.ip(), s_info.port()));
   }
-
-  co_return true;
 }
 
 auto storage_metrics() -> nlohmann::json {
@@ -303,14 +268,19 @@ auto storage_metrics() -> nlohmann::json {
   };
 }
 
+/**
+ * @brief 初始化日志
+ *
+ * @param json
+ * @return auto
+ */
 static auto init_config(const nlohmann::json &json) {
-  sss_config = storage_service_config{
+  sss_config = {
       .id = json["storage_service"]["id"].get<uint32_t>(),
       .ip = json["storage_service"]["ip"].get<std::string>(),
       .port = json["storage_service"]["port"].get<uint16_t>(),
       .master_ip = json["storage_service"]["master_ip"].get<std::string>(),
       .master_port = json["storage_service"]["master_port"].get<uint16_t>(),
-      .thread_count = json["storage_service"]["thread_count"].get<uint16_t>(),
       .storage_magic = (uint16_t)std::random_device{}(),
       .master_magic = json["storage_service"]["master_magic"].get<uint32_t>(),
       .sync_interval = json["storage_service"]["sync_interval"].get<uint32_t>(),
@@ -323,37 +293,24 @@ static auto init_config(const nlohmann::json &json) {
 
 auto storage_service(const nlohmann::json &json) -> asio::awaitable<void> {
   init_config(json);
-  init_stores();
-  auto ex = co_await asio::this_coro::executor;
-  auto &io = (asio::io_context &)(ex.context());
+  init_store_group(sss_config.hot_paths, sss_config.cold_paths);
 
-  co_await migrate_service::start_migrate_service(json);
+  co_await regist_to_master();
+  asio::co_spawn(co_await asio::this_coro::executor, sync_upload_files(), asio::detached);
+  asio::co_spawn(co_await asio::this_coro::executor, migrate_service::migrate_service(json), asio::detached);
+  asio::co_spawn(co_await asio::this_coro::executor, metrics::add_metrics_extension("storage_metrics", storage_metrics), asio::detached);
 
-  if (!co_await regist_to_master()) {
-    LOG_ERROR("regist to master failed");
-    co_return;
-  }
-  LOG_INFO(std::format("regist to maste suc"));
-
-  asio::co_spawn(ex, sync_upload_files(), asio::detached);
-
-  auto acceptor = common::acceptor{ex, common::acceptor_config{
-                                           .ip = sss_config.ip,
-                                           .port = sss_config.port,
-                                           .h_timeout = sss_config.heart_timeout,
-                                           .h_interval = sss_config.heart_interval,
-                                       }};
-  for (auto i = 0; i < sss_config.thread_count; ++i) {
-    std::thread{[&io] {
-      auto guard = asio::make_work_guard(io);
-      io.run();
-    }}.detach();
-  }
+  auto acceptor = common::acceptor{co_await asio::this_coro::executor,
+                                   common::acceptor_config{
+                                       .ip = sss_config.ip,
+                                       .port = sss_config.port,
+                                       .h_timeout = sss_config.heart_timeout,
+                                       .h_interval = sss_config.heart_interval,
+                                   }};
 
   while (true) {
     auto conn = co_await acceptor.accept();
-    /* regist 需要放在 start 之前，否则可能导致接收到了消息，但还没有注册，无法识别连接类型 */
-    regist_client(conn);
+    regist_client(conn); // regist 需要放在 start 之前，否则可能导致接收到了消息，但还没有注册，无法识别连接类型
     conn->start(request_from_connection);
     metrics::push_one_connection();
   }

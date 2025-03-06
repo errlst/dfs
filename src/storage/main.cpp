@@ -1,7 +1,6 @@
 #include "../common/log.h"
 #include "../common/util.h"
-#include "./migrate_service.h"
-#include "./storage_service.h"
+#include "storage_service.h"
 #include <iostream>
 
 auto show_usage() -> void {
@@ -35,17 +34,16 @@ auto main(int argc, char *argv[]) -> int {
   init_log(json["common"]["base_path"].get<std::string>(), false, log_level::debug);
 
   auto io = asio::io_context{};
-  asio::co_spawn(io, storage_service(json), asio::detached);
-  asio::co_spawn(io, metrics::metrics_service(json, {{"storage_metrics", storage_metrics}}), asio::detached);
-  // asio::co_spawn(io, metrics::metrics_service(metrics::metrics_service_config{
-  //                        .base_path = json["common"]["base_path"].get<std::string>(),
-  //                        .interval = 1000,
-  //                        .extensions = {
-  //                            {"storage_metrics", storage_metrics},
-  //                        },
-  //                    }),
-  //                asio::detached);
-
   auto gurad = asio::make_work_guard(io);
+
+  asio::co_spawn(io, storage_service(json), asio::detached);
+  asio::co_spawn(io, metrics::metrics_service(json), asio::detached);
+
+  auto thread_count = json["common"]["thread_count"].get<uint16_t>();
+  for (auto i = 0; i < thread_count - 1; ++i) {
+    std::thread{[&] {
+      io.run();
+    }}.detach();
+  }
   return io.run();
 }

@@ -291,6 +291,7 @@ static auto system_metrics_to_json() -> nlohmann::json {
 }
 
 static auto metrics_string = std::string{};
+
 static auto metrics_string_mut = std::mutex{};
 
 auto get_metrics_as_string() -> std::string {
@@ -306,7 +307,17 @@ static auto init_config(const nlohmann::json &json) -> void {
   };
 }
 
-auto metrics_service(const nlohmann::json &json, std::vector<std::pair<std::string, metrics_extension>> exts) -> asio::awaitable<void> {
+static auto exts_mut = std::mutex{};
+
+static auto exts = std::map<std::string, std::function<nlohmann::json()>>{};
+
+auto add_metrics_extension(std::string name, std::function<nlohmann::json()> ext) -> asio::awaitable<void> {
+  auto lock = std::unique_lock{exts_mut};
+  exts[name] = ext;
+  co_return;
+}
+
+auto metrics_service(const nlohmann::json &json) -> asio::awaitable<void> {
   init_config(json);
   asio::co_spawn(co_await asio::this_coro::executor, flush_request(), asio::detached);
 
@@ -320,11 +331,13 @@ auto metrics_service(const nlohmann::json &json, std::vector<std::pair<std::stri
         {"system_metrics", system_metrics_to_json()},
         {"request_metrics", request_metrics_to_json()},
     };
+
+    auto lock = std::unique_lock{exts_mut};
     for (const auto &[name, ext] : exts) {
       json[name] = ext();
     }
 
-    auto lock = std::unique_lock{metrics_string_mut};
+    lock = std::unique_lock{metrics_string_mut};
     metrics_string = json.dump(2);
     ofs.write(metrics_string.data(), metrics_string.size());
   }

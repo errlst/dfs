@@ -2,7 +2,8 @@
   // base configure
   "common": {
     "base_path": "/home/errlst/dfs/build/base_path/storage_1",
-    "log_level": 0
+    "log_level": 0,
+    "thread_count": 3
   },
 
   // network configure
@@ -15,10 +16,9 @@
   "storage_service": {
     "id": 1, // 从1开始计数
     "ip": "0.0.0.0",
-    "port": 8889,
+    "port": 9000,
     "master_ip": "127.0.0.1",
     "master_port": 8888,
-    "thread_count": 5,
     "master_magic": 12345678,
     "sync_interval": 10, // 同步周期，单位为秒
     "hot_paths": ["/home/errlst/dfs/build/base_path/storage_1/hot"],

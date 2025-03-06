@@ -43,7 +43,12 @@ public:
   auto send_response(proto_frame *frame, std::shared_ptr<proto_frame> req_frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<bool>;
   auto send_response(proto_frame frame, std::shared_ptr<proto_frame> req_frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<bool>;
 
-  /* 在 strand 中增加任务 */
+  /**
+   * @brief 发送请求并等待响应
+   *
+   */
+  auto send_request_and_wait_response(proto_frame *frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<std::shared_ptr<proto_frame>>;
+  auto send_request_and_wait_response(proto_frame frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<std::shared_ptr<proto_frame>>;
 
   /**
    * @brief 在 connection 的 strand 中增加任务

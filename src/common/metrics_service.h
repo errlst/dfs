@@ -5,12 +5,6 @@
 namespace metrics {
 
 /**
- * @brief 拓展监控指标
- *
- */
-using metrics_extension = std::function<nlohmann::json()>;
-
-/**
  * @brief 请求结束时的信息
  *
  * @param success     请求是否成功
@@ -51,9 +45,16 @@ auto pop_one_connection() -> void;
 auto get_metrics_as_string() -> std::string;
 
 /**
+ * @brief 添加拓展监控
+ *        最好通过 asio::co_spawn() 调用，因为内部会阻塞
+ *
+ */
+auto add_metrics_extension(std::string name, std::function<nlohmann::json()> ext) -> asio::awaitable<void>;
+
+/**
  * @brief 监控服务
  *
  */
-auto metrics_service(const nlohmann::json &json, std::vector<std::pair<std::string, metrics_extension>> exts) -> asio::awaitable<void>;
+auto metrics_service(const nlohmann::json &json) -> asio::awaitable<void>;
 
 } // namespace metrics

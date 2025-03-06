@@ -63,12 +63,12 @@ auto connection::send_request(proto_frame *frame, std::source_location loc) -> a
   auto [ec, n] = co_await asio::async_write(m_sock, asio::const_buffer(frame, frame_len), asio::as_tuple(asio::use_awaitable));
   trans_frame_to_host(frame);
   if (n != frame_len) {
-    LOG_ERROR("[{}:{}] send request \n{} to {} failed", loc.file_name(), loc.line(), proto_frame_to_string(*frame), address());
+    LOG_ERROR("[{}:{}] send request {} to {} failed", loc.file_name(), loc.line(), proto_frame_to_string(*frame), address());
     co_await close();
     co_return std::nullopt;
   }
 
-  LOG_DEBUG("[{}:{}] send request \n{} to {}", loc.file_name(), loc.line(), proto_frame_to_string(*frame), address());
+  LOG_DEBUG("[{}:{}] send request {} to {}", loc.file_name(), loc.line(), proto_frame_to_string(*frame), address());
   m_response_frames[frame->id] = {nullptr, std::make_shared<asio::steady_timer>(m_strand, std::chrono::days{365})};
   co_return frame->id;
 }
@@ -86,12 +86,12 @@ auto connection::send_request(proto_frame frame, std::source_location loc) -> as
   auto [ec, n] = co_await asio::async_write(m_sock, asio::const_buffer(&frame, sizeof(proto_frame)), asio::as_tuple(asio::use_awaitable));
   trans_frame_to_host(&frame);
   if (n != sizeof(proto_frame)) {
-    LOG_DEBUG("[{}:{}] send request \n{} to {} failed", loc.file_name(), loc.line(), proto_frame_to_string(frame), address());
+    LOG_DEBUG("[{}:{}] send request {} to {} failed", loc.file_name(), loc.line(), proto_frame_to_string(frame), address());
     co_await close();
     co_return std::nullopt;
   }
 
-  LOG_DEBUG("[{}:{}] send request \n{} to {}", loc.file_name(), loc.line(), proto_frame_to_string(frame), address());
+  LOG_DEBUG("[{}:{}] send request {} to {}", loc.file_name(), loc.line(), proto_frame_to_string(frame), address());
   m_response_frames[frame.id] = {nullptr, std::make_shared<asio::steady_timer>(m_strand, std::chrono::days{365})};
   co_return frame.id;
 }
@@ -110,13 +110,27 @@ auto connection::send_response(proto_frame *frame, std::shared_ptr<proto_frame> 
   auto [ec, n] = co_await asio::async_write(m_sock, asio::const_buffer(frame, frame_len), asio::as_tuple(asio::use_awaitable));
   trans_frame_to_host(frame);
   if (n != frame_len) {
-    LOG_ERROR("[{}:{}] send response \n{} to {} failed", loc.file_name(), loc.line(), proto_frame_to_string(*frame), address());
+    LOG_ERROR("[{}:{}] send response {} to {} failed", loc.file_name(), loc.line(), proto_frame_to_string(*frame), address());
     co_await close();
     co_return false;
   }
 
-  LOG_DEBUG("[{}:{}] send response \n{} to {}", loc.file_name(), loc.line(), proto_frame_to_string(*frame), address());
+  LOG_DEBUG("[{}:{}] send response {} to {}", loc.file_name(), loc.line(), proto_frame_to_string(*frame), address());
   co_return true;
+}
+
+auto connection::send_request_and_wait_response(proto_frame *frame, std::source_location loc) -> asio::awaitable<std::shared_ptr<proto_frame>> {
+  co_await asio::post(m_strand, asio::use_awaitable);
+  if (m_closed) {
+    co_return nullptr;
+  }
+
+  auto id = co_await send_request(frame, loc);
+  if (!id) {
+    co_return nullptr;
+  }
+
+  co_return co_await recv_response(id.value());
 }
 
 auto connection::send_response(proto_frame frame, std::shared_ptr<proto_frame> req_frame, std::source_location loc) -> asio::awaitable<bool> {
@@ -132,12 +146,12 @@ auto connection::send_response(proto_frame frame, std::shared_ptr<proto_frame> r
   auto [ec, n] = co_await asio::async_write(m_sock, asio::const_buffer(&frame, sizeof(proto_frame)), asio::as_tuple(asio::use_awaitable));
   trans_frame_to_host(&frame);
   if (n != sizeof(proto_frame)) {
-    LOG_ERROR("[{}:{}] send response \n{} to {} failed", loc.file_name(), loc.line(), proto_frame_to_string(frame), address());
+    LOG_ERROR("[{}:{}] send response {} to {} failed", loc.file_name(), loc.line(), proto_frame_to_string(frame), address());
     co_await close();
     co_return false;
   }
 
-  LOG_DEBUG("[{}:{}] send response \n{} to {}", loc.file_name(), loc.line(), proto_frame_to_string(frame), address());
+  LOG_DEBUG("[{}:{}] send response {} to {}", loc.file_name(), loc.line(), proto_frame_to_string(frame), address());
   co_return true;
 }
 

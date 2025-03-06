@@ -47,13 +47,9 @@ auto sm_regist_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
     co_return false;
   }
 
-  LOG_INFO(std::format(R"(storage request regist {{
-    id: {},
-    magic: {},
-    ip: {},
-    port: {}, 
-  }} )",
-                       request_data.s_info().id(), request_data.s_info().magic(), request_data.s_info().ip(), request_data.s_info().port()));
+  LOG_INFO(std::format("storage regist {{ id: {}, magic: {}, ip: {}, port: {}, }}",
+                       request_data.s_info().id(), request_data.s_info().magic(),
+                       request_data.s_info().ip(), request_data.s_info().port()));
 
   /* 响应同组 storage */
   auto response_data_to_send = proto::sm_regist_response{};

@@ -4,17 +4,19 @@
 
 namespace migrate_service {
 
-auto start_migrate_service(const nlohmann::json &json) -> asio::awaitable<void>;
-
-/* 新增文件 */
+/**
+ * @brief 冷热数据迁移服务
+ *
+ * @param json
+ * @return asio::awaitable<void>
+ */
+auto migrate_service(const nlohmann::json &json) -> asio::awaitable<void>;
 
 /**
  * @brief 上传文件后调用
  *
  */
 auto new_hot_file(const std::string &abs_path) -> void;
-
-/* 修改或者访问热数据 */
 
 /**
  * @brief 访问热数据后调用

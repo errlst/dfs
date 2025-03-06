@@ -131,6 +131,8 @@ auto master_service(master_service_conf config) -> asio::awaitable<void> {
   }
 
   asio::co_spawn(co_await asio::this_coro::executor, request_storage_metrics(), asio::detached);
+  asio::co_spawn(co_await asio::this_coro::executor, metrics::add_metrics_extension("storages_metrics", master_metrics_of_storages), asio::detached);
+
   while (true) {
     auto conn = co_await acceptor.accept();
     conn->start(request_from_connection);
