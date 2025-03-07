@@ -110,6 +110,11 @@ auto pop_not_synced_file() -> std::generator<std::string> {
   }
 }
 
+auto not_synced_file_count() -> size_t {
+  auto lock = std::unique_lock{not_synced_files_mut};
+  return not_synced_files.size();
+}
+
 /************************************************************************************************************** */
 /************************************************************************************************************** */
 
@@ -176,7 +181,6 @@ auto ss_upload_sync_append_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool
     auto res = hot_store_group()->close_write_file(file_id.value());
     if (!res) {
       co_await conn->send_response(common::proto_frame{.stat = 2}, request_recved);
-      LOG_ERROR(std::format("close file failed"));
       co_return false;
     }
     const auto &[root_path, rel_path] = res.value();
@@ -187,7 +191,6 @@ auto ss_upload_sync_append_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool
   }
 
   if (!hot_store_group()->write_file(file_id.value(), std::span{request_recved->data, request_recved->data_len})) {
-    LOG_ERROR("write file failed");
     co_await conn->send_response(common::proto_frame{.stat = 3}, request_recved);
     conn->del_data(s_conn_data::storage_sync_upload_file_id);
     co_return false;

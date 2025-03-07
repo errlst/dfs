@@ -74,26 +74,7 @@ auto connection::send_request(proto_frame *frame, std::source_location loc) -> a
 }
 
 auto connection::send_request(proto_frame frame, std::source_location loc) -> asio::awaitable<std::optional<uint16_t>> {
-  co_await asio::post(m_strand, asio::use_awaitable);
-  if (m_closed) {
-    co_return std::nullopt;
-  }
-
-  frame.magic = FRAME_MAGIC;
-  frame.id = m_request_frame_id++;
-  frame.type = proto_type::request;
-  trans_frame_to_net(&frame);
-  auto [ec, n] = co_await asio::async_write(m_sock, asio::const_buffer(&frame, sizeof(proto_frame)), asio::as_tuple(asio::use_awaitable));
-  trans_frame_to_host(&frame);
-  if (n != sizeof(proto_frame)) {
-    LOG_DEBUG("[{}:{}] send request {} to {} failed", loc.file_name(), loc.line(), proto_frame_to_string(frame), address());
-    co_await close();
-    co_return std::nullopt;
-  }
-
-  LOG_DEBUG("[{}:{}] send request {} to {}", loc.file_name(), loc.line(), proto_frame_to_string(frame), address());
-  m_response_frames[frame.id] = {nullptr, std::make_shared<asio::steady_timer>(m_strand, std::chrono::days{365})};
-  co_return frame.id;
+  co_return co_await send_request(&frame, loc);
 }
 
 auto connection::send_response(proto_frame *frame, std::shared_ptr<proto_frame> req_frame, std::source_location loc) -> asio::awaitable<bool> {
@@ -119,6 +100,10 @@ auto connection::send_response(proto_frame *frame, std::shared_ptr<proto_frame> 
   co_return true;
 }
 
+auto connection::send_response(proto_frame frame, std::shared_ptr<proto_frame> req_frame, std::source_location loc) -> asio::awaitable<bool> {
+  co_return co_await send_response(&frame, req_frame, loc);
+}
+
 auto connection::send_request_and_wait_response(proto_frame *frame, std::source_location loc) -> asio::awaitable<std::shared_ptr<proto_frame>> {
   co_await asio::post(m_strand, asio::use_awaitable);
   if (m_closed) {
@@ -131,28 +116,6 @@ auto connection::send_request_and_wait_response(proto_frame *frame, std::source_
   }
 
   co_return co_await recv_response(id.value());
-}
-
-auto connection::send_response(proto_frame frame, std::shared_ptr<proto_frame> req_frame, std::source_location loc) -> asio::awaitable<bool> {
-  co_await asio::post(m_strand, asio::use_awaitable);
-  if (m_closed) {
-    co_return false;
-  }
-
-  frame.id = req_frame->id;
-  frame.type = proto_type::response;
-  frame.cmd = req_frame->cmd;
-  trans_frame_to_net(&frame);
-  auto [ec, n] = co_await asio::async_write(m_sock, asio::const_buffer(&frame, sizeof(proto_frame)), asio::as_tuple(asio::use_awaitable));
-  trans_frame_to_host(&frame);
-  if (n != sizeof(proto_frame)) {
-    LOG_ERROR("[{}:{}] send response {} to {} failed", loc.file_name(), loc.line(), proto_frame_to_string(frame), address());
-    co_await close();
-    co_return false;
-  }
-
-  LOG_DEBUG("[{}:{}] send response {} to {}", loc.file_name(), loc.line(), proto_frame_to_string(frame), address());
-  co_return true;
 }
 
 auto connection::add_exetension_work(std::function<asio::awaitable<void>(std::shared_ptr<connection>)> work, std::function<void()> on_close) -> void {

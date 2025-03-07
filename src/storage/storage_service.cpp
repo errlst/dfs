@@ -117,10 +117,12 @@ static auto sync_upload_files() -> asio::awaitable<void> {
   while (true) {
     auto timer = asio::steady_timer{co_await asio::this_coro::executor, std::chrono::seconds(sss_config.sync_interval)};
     co_await timer.async_wait(asio::as_tuple(asio::use_awaitable));
-    auto storages = registed_storages();
-    if (storages.empty()) {
+    auto s_conns = registed_storages();
+    if (s_conns.empty()) {
       continue;
     }
+
+    LOG_INFO("sync file start, {} files wait for sync", not_synced_file_count());
 
     /* 遍历文件 */
     for (const auto &rel_path : pop_not_synced_file()) {
@@ -129,60 +131,42 @@ static auto sync_upload_files() -> asio::awaitable<void> {
         LOG_WARN("open not synced file {} failed", rel_path);
         continue;
       }
-      auto [file_id, file_size, _] = res.value();
+      auto [file_id, file_size, abs_path] = res.value();
 
       /* 请求上传 */
-      auto storages = std::set<std::shared_ptr<common::connection>>{};
+      auto valid_s_conns = std::set<std::shared_ptr<common::connection>>{};
       auto request_to_send = common::create_request_frame(common::proto_cmd::ss_upload_sync_open, sizeof(uint64_t) + rel_path.size());
       *(uint64_t *)request_to_send->data = htonll(file_size);
       std::copy(rel_path.begin(), rel_path.end(), request_to_send->data + sizeof(uint64_t));
-      for (auto storage : storages) {
-        auto id = co_await storage->send_request(request_to_send.get());
-        if (!id) {
-          LOG_ERROR(std::format("send ss_upload_sync_open failed"));
+      for (auto s_conn : s_conns) {
+        auto response_recved = co_await s_conn->send_request_and_wait_response(request_to_send.get());
+        if (!response_recved || response_recved->stat != 0) {
+          LOG_ERROR("request to sync file {} failed, {}", abs_path, response_recved ? response_recved->stat : -1);
           continue;
         }
-        auto response_recved = co_await storage->recv_response(id.value());
-        if (!response_recved) {
-          LOG_ERROR(std::format("recv ss_upload_sync_open failed"));
-          continue;
-        }
-        if (response_recved->stat != 0) {
-          LOG_ERROR(std::format("ss_upload_sync_open failed {}", response_recved->stat));
-          continue;
-        }
-        storages.emplace(storage);
+        valid_s_conns.emplace(s_conn);
       }
 
       /* 上传数据 */
-      request_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + 5 * 1024 * 1024), [](auto p) { free(p); }};
+      request_to_send = create_request_frame(common::proto_cmd::ss_upload_sync_append, 5_MB);
       while (true) {
         auto read_len = hot_store_group()->read_file(file_id, request_to_send->data, 5 * 1024 * 1024);
         if (!read_len.has_value()) {
-          LOG_ERROR(std::format("read file failed"));
-          exit(-1);
+          break;
         }
+        request_to_send->data_len = read_len.value();
 
-        *request_to_send = {.cmd = common::proto_cmd::ss_upload_sync_append, .data_len = (uint32_t)read_len.value()};
-        for (auto storage : storages) {
-          auto id = co_await storage->send_request(request_to_send.get());
-          if (!id) {
-            LOG_ERROR(std::format("send ss_upload_sync_append failed"));
-            continue;
-          }
-          auto response_recved = co_await storage->recv_response(id.value());
-          if (!response_recved) {
-            LOG_ERROR(std::format("recv ss_upload_sync_append failed"));
-            continue;
-          }
-          if (response_recved->stat != 0) {
-            LOG_ERROR(std::format("ss_upload_sync_append failed {}", response_recved->stat));
+        for (auto s_conn : valid_s_conns) {
+          auto response_recved = co_await s_conn->send_request_and_wait_response(request_to_send.get());
+          if (!response_recved || response_recved->stat != 0) {
+            LOG_ERROR("sync file {} append failed, {}", abs_path, response_recved ? response_recved->stat : -1);
             continue;
           }
         }
 
         /* 上传完成 */
         if (read_len == 0) {
+          LOG_INFO("sync file {} suc", abs_path);
           break;
         }
       }

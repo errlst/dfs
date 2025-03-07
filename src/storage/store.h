@@ -96,12 +96,14 @@ private:
   /**
    * @brief 获取 ofstream
    *
+   * @return <ofs, rel_path>
    */
   auto peek_ofstream(uint64_t file_id) -> std::pair<std::shared_ptr<std::ofstream>, std::string>;
 
   /**
    * @brief 获取 ofstream 且会移除
    *
+   * @return <ofs, rel_path>
    */
   auto pop_ofstream(uint64_t file_id) -> std::pair<std::shared_ptr<std::ofstream>, std::string>;
 

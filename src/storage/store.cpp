@@ -149,6 +149,7 @@ auto store_ctx::read_file(uint64_t file_id, uint64_t size) -> std::optional<std:
 auto store_ctx::read_file(uint64_t file_id, char *dst, uint64_t size) -> std::optional<uint64_t> {
   auto [ifs, _] = peek_ifstream(file_id);
   if (!ifs || !ifs->good()) {
+    LOG_ERROR("read file failed");
     return std::nullopt;
   }
 
@@ -171,6 +172,7 @@ auto store_ctx::peek_ofstream(uint64_t file_id) -> std::pair<std::shared_ptr<std
   auto lock = std::unique_lock{m_ofstream_mut};
   auto it = m_ofstreams.find(file_id);
   if (it == m_ofstreams.end()) {
+    LOG_ERROR("invalid file_id {}", file_id);
     return {nullptr, ""};
   }
   return it->second;
@@ -180,6 +182,7 @@ auto store_ctx::pop_ofstream(uint64_t file_id) -> std::pair<std::shared_ptr<std:
   auto lock = std::unique_lock{m_ofstream_mut};
   auto it = m_ofstreams.find(file_id);
   if (it == m_ofstreams.end()) {
+    LOG_ERROR("invalid file_id {}", file_id);
     return {nullptr, ""};
   }
   auto res = std::move(it->second);
