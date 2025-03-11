@@ -30,8 +30,9 @@ auto main(int argc, char *argv[]) -> int {
   }
 
   auto json = read_config(config_file);
-  init_base_path(json);
-  init_log(json["common"]["base_path"].get<std::string>(), false, log_level::debug);
+  auto base_path = json["common"]["base_path"].get<std::string>();
+  init_base_path(base_path);
+  init_log(base_path, false, log_level::debug);
 
   auto io = asio::io_context{};
   asio::co_spawn(io, master_service(master_service_conf{

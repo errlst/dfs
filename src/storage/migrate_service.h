@@ -1,8 +1,5 @@
 #pragma once
-#include "./storage_service.h"
-#include "./storage_service_handles.h"
-
-namespace migrate_service {
+#include "storage_service.h" // IWYU pragma: keep
 
 /**
  * @brief 冷热数据迁移服务
@@ -35,5 +32,3 @@ auto update_hot_file(const std::string &abs_path) -> void;
  *
  */
 auto access_cold_file(const std::string &abs_path) -> void;
-
-} // namespace migrate_service

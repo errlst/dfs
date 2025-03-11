@@ -1,6 +1,5 @@
 #pragma once
-#include "../common/metrics_service.h"
-#include <asio.hpp>
+#include "storage_service_handles.h" // IWYU pragma: keep
 
 /**
  * @brief storage 性能监控
@@ -16,3 +15,9 @@ auto storage_metrics() -> nlohmann::json;
  * @return asio::awaitable<void>
  */
 auto storage_service(const nlohmann::json &json) -> asio::awaitable<void>;
+
+/**
+ * @brief 结束 storage 服务
+ *
+ */
+auto over_storage_service() -> void;

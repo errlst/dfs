@@ -18,7 +18,7 @@ auto random_string(uint32_t len) -> std::string {
   static constexpr char chars[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
   static auto rng = std::default_random_engine(std::random_device()());
   auto res = std::string(len, 0);
-  for (auto i = 0; i < len; ++i) {
+  for (auto i = 0u; i < len; ++i) {
     res[i] = chars[rng() % (sizeof(chars) - 1)];
   }
   return res;
@@ -59,8 +59,7 @@ auto read_config(std::string_view path) -> nlohmann::json {
   return json;
 }
 
-auto init_base_path(const nlohmann::json &json) -> void {
-  auto base_path = json["common"]["base_path"].get<std::string>();
+auto init_base_path(std::string_view base_path) -> void {
   try {
     std::filesystem::create_directories(std::format("{}/data", base_path));
   } catch (...) {

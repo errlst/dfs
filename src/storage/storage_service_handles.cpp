@@ -1,7 +1,8 @@
 #include "./storage_service_handles.h"
+#include "../common/metrics_service.h"
 #include "../common/util.h"
 #include "../proto/proto.pb.h"
-#include "./migrate_service.h"
+#include "migrate_service.h"
 #include <queue>
 
 static auto hot_store_group_ = std::shared_ptr<store_ctx_group>{};
@@ -92,32 +93,6 @@ auto registed_storages() -> std::set<std::shared_ptr<common::connection>> {
 /************************************************************************************************************** */
 /************************************************************************************************************** */
 
-static auto not_synced_files = std::queue<std::string>{};
-
-static auto not_synced_files_mut = std::mutex{};
-
-auto push_not_synced_file(std::string_view rel_path) -> void {
-  auto lock = std::unique_lock{not_synced_files_mut};
-  not_synced_files.emplace(rel_path);
-}
-
-auto pop_not_synced_file() -> std::generator<std::string> {
-  auto lock = std::unique_lock{not_synced_files_mut};
-  while (!not_synced_files.empty()) {
-    auto ret = not_synced_files.front();
-    not_synced_files.pop();
-    co_yield ret;
-  }
-}
-
-auto not_synced_file_count() -> size_t {
-  auto lock = std::unique_lock{not_synced_files_mut};
-  return not_synced_files.size();
-}
-
-/************************************************************************************************************** */
-/************************************************************************************************************** */
-
 auto ss_regist_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
   auto request_data_recved = proto::ss_regist_request{};
   if (!request_data_recved.ParseFromArray(request_recved->data, request_recved->data_len)) {
@@ -186,7 +161,7 @@ auto ss_upload_sync_append_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool
     const auto &[root_path, rel_path] = res.value();
 
     co_await conn->send_response(common::proto_frame{.stat = 0}, request_recved);
-    migrate_service::new_hot_file(std::format("{}/{}", root_path, rel_path));
+    new_hot_file(std::format("{}/{}", root_path, rel_path));
     co_return true;
   }
 
@@ -291,7 +266,7 @@ auto cs_upload_close_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
   std::copy(rel_path_with_group.begin(), rel_path_with_group.end(), response_to_send->data);
   co_await conn->send_response(response_to_send.get(), request_recved);
 
-  migrate_service::new_hot_file(std::format("{}/{}", root_path, rel_path));
+  new_hot_file(std::format("{}/{}", root_path, rel_path));
   conn->del_data(s_conn_data::client_upload_file_id);
   co_return true;
 }
@@ -314,9 +289,9 @@ auto cs_download_open_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
       conn->set_data<std::shared_ptr<store_ctx_group>>(s_conn_data::client_download_store_group, store_group);
 
       if (is_hot_store_group(store_group)) {
-        migrate_service::access_hot_file(abs_path);
+        access_hot_file(abs_path);
       } else {
-        migrate_service::access_cold_file(abs_path);
+        access_cold_file(abs_path);
       }
       break;
     }

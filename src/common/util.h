@@ -26,6 +26,7 @@ auto random_string(uint32_t len) -> std::string;
 auto htonll(uint64_t host_value) -> uint64_t;
 auto ntohll(uint64_t net_value) -> uint64_t;
 
+
 /**
  * @brief 通用读取配置文件
  *
@@ -36,7 +37,7 @@ auto read_config(std::string_view path) -> nlohmann::json;
  * @brief 初始化 base_path
  *
  */
-auto init_base_path(const nlohmann::json &json) -> void;
+auto init_base_path(std::string_view base_path) -> void;
 
 /**
  * @brief 递归遍历目录下的所有普通文件

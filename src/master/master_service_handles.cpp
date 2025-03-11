@@ -95,7 +95,7 @@ auto cm_fetch_one_storage_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>
 
   /* 获取合适的 storage */
   auto storage = std::shared_ptr<common::connection>{};
-  for (auto i = 0; i < storage_conns.size(); ++i) {
+  for (auto i = 0uz; i < storage_conns.size(); ++i) {
     storage = next_storage();
     if (storage->get_data<uint64_t>(s_conn_data::storage_free_space) > need_space * 2) {
       break;

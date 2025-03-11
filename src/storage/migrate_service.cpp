@@ -85,8 +85,6 @@ static auto init_migrate_to_hot(const std::vector<std::string> &paths) -> void {
 /******************************************************************************* */
 /******************************************************************************* */
 
-namespace migrate_service {
-
 static auto migrate_to_cold_service() -> asio::awaitable<void> {
 
   co_return;
@@ -147,5 +145,3 @@ auto access_cold_file(const std::string &abs_path) -> void {
   cold_file_access_times[abs_path] = new_times;
   LOG_DEBUG(std::format("access cold file {} times {} -> {}", abs_path, old_times, new_times));
 }
-
-} // namespace migrate_service

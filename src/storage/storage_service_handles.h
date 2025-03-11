@@ -1,6 +1,8 @@
 #pragma once
 #include "../common/connection.h"
-#include "./store.h"
+#include "store.h"
+#include "sync_service.h"
+#include <nlohmann/json.hpp>
 #include <set>
 
 using request_handle = std::function<asio::awaitable<bool>(std::shared_ptr<common::proto_frame>, std::shared_ptr<common::connection>)>;
@@ -159,27 +161,6 @@ auto unregist_storage(std::shared_ptr<common::connection> conn) -> void;
  *
  */
 auto registed_storages() -> std::set<std::shared_ptr<common::connection>>;
-
-/************************************************************************************************************** */
-/************************************************************************************************************** */
-
-/**
- * @brief 增加未同步文件
- *
- */
-auto push_not_synced_file(std::string_view rel_path) -> void;
-
-/**
- * @brief 遍历未同步文件，并移除
- *
- */
-auto pop_not_synced_file() -> std::generator<std::string>;
-
-/**
- * @brief 未同步文件数量
- *
- */
-auto not_synced_file_count() -> size_t;
 
 /************************************************************************************************************** */
 /************************************************************************************************************** */

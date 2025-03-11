@@ -8,6 +8,8 @@ add_requires("protobuf-cpp 29.2")
 add_requires("spdlog")
 add_requires("boost")
 
+add_cxxflags("-Wall")
+
 
 set_toolchains("gcc-14")
 -- set_toolchains("clang-19")

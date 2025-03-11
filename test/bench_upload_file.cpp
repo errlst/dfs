@@ -61,13 +61,13 @@ auto upload_file(uint64_t file_size) -> asio::awaitable<void> {
   }
 
   auto file_to_write = random_string(file_size);
-  auto idx = 0;
+  auto idx = 0uz;
   while (idx < file_size) {
     auto end_idx = std::min(idx + 5_MB, file_size);
     auto request_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + end_idx - idx), free};
     *request_to_send = {
         .cmd = common::proto_cmd::cs_upload_append,
-        .data_len = (uint32_t)end_idx - idx,
+        .data_len = (uint32_t)(end_idx - idx),
     };
     std::memcpy(request_to_send->data, file_to_write.data() + idx, end_idx - idx);
     id = co_await storage_conn->send_request(request_to_send.get());
@@ -95,7 +95,7 @@ auto run(uint64_t times, uint64_t file_size) -> asio::awaitable<void> {
     co_return;
   });
 
-  for (auto i = 0; i < times; ++i) {
+  for (auto i = 0uz; i < times; ++i) {
     co_await upload_file(file_size);
   }
   co_await master_conn->close();

@@ -113,7 +113,7 @@ auto pop_one_connection() -> void {
 static auto request_metrics_to_json() -> nlohmann::json {
   static auto convert_atomic_array = []<size_t N>(const std::array<std::atomic_uint64_t, N> &arr) {
     auto ret = std::vector<uint64_t>{};
-    for (auto i = 0; i < N; ++i) {
+    for (auto i = 0uz; i < N; ++i) {
       ret.push_back(arr[i].load());
     }
     return ret;
