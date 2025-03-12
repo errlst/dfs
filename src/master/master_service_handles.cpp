@@ -18,7 +18,7 @@ static auto request_storage_free_space(std::shared_ptr<common::connection> conn,
       co_return;
     }
 
-    auto free_space = htonll(*(uint64_t *)response_recved->data);
+    auto free_space = common::htonll(*(uint64_t *)response_recved->data);
     conn->set_data<uint64_t>(s_conn_data::storage_free_space, free_space);
     LOG_DEBUG(std::format("get storage free space {}", free_space));
 
@@ -90,7 +90,7 @@ auto sm_regist_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
 }
 
 auto cm_fetch_one_storage_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
-  auto need_space = ntohll(*(uint64_t *)request_recved->data);
+  auto need_space = common::ntohll(*(uint64_t *)request_recved->data);
   LOG_DEBUG(std::format("client fetch on storge for space {}", need_space));
 
   /* 获取合适的 storage */

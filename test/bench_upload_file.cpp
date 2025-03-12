@@ -28,7 +28,7 @@ auto upload_file(uint64_t file_size) -> asio::awaitable<void> {
       .cmd = common::proto_cmd::cm_fetch_one_storage,
       .data_len = sizeof(uint64_t),
   };
-  *((uint64_t *)request_to_send->data) = htonll(file_size);
+  *((uint64_t *)request_to_send->data) = common::htonll(file_size);
   auto id = co_await master_conn->send_request(request_to_send.get());
   auto response = co_await master_conn->recv_response(id.value());
   if (response->stat != 0) {
@@ -52,7 +52,7 @@ auto upload_file(uint64_t file_size) -> asio::awaitable<void> {
       .cmd = common::proto_cmd::cs_upload_open,
       .data_len = sizeof(uint64_t),
   };
-  *((uint64_t *)request_to_send->data) = htonll(file_size);
+  *((uint64_t *)request_to_send->data) = common::htonll(file_size);
   id = co_await storage_conn->send_request(request_to_send.get());
   response = co_await storage_conn->recv_response(id.value());
   if (response->stat != 0) {
@@ -60,7 +60,7 @@ auto upload_file(uint64_t file_size) -> asio::awaitable<void> {
     co_return;
   }
 
-  auto file_to_write = random_string(file_size);
+  auto file_to_write = common::random_string(file_size);
   auto idx = 0uz;
   while (idx < file_size) {
     auto end_idx = std::min(idx + 5_MB, file_size);

@@ -18,7 +18,8 @@ auto create_request_frame(uint16_t cmd, uint32_t data_len) -> std::shared_ptr<pr
 
 auto proto_frame_to_string(const proto_frame &frame) -> std::string {
   return std::format("{{ magic: {:x}, id: {}, cmd: {}({}), type: {}, stat: {}, data_len: {} }}",
-                     frame.magic, frame.id, proto_cmd_to_string(frame.cmd), frame.cmd, proto_type_to_string(frame.type), frame.stat, frame.data_len);
+                     frame.magic, frame.id, proto_cmd_to_string(frame.cmd), frame.cmd,
+                     proto_type_to_string(frame.type), frame.stat, frame.data_len);
 }
 
 } // namespace common

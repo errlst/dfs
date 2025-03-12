@@ -8,11 +8,6 @@
 namespace metrics {
 
 static struct {
-  std::string base_path;
-  uint32_t interval;
-} ms_config;
-
-static struct {
   std::atomic_uint64_t connection_count;
 
   /* 短请求，每个桶表示 10ms，整个范围为 0~100ms */
@@ -299,14 +294,6 @@ auto get_metrics_as_string() -> std::string {
   return metrics_string;
 }
 
-static auto init_config(const nlohmann::json &json) -> void {
-  ms_config = {
-      .base_path = json["common"]["base_path"].get<std::string>(),
-      .interval = 1000,
-      // .interval = json["common"]["metrics_interval"].get<uint32_t>(),
-  };
-}
-
 static auto exts_mut = std::mutex{};
 
 static auto exts = std::map<std::string, std::function<nlohmann::json()>>{};
@@ -317,16 +304,15 @@ auto add_metrics_extension(std::string name, std::function<nlohmann::json()> ext
   co_return;
 }
 
-auto metrics_service(const nlohmann::json &json) -> asio::awaitable<void> {
-  init_config(json);
+auto metrics_service(const std::string &base_path) -> asio::awaitable<void> {
   asio::co_spawn(co_await asio::this_coro::executor, flush_request(), asio::detached);
 
   auto timer = asio::steady_timer{co_await asio::this_coro::executor};
   while (true) {
-    timer.expires_after(std::chrono::milliseconds{ms_config.interval});
+    timer.expires_after(std::chrono::seconds{1});
     co_await timer.async_wait(asio::as_tuple(asio::use_awaitable));
 
-    auto ofs = std::ofstream{ms_config.base_path + "/data/metrics.json", std::ios::trunc};
+    auto ofs = std::ofstream{base_path + "/data/metrics.json", std::ios::trunc};
     auto json = nlohmann::json{
         {"system_metrics", system_metrics_to_json()},
         {"request_metrics", request_metrics_to_json()},

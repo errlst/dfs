@@ -15,7 +15,7 @@ store_ctx::store_ctx(std::string_view root_path)
       std::filesystem::create_directories(std::format("{}/{:02X}/{:02X}", root_path, i, j));
     }
   }
-  std::tie(m_disk_free, m_disk_total) = disk_space(root_path);
+  std::tie(m_disk_free, m_disk_total) = common::disk_space(root_path);
   LOG_INFO(std::format("init store '{}' suc", root_path));
 }
 
@@ -90,7 +90,7 @@ auto store_ctx::close_write_file(uint64_t file_id, std::string_view user_file_na
   /* 重命名 TODO)) 增加 new_abs_path 有效检测*/
   auto flat_path = flat_of_rel_path(rel_path);
   auto old_abs_path = std::format("{}/{}", m_root_path, rel_path);
-  auto new_rel_path = std::format("{}/{}_{}", flat_path, user_file_name, random_string(8));
+  auto new_rel_path = std::format("{}/{}_{}", flat_path, user_file_name, common::random_string(8));
   auto new_abs_path = std::format("{}/{}", m_root_path, new_rel_path);
   try {
     std::filesystem::rename(old_abs_path, new_abs_path);
@@ -163,7 +163,7 @@ auto store_ctx::read_file(uint64_t file_id, char *dst, uint64_t size) -> std::op
 auto store_ctx::free_space() -> uint64_t {
   static auto times = 0;
   if (++times % 10 == 0) {
-    std::tie(m_disk_free, m_disk_total) = disk_space(m_root_path);
+    std::tie(m_disk_free, m_disk_total) = common::disk_space(m_root_path);
   }
   return m_disk_free;
 }
@@ -233,9 +233,9 @@ auto store_ctx::flat_of_rel_path(std::string_view rel_path) -> std::string {
 }
 
 auto store_ctx::valid_rel_path(std::string_view flat_path) -> std::string {
-  auto rel_path = std::format("{}/{}", flat_path, random_string(8));
+  auto rel_path = std::format("{}/{}", flat_path, common::random_string(8));
   while (std::filesystem::exists(std::format("{}/{}", m_root_path, rel_path))) {
-    rel_path = std::format("{}/{}", flat_path, random_string(8));
+    rel_path = std::format("{}/{}", flat_path, common::random_string(8));
   }
   return rel_path;
 }

@@ -17,7 +17,7 @@ auto upload_file(std::string path) -> asio::awaitable<void> {
       .cmd = common::proto_cmd::cm_fetch_one_storage,
       .data_len = sizeof(uint64_t),
   };
-  *((uint64_t *)request_to_send->data) = htonll(std::filesystem::file_size(path));
+  *((uint64_t *)request_to_send->data) = common::htonll(std::filesystem::file_size(path));
   auto id = co_await master_conn->send_request(request_to_send.get());
   if (!id) {
     LOG_ERROR("failed to send cm_fetch_one_storage request");
@@ -58,7 +58,7 @@ auto upload_file(std::string path) -> asio::awaitable<void> {
       .cmd = common::proto_cmd::cs_upload_open,
       .data_len = sizeof(uint64_t),
   };
-  *((uint64_t *)request_to_send->data) = htonll(std::filesystem::file_size(path));
+  *((uint64_t *)request_to_send->data) = common::htonll(std::filesystem::file_size(path));
   id = co_await conn->send_request(request_to_send.get());
   if (!id) {
     LOG_ERROR("failed to send cs_upload_open request");
@@ -235,7 +235,7 @@ auto download_file(std::string src, std::string dst) -> asio::awaitable<void> {
     }
 
     /* download data */
-    LOG_INFO(std::format("start download filesize {}", ntohll(*(uint64_t *)response_recved->data)));
+    LOG_INFO(std::format("start download filesize {}", common::ntohll(*(uint64_t *)response_recved->data)));
     while (true) {
       auto id = co_await conn->send_request(common::proto_frame{.cmd = common::proto_cmd::cs_download_append});
       if (!id) {

@@ -4,10 +4,14 @@
 /**
  * @brief 冷热数据迁移服务
  *
- * @param json
- * @return asio::awaitable<void>
  */
-auto migrate_service(const nlohmann::json &json) -> asio::awaitable<void>;
+auto migrate_service() -> asio::awaitable<void>;
+
+/**
+ * @brief 手动进行数据迁移
+ *
+ */
+auto start_migrate_service() -> void;
 
 /**
  * @brief 上传文件后调用

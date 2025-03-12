@@ -55,6 +55,6 @@ auto add_metrics_extension(std::string name, std::function<nlohmann::json()> ext
  * @brief 监控服务
  *
  */
-auto metrics_service(const nlohmann::json &json) -> asio::awaitable<void>;
+auto metrics_service(const std::string &base_path) -> asio::awaitable<void>;
 
 } // namespace metrics

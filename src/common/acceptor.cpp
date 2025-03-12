@@ -3,9 +3,10 @@
 
 namespace common {
 
-acceptor::acceptor(asio::any_io_executor io, acceptor_config conf)
-    : m_acceptor{io}, m_config{conf} {
-  auto ep = asio::ip::tcp::endpoint(asio::ip::make_address(conf.ip), conf.port);
+acceptor::acceptor(asio::any_io_executor io, const std::string &ip, uint16_t port,
+                   uint32_t heart_timeout, uint32_t heart_interval)
+    : m_acceptor{io}, m_heart_timeout{heart_timeout}, m_heart_interval{heart_interval} {
+  auto ep = asio::ip::tcp::endpoint(asio::ip::make_address(ip), port);
   m_acceptor.open(ep.protocol());
   m_acceptor.set_option(asio::socket_base::reuse_address(true));
   m_acceptor.bind(ep);
@@ -14,7 +15,7 @@ acceptor::acceptor(asio::any_io_executor io, acceptor_config conf)
     LOG_DEBUG(std::format("acceptor open failed"));
     exit(-1);
   }
-  LOG_INFO(std::format("accept at {}:{}", conf.ip, conf.port));
+  LOG_INFO(std::format("accept at {}:{}", ip, port));
 }
 
 auto acceptor::accept() -> asio::awaitable<std::shared_ptr<connection>> {
@@ -36,8 +37,8 @@ auto acceptor::accept() -> asio::awaitable<std::shared_ptr<connection>> {
     };
     trans_frame_to_net(req_frame);
     *(xx_heart_establish_request *)req_frame->data = {
-        .timeout = htonl(m_config.h_timeout),
-        .interval = htonl(m_config.h_interval),
+        .timeout = htonl(m_heart_timeout),
+        .interval = htonl(m_heart_interval),
     };
     auto [ec_1, n_1] = co_await asio::async_write(sock, asio::const_buffer(request_to_send, sizeof(request_to_send)), asio::as_tuple(asio::use_awaitable));
     if (ec_1 || n_1 != sizeof(request_to_send)) {
@@ -56,8 +57,8 @@ auto acceptor::accept() -> asio::awaitable<std::shared_ptr<connection>> {
     }
 
     auto conn = std::make_shared<connection>(std::move(sock));
-    conn->m_heart_timeout = m_config.h_timeout;
-    conn->m_heart_interval = m_config.h_interval;
+    conn->m_heart_timeout = m_heart_timeout;
+    conn->m_heart_interval = m_heart_interval;
     LOG_INFO(std::format("accept new connection {}", conn->address()));
     co_return conn;
   }

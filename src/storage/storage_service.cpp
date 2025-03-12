@@ -1,8 +1,9 @@
-#include "../common/acceptor.h"
-#include "../common/metrics_service.h"
-#include "../proto/proto.pb.h"
+#include "common/acceptor.h"
+#include "common/metrics_service.h"
 #include "common/pid_file.h"
 #include "migrate_service.h"
+#include "proto/proto.pb.h"
+#include "storage_config.h"
 #include "sync_service.h"
 
 static auto request_handle_for_master = std::map<uint16_t, request_handle>{
@@ -117,13 +118,17 @@ static auto request_from_connection(std::shared_ptr<common::proto_frame> request
 static auto regist_to_master() -> asio::awaitable<void> {
   /* 连接到 master */
   for (auto i = 1;; i += 2) {
-    auto m_conn = co_await common::connection::connect_to(sss_config.master_ip, sss_config.master_port);
+    if (i == 32) {
+      exit(-1);
+    }
+
+    auto m_conn = co_await common::connection::connect_to(storage_config.storage_service.master_ip, storage_config.storage_service.master_port);
     if (m_conn) {
       connected_to_master(m_conn);
       m_conn->start(request_from_connection);
       break;
     }
-    LOG_ERROR(std::format("connect to master {}:{} failed", sss_config.master_ip, sss_config.master_port));
+    LOG_ERROR(std::format("connect to master {}:{} failed", storage_config.storage_service.master_ip, storage_config.storage_service.master_port));
     auto timer = asio::steady_timer{co_await asio::this_coro::executor, std::chrono::seconds{i}};
     co_await timer.async_wait(asio::as_tuple(asio::use_awaitable));
   }
@@ -131,10 +136,10 @@ static auto regist_to_master() -> asio::awaitable<void> {
 
   /* 注册到 master */
   auto request_data = proto::sm_regist_request{};
-  request_data.set_master_magic(sss_config.master_magic);
-  request_data.mutable_s_info()->set_id(sss_config.id);
-  request_data.mutable_s_info()->set_magic(sss_config.storage_magic);
-  request_data.mutable_s_info()->set_port(sss_config.port);
+  request_data.set_master_magic(storage_config.storage_service.master_magic);
+  request_data.mutable_s_info()->set_id(storage_config.storage_service.id);
+  request_data.mutable_s_info()->set_magic(storage_config.storage_service.internal.storage_magic);
+  request_data.mutable_s_info()->set_port(storage_config.storage_service.port);
   request_data.mutable_s_info()->set_ip("127.0.0.1");
 
   auto request_to_send = common::create_request_frame(common::proto_cmd::sm_regist, request_data.ByteSizeLong());
@@ -150,7 +155,7 @@ static auto regist_to_master() -> asio::awaitable<void> {
     LOG_ERROR("failed to parse sm_regist_response");
     exit(-1);
   }
-  sss_config.group_id = response_data_recved.group_id();
+  storage_config.storage_service.internal.group_id = response_data_recved.group_id();
   LOG_INFO(std::format("regist to master {} suc", master_conn()->address()));
 
   /* 连接到其他 storage */
@@ -165,14 +170,16 @@ static auto regist_to_master() -> asio::awaitable<void> {
 
     /* 注册到其它 storage */
     auto request_data_to_send = proto::ss_regist_request{};
-    request_data_to_send.set_master_magic(sss_config.master_magic);
+    request_data_to_send.set_master_magic(storage_config.storage_service.master_magic);
     request_data_to_send.set_storage_magic(s_info.magic());
 
     auto request_to_send = common::create_request_frame(common::ss_regist, request_data_to_send.ByteSizeLong());
     request_data_to_send.SerializeToArray(request_to_send->data, request_to_send->data_len);
     auto response_recved = co_await s_conn->send_request_and_wait_response(request_to_send.get());
     if (!response_recved || response_recved->stat != 0) {
-      LOG_ERROR(std::format("regist to storage {}:{} failed {}", s_info.ip(), s_info.port(), response_recved ? response_recved->stat : -1));
+      LOG_ERROR(std::format("regist to storage {}:{} failed {}, with master magic 0x{:X}, storage magic 0x{:X}",
+                            s_info.ip(), s_info.port(), response_recved ? response_recved->stat : -1, storage_config.storage_service.master_magic,
+                            s_info.magic()));
       continue;
     }
 
@@ -183,51 +190,22 @@ static auto regist_to_master() -> asio::awaitable<void> {
 
 auto storage_metrics() -> nlohmann::json {
   return {
-      {"id", sss_config.id},
-      {"group_id", sss_config.group_id},
+      {"id", storage_config.storage_service.id},
+      {"group_id", storage_config.storage_service.internal.group_id},
   };
 }
 
-/**
- * @brief 初始化日志
- *
- * @param json
- * @return auto
- */
-static auto init_config(const nlohmann::json &json) {
-  sss_config = {
-      .id = json["storage_service"]["id"].get<uint32_t>(),
-      .ip = json["storage_service"]["ip"].get<std::string>(),
-      .port = json["storage_service"]["port"].get<uint16_t>(),
-      .master_ip = json["storage_service"]["master_ip"].get<std::string>(),
-      .master_port = json["storage_service"]["master_port"].get<uint16_t>(),
-      .storage_magic = (uint16_t)std::random_device{}(),
-      .master_magic = json["storage_service"]["master_magic"].get<uint32_t>(),
-      .sync_interval = json["storage_service"]["sync_interval"].get<uint32_t>(),
-      .hot_paths = json["storage_service"]["hot_paths"].get<std::vector<std::string>>(),
-      .cold_paths = json["storage_service"]["cold_paths"].get<std::vector<std::string>>(),
-      .heart_timeout = json["network"]["heart_timeout"].get<uint32_t>(),
-      .heart_interval = json["network"]["heart_interval"].get<uint32_t>(),
-  };
-}
-
-auto storage_service(const nlohmann::json &json) -> asio::awaitable<void> {
-  init_config(json);
-  init_store_group(sss_config.hot_paths, sss_config.cold_paths);
+auto storage_service() -> asio::awaitable<void> {
+  init_store_group();
 
   co_await regist_to_master();
   asio::co_spawn(co_await asio::this_coro::executor, sync_service(), asio::detached);
-  asio::co_spawn(co_await asio::this_coro::executor, migrate_service(json), asio::detached);
-  asio::co_spawn(co_await asio::this_coro::executor, metrics::add_metrics_extension("storage_metrics", storage_metrics), asio::detached);
+  asio::co_spawn(co_await asio::this_coro::executor, migrate_service(), asio::detached);
+  co_await metrics::add_metrics_extension("storage_metrics", storage_metrics);
 
   auto acceptor = common::acceptor{co_await asio::this_coro::executor,
-                                   common::acceptor_config{
-                                       .ip = sss_config.ip,
-                                       .port = sss_config.port,
-                                       .h_timeout = sss_config.heart_timeout,
-                                       .h_interval = sss_config.heart_interval,
-                                   }};
-
+                                   storage_config.storage_service.ip, (uint16_t)storage_config.storage_service.port,
+                                   storage_config.network.heart_timeout, storage_config.network.heart_interval};
   while (true) {
     auto conn = co_await acceptor.accept();
     regist_client(conn); // regist 需要放在 start 之前，否则可能导致接收到了消息，但还没有注册，无法识别连接类型
@@ -236,5 +214,7 @@ auto storage_service(const nlohmann::json &json) -> asio::awaitable<void> {
   }
 }
 
-auto over_storage_service() -> void {
+auto quit_storage_service() -> void {
+  common::remove_pid_file(storage_config.common.base_path);
+  exit(-1);
 }

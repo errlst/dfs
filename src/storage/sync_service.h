@@ -22,7 +22,7 @@ auto sync_service() -> asio::awaitable<void>;
  * @brief 手动触发同步服务
  *
  */
-auto start_service() -> void;
+auto start_sync_service() -> void;
 /**
  * @brief 增加未同步文件
  *

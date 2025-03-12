@@ -29,10 +29,10 @@ auto main(int argc, char *argv[]) -> int {
     }
   }
 
-  auto json = read_config(config_file);
+  auto json = common::read_config(config_file);
   auto base_path = json["common"]["base_path"].get<std::string>();
-  init_base_path(base_path);
-  init_log(base_path, false, log_level::debug);
+  common::init_base_path(base_path);
+  common::init_log(base_path, false);
 
   auto io = asio::io_context{};
   asio::co_spawn(io, master_service(master_service_conf{
@@ -46,7 +46,7 @@ auto main(int argc, char *argv[]) -> int {
                      }),
                  asio::detached);
 
-  asio::co_spawn(io, metrics::metrics_service(json), asio::detached);
+  asio::co_spawn(io, metrics::metrics_service(base_path), asio::detached);
   auto guard = asio::make_work_guard(io);
   return io.run();
 }

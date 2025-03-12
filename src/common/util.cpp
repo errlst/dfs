@@ -6,7 +6,7 @@
 #include <random>
 #include <sys/statvfs.h>
 
-auto disk_space(std::string_view path) -> std::tuple<uint64_t, uint64_t> {
+auto common::disk_space(std::string_view path) -> std::tuple<uint64_t, uint64_t> {
   struct statvfs stat;
   if (statvfs(path.data(), &stat) != 0) {
     return std::make_tuple(0ull, 0ull);
@@ -14,7 +14,7 @@ auto disk_space(std::string_view path) -> std::tuple<uint64_t, uint64_t> {
   return std::make_tuple(stat.f_bavail * stat.f_bsize, stat.f_blocks * stat.f_bsize);
 }
 
-auto random_string(uint32_t len) -> std::string {
+auto common::random_string(uint32_t len) -> std::string {
   static constexpr char chars[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
   static auto rng = std::default_random_engine(std::random_device()());
   auto res = std::string(len, 0);
@@ -24,7 +24,7 @@ auto random_string(uint32_t len) -> std::string {
   return res;
 }
 
-auto htonll(uint64_t host_value) -> uint64_t {
+auto common::htonll(uint64_t host_value) -> uint64_t {
   if constexpr (std::endian::native == std::endian::little) {
     return ((host_value & 0xFF00000000000000ULL) >> 56) |
            ((host_value & 0x00FF000000000000ULL) >> 40) |
@@ -39,11 +39,11 @@ auto htonll(uint64_t host_value) -> uint64_t {
   }
 }
 
-auto ntohll(uint64_t net_value) -> uint64_t {
+auto common::ntohll(uint64_t net_value) -> uint64_t {
   return htonll(net_value); // 直接复用 htonll
 }
 
-auto read_config(std::string_view path) -> nlohmann::json {
+auto common::read_config(std::string_view path) -> nlohmann::json {
   auto ifs = std::ifstream{path.data()};
   if (!ifs) {
     LOG_CRITICAL("failed open config file {}", path);
@@ -59,7 +59,7 @@ auto read_config(std::string_view path) -> nlohmann::json {
   return json;
 }
 
-auto init_base_path(std::string_view base_path) -> void {
+auto common::init_base_path(std::string_view base_path) -> void {
   try {
     std::filesystem::create_directories(std::format("{}/data", base_path));
   } catch (...) {
@@ -69,7 +69,7 @@ auto init_base_path(std::string_view base_path) -> void {
   LOG_INFO("init base path {} suc", base_path);
 }
 
-auto iterate_normal_file(std::string_view path) -> std::generator<std::string> {
+auto common::iterate_normal_file(std::string_view path) -> std::generator<std::string> {
   for (const auto &dir_entry : std::filesystem::recursive_directory_iterator(path)) {
     if (dir_entry.is_regular_file()) {
       co_yield dir_entry.path().string();

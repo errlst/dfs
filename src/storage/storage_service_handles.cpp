@@ -3,14 +3,14 @@
 #include "../common/util.h"
 #include "../proto/proto.pb.h"
 #include "migrate_service.h"
-#include <queue>
+#include "storage_config.h"
 
 static auto hot_store_group_ = std::shared_ptr<store_ctx_group>{};
 static auto cold_store_group_ = std::shared_ptr<store_ctx_group>{};
 
-auto init_store_group(const std::vector<std::string> &hot_paths, const std::vector<std::string> &cold_paths) -> void {
-  hot_store_group_ = std::make_shared<store_ctx_group>("hot_store_group", hot_paths);
-  cold_store_group_ = std::make_shared<store_ctx_group>("cold_store_group", cold_paths);
+auto init_store_group() -> void {
+  hot_store_group_ = std::make_shared<store_ctx_group>("hot_store_group", storage_config.storage_service.hot_paths);
+  cold_store_group_ = std::make_shared<store_ctx_group>("cold_store_group", storage_config.storage_service.cold_paths);
 }
 
 auto hot_store_group() -> std::shared_ptr<store_ctx_group> {
@@ -101,10 +101,11 @@ auto ss_regist_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
     co_return false;
   }
 
-  if (request_data_recved.master_magic() != sss_config.master_magic ||
-      request_data_recved.storage_magic() != sss_config.storage_magic) {
-    LOG_ERROR(std::format("ss_regist request invalid magic, master: {}, storage: {}",
-                          request_data_recved.master_magic(), request_data_recved.storage_magic()));
+  if (request_data_recved.master_magic() != storage_config.storage_service.master_magic ||
+      request_data_recved.storage_magic() != storage_config.storage_service.internal.storage_magic) {
+    LOG_ERROR(std::format("ss_regist request invalid magic, master magic 0x{:X}/0x{:X}, storage_magic 0x{:X}/0x{:X}",
+                          request_data_recved.master_magic(), storage_config.storage_service.master_magic,
+                          request_data_recved.storage_magic(), storage_config.storage_service.internal.storage_magic));
     co_await conn->send_response(common::proto_frame{.stat = 2}, request_recved);
     co_return false;
   }
@@ -129,7 +130,7 @@ auto ss_upload_sync_open_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> 
   }
 
   auto rel_path = std::string_view{request_recved->data + sizeof(uint64_t), request_recved->data_len - sizeof(uint64_t)};
-  auto file_id = hot_store_group()->create_file(ntohll(*(uint64_t *)request_recved->data), rel_path);
+  auto file_id = hot_store_group()->create_file(common::ntohll(*(uint64_t *)request_recved->data), rel_path);
   if (!file_id) {
     LOG_ERROR(std::format("create file '{}' failed", rel_path));
     co_await conn->send_response(common::proto_frame{.stat = 3}, request_recved);
@@ -178,7 +179,7 @@ auto ss_upload_sync_append_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool
 auto ms_get_max_free_space_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
   auto response_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + sizeof(uint64_t)), free};
   *response_to_send = {.data_len = sizeof(uint64_t)};
-  *(uint64_t *)response_to_send->data = ntohll(hot_store_group()->max_free_space());
+  *(uint64_t *)response_to_send->data = common::ntohll(hot_store_group()->max_free_space());
   co_await conn->send_response(response_to_send.get(), request_recved);
   co_return true;
 }
@@ -205,7 +206,7 @@ auto cs_upload_open_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
     co_return false;
   }
 
-  auto file_size = ntohll(*(uint64_t *)request_recved->data);
+  auto file_size = common::ntohll(*(uint64_t *)request_recved->data);
   auto file_id = hot_store_group()->create_file(file_size);
   if (!file_id) {
     LOG_ERROR(std::format("create file failed for file_size {}", file_size));
@@ -260,7 +261,7 @@ auto cs_upload_close_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
   push_not_synced_file(rel_path);
 
   /* 在 rel_path 前加上组号，用于客户端访问文件 */
-  auto rel_path_with_group = std::format("{}/{}", sss_config.group_id, rel_path);
+  auto rel_path_with_group = std::format("{}/{}", storage_config.storage_service.internal.group_id, rel_path);
   auto response_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + rel_path.size()), free};
   *response_to_send = {.data_len = (uint32_t)rel_path_with_group.size()};
   std::copy(rel_path_with_group.begin(), rel_path_with_group.end(), response_to_send->data);
@@ -304,7 +305,7 @@ auto cs_download_open_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
 
   auto response_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + sizeof(uint64_t)), free};
   *response_to_send = {.data_len = sizeof(uint64_t)};
-  *(uint64_t *)response_to_send->data = htonll(filesize);
+  *(uint64_t *)response_to_send->data = common::htonll(filesize);
   co_await conn->send_response(response_to_send.get(), request_recved);
   co_return true;
 }

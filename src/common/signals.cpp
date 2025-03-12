@@ -1,7 +1,7 @@
 #include "signals.h"
 #include "log.h"
 
-auto common::init_signal(std::vector<signal_> sigs) -> bool {
+auto common::init_signal(std::vector<signal_t> sigs) -> bool {
   struct sigaction sa;
   for (auto &sig : sigs) {
     std::memset(&sa, 0, sizeof(sa));

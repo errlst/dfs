@@ -100,7 +100,7 @@ static auto request_storage_metrics() -> asio::awaitable<void> {
     }
 
     timer.expires_after(std::chrono::seconds{100});
-    co_await timer.async_wait(asio::use_awaitable);
+    co_await timer.async_wait(asio::as_tuple(asio::use_awaitable));
   }
 }
 auto master_metrics_of_storages() -> nlohmann::json {
@@ -115,13 +115,13 @@ auto master_metrics_of_storages() -> nlohmann::json {
 auto master_service(master_service_conf config) -> asio::awaitable<void> {
   ms_config = config;
   auto ex = co_await asio::this_coro::executor;
-  auto acceptor = common::acceptor{ex,
-                                   common::acceptor_config{
-                                       .ip = ms_config.ip,
-                                       .port = ms_config.port,
-                                       .h_timeout = ms_config.heart_timeout,
-                                       .h_interval = ms_config.heart_interval,
-                                   }};
+  auto acceptor = common::acceptor{
+      ex,
+      ms_config.ip,
+      ms_config.port,
+      ms_config.heart_timeout,
+      ms_config.heart_interval,
+  };
   auto &io = (asio::io_context &)ex.context();
   for (auto i = 0; i < ms_config.thread_count; ++i) {
     std::thread{[&io] {

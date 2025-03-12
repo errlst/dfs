@@ -14,10 +14,10 @@ auto storage_metrics() -> nlohmann::json;
  * @param json
  * @return asio::awaitable<void>
  */
-auto storage_service(const nlohmann::json &json) -> asio::awaitable<void>;
+auto storage_service() -> asio::awaitable<void>;
 
 /**
  * @brief 结束 storage 服务
  *
  */
-auto over_storage_service() -> void;
+auto quit_storage_service() -> void;

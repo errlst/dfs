@@ -161,7 +161,7 @@ private:
   std::map<uint64_t, std::any> m_datas;
 
   /* 响应 frame 缓冲 */
-  std::map<uint16_t, std::pair<std::shared_ptr<proto_frame>, std::shared_ptr<asio::steady_timer>>> m_response_frames;
+  std::map<uint16_t, std::pair<std::shared_ptr<proto_frame>, std::unique_ptr<asio::steady_timer>>> m_response_frames;
 
   /* 收到 request 后的回调 */
   std::function<asio::awaitable<void>(std::shared_ptr<proto_frame>, std::shared_ptr<connection>)> m_on_recv_request;

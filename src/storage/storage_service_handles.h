@@ -54,22 +54,6 @@ enum s_conn_data : uint64_t {
   storage_sync_upload_file_id,
 };
 
-inline struct sss_config_ {
-  uint32_t id;
-  uint32_t group_id;
-  std::string ip;
-  uint16_t port;
-  std::string master_ip;
-  uint16_t master_port;
-  uint16_t storage_magic;
-  uint32_t master_magic;
-  uint32_t sync_interval;
-  std::vector<std::string> hot_paths;
-  std::vector<std::string> cold_paths;
-  uint32_t heart_timeout;
-  uint32_t heart_interval;
-} sss_config;
-
 /************************************************************************************************************** */
 /************************************************************************************************************** */
 
@@ -77,7 +61,7 @@ inline struct sss_config_ {
  * @brief 初始化 store group
  *
  */
-auto init_store_group(const std::vector<std::string> &hot_paths, const std::vector<std::string> &cold_paths) -> void;
+auto init_store_group() -> void;
 
 /**
  * @brief 获取 hot store group

@@ -5,6 +5,7 @@
 #include <nlohmann/json.hpp>
 #include <string_view>
 
+namespace common {
 /**
  * @brief 获取路径的可用空间
  *
@@ -26,7 +27,6 @@ auto random_string(uint32_t len) -> std::string;
 auto htonll(uint64_t host_value) -> uint64_t;
 auto ntohll(uint64_t net_value) -> uint64_t;
 
-
 /**
  * @brief 通用读取配置文件
  *
@@ -45,6 +45,8 @@ auto init_base_path(std::string_view base_path) -> void;
  * @return 文件的绝对路径
  */
 auto iterate_normal_file(std::string_view path) -> std::generator<std::string>;
+
+} // namespace common
 
 /**
  * @brief 一些整数字面量常量

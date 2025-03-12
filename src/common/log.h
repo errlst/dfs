@@ -18,6 +18,7 @@
 #define LOG_WARN(fmt, ...) spdlog::default_logger()->log(spdlog::source_loc{__FILE__, __LINE__, __func__}, spdlog::level::warn, fmt, ##__VA_ARGS__)
 #define LOG_CRITICAL(fmt, ...) spdlog::default_logger()->log(spdlog::source_loc{__FILE__, __LINE__, __func__}, spdlog::level::critical, fmt, ##__VA_ARGS__)
 
+namespace common {
 enum class log_level {
   _, // 对齐 spdlog::level::level_enum
   debug,
@@ -34,12 +35,6 @@ enum class log_level {
  * @param daemon 如果不是守护进程，还会增加 stdout_color_sink_mt
  * @return auto
  */
-inline auto init_log(std::string_view base_path, bool daemon, log_level level) -> void {
-  auto logger = std::make_shared<spdlog::logger>("");
-  logger->sinks().push_back(std::make_shared<spdlog::sinks::daily_file_sink_mt>(std::format("{}/log/log.log", base_path), 0, 0, 1024));
-  if (!daemon) {
-    logger->sinks().push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
-  }
-  spdlog::set_default_logger(logger);
-  spdlog::set_level(static_cast<spdlog::level::level_enum>(level));
-}
+auto init_log(std::string_view base_path, bool daemon, log_level level = log_level::debug) -> void;
+
+} // namespace common

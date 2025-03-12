@@ -5,7 +5,7 @@
  * @brief 初始化信号处理程序
  *
  */
-auto init_signal() -> bool;
+auto init_storage_signal() -> bool;
 
 /**
  * @brief 处理信号
