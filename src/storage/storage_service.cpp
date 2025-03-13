@@ -122,6 +122,7 @@ static auto regist_to_master() -> asio::awaitable<void> {
       exit(-1);
     }
 
+    LOG_INFO("try connect to master {}:{}", storage_config.storage_service.master_ip, storage_config.storage_service.master_port);
     auto m_conn = co_await common::connection::connect_to(storage_config.storage_service.master_ip, storage_config.storage_service.master_port);
     if (m_conn) {
       connected_to_master(m_conn);

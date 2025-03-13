@@ -37,6 +37,12 @@ public:
   auto send_request(proto_frame frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<std::optional<uint16_t>>;
 
   /**
+   * @brief 发送请求，用于零拷贝优化
+   *
+   */
+  auto send_request_without_data(proto_frame frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<std::optional<uint16_t>>;
+
+  /**
    * @brief 发送响应，frame 只需要设置 sta 和 data_len。保证发送前后的 frame 一致。
    *
    */
@@ -113,6 +119,12 @@ public:
    *
    */
   auto close() -> asio::awaitable<void>;
+
+  /**
+   * @brief 获取 native socket
+   *
+   */
+  auto native_socket() -> int { return m_sock.native_handle(); }
 
   /* 如果成功，返回已经建立心跳的 connection，但没有 start */
 

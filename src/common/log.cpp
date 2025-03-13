@@ -6,6 +6,7 @@ auto common::init_log(std::string_view base_path, bool daemon, log_level level) 
   if (!daemon) {
     logger->sinks().push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
   }
+  logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] %^[%l] [%s:%#]%$ %v");
   spdlog::set_default_logger(logger);
   spdlog::set_level(static_cast<spdlog::level::level_enum>(level));
 }

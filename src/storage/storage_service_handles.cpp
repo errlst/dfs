@@ -163,6 +163,7 @@ auto ss_upload_sync_append_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool
 
     co_await conn->send_response(common::proto_frame{.stat = 0}, request_recved);
     new_hot_file(std::format("{}/{}", root_path, rel_path));
+    LOG_INFO("sync file {} suc from {}", rel_path, conn->address());
     co_return true;
   }
 

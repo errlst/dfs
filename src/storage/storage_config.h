@@ -45,6 +45,10 @@ inline struct storage_config_t {
   struct {
     uint32_t interval;
   } metrics_service;
+
+  struct {
+    uint32_t zero_copy_limit;
+  } performance;
 } storage_config;
 
 /**

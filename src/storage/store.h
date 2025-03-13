@@ -81,6 +81,12 @@ public:
   auto read_file(uint64_t file_id, char *dst, uint64_t size) -> std::optional<uint64_t>;
 
   /**
+   * @brief 关闭读取流
+   *
+   */
+  auto close_read_file(uint64_t file_id) -> bool;
+
+  /**
    * @brief 获取剩余可用空间，每隔一定调用次数，都会更新一次缓存
    *
    */
@@ -206,6 +212,8 @@ public:
   auto read_file(uint64_t file_id, uint64_t size) -> std::optional<std::vector<char>>;
 
   auto read_file(uint64_t file_id, char *dst, uint64_t size) -> std::optional<uint64_t>;
+
+  auto close_read_file(uint64_t file_id) -> bool { return m_stores[file_id % m_stores.size()]->close_read_file(file_id); }
 
   /**
    * @brief 最大空闲空间

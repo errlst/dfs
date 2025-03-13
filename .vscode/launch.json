@@ -9,7 +9,7 @@
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/test/bench_upload_file",
-      "args": ["0", "10000", "1024"],
+      "args": ["0", "1", "102400000"],
       "stopAtEntry": false,
       "cwd": "${fileDirname}",
       "environment": [],

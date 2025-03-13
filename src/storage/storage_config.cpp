@@ -46,5 +46,8 @@ auto init_storage_config(std::string_view config_path) -> void {
       .metrics_service = {
           .interval = json["metrics_service"]["interval"].get<uint32_t>(),
       },
-  };
+
+      .performance = {
+          .zero_copy_limit = json["performance"]["zero_copy_limit"].get<uint32_t>(),
+      }};
 }

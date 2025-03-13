@@ -67,5 +67,11 @@
   // monitor service
   "metrics_service": {
     "interval": 1000
+  },
+
+  // 调优选项
+  "performance": {
+    // 小文件零拷贝限制（单位为字节）
+    "zero_copy_limit": 1024000
   }
 }

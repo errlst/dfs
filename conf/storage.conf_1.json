@@ -3,13 +3,13 @@
   "common": {
     "base_path": "/home/errlst/dfs/build/base_path/storage_1",
     "log_level": 1,
-    "thread_count": 2
+    "thread_count": 1
   },
 
   // network configure
   "network": {
     "heart_timeout": 5000,
-    "heart_interval": 1000
+    "heart_interval": 1
   },
 
   // storage configure
@@ -67,5 +67,11 @@
   // monitor service
   "metrics_service": {
     "interval": 1000
+  },
+
+  // 调优选项
+  "performance": {
+    // 小文件零拷贝限制（单位为字节）
+    "zero_copy_limit": 1024000
   }
 }

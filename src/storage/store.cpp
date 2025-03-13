@@ -160,6 +160,15 @@ auto store_ctx::read_file(uint64_t file_id, char *dst, uint64_t size) -> std::op
   return ifs->readsome(dst, size);
 }
 
+auto store_ctx::close_read_file(uint64_t file_id) -> bool {
+  auto [ifs, _] = pop_ifstream(file_id);
+  if (!ifs) {
+    return false;
+  }
+  ifs->close();
+  return true;
+}
+
 auto store_ctx::free_space() -> uint64_t {
   static auto times = 0;
   if (++times % 10 == 0) {
@@ -282,6 +291,7 @@ auto store_ctx_group::open_read_file(std::string_view rel_path) -> std::optional
       return std::tuple{file_id, file_size.value(), std::format("{}/{}", s->root_path(), rel_path)};
     }
   }
+
   return std::nullopt;
 }
 
