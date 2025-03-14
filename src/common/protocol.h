@@ -53,9 +53,9 @@ ENUM_MACRO(
     ss_upload_sync_open,
 
     /**
-     * @brief 发送同步文件的数据
+     * @brief 发送同步文件的数据，发送请求时，data_len==0 或者 stat==255 均表示同步完成
      *
-     * @param request   { array data }
+     * @param request { array data }
      */
     ss_upload_sync_append,
 

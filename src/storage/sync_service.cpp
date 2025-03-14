@@ -19,6 +19,11 @@ auto sync_service() -> asio::awaitable<void> {
     sync_service_timer->expires_after(std::chrono::seconds{100});
     co_await sync_service_timer->async_wait(asio::as_tuple(asio::use_awaitable));
 
+    if (registed_storages().size() <= 0) {
+      LOG_WARN("no storage to sync file");
+      continue;
+    }
+
     auto btime = std::chrono::steady_clock::now();
     auto total_file = 0;
     for (const auto &rel_path : pop_not_synced_files()) {
@@ -29,7 +34,7 @@ auto sync_service() -> asio::awaitable<void> {
       }
       auto [file_id, file_size, abs_path] = res.value();
 
-      if (file_size <= storage_config.performance.zero_copy_limit) {
+      if (file_size <= storage_config.performance.zero_copy_limit * 1_MB) {
         co_await sync_file_zero_copy(rel_path, file_id, file_size, abs_path);
       } else {
         co_await sync_file_normal(rel_path, file_id, file_size, abs_path);
@@ -78,6 +83,8 @@ auto sync_file_normal(std::string_view rel_path, uint64_t file_id, uint64_t file
     co_return false;
   }
 
+  LOG_DEBUG("sync {} in normal way", abs_path);
+
   auto request_to_send = common::create_request_frame(common::proto_cmd::ss_upload_sync_append, 5_MB);
   while (true) {
     auto read_len = hot_store_group()->read_file(file_id, request_to_send->data, 5 * 1024 * 1024);
@@ -106,6 +113,8 @@ auto sync_file_zero_copy(std::string_view rel_path, uint64_t file_id, uint64_t f
   if (valid_storages.empty()) {
     co_return false;
   }
+
+  LOG_DEBUG("sync {} with zero copy", abs_path);
 
   /* 零拷贝优化 */
   auto file_fd = open(abs_path.data(), O_RDONLY);

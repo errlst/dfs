@@ -9,7 +9,7 @@
   // network configure
   "network": {
     "heart_timeout": 5000,
-    "heart_interval": 1
+    "heart_interval": 1000
   },
 
   // storage configure
@@ -71,7 +71,7 @@
 
   // 调优选项
   "performance": {
-    // 小文件零拷贝限制（单位为字节）
-    "zero_copy_limit": 1024000
+    // 小文件零拷贝限制（单位为 MB）
+    "zero_copy_limit": 5
   }
 }

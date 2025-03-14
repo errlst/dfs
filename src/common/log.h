@@ -26,6 +26,7 @@ enum class log_level {
   error,
   warn,
   critical,
+  invalid,
 };
 
 /**

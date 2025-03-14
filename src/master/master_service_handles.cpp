@@ -31,19 +31,19 @@ auto sm_regist_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
   auto request_data = proto::sm_regist_request{};
   if (!request_data.ParseFromArray(request_recved->data, request_recved->data_len)) {
     LOG_ERROR(std::format("failed to parse sm_regist_request"));
-    co_await conn->send_response(common::proto_frame{.stat = 1}, request_recved);
+    co_await conn->send_response(common::proto_frame{.stat = 1}, *request_recved);
     co_return false;
   }
 
   if (request_data.master_magic() != ms_config.master_magic) {
     LOG_ERROR(std::format("invalid master magic {}", request_data.master_magic()));
-    co_await conn->send_response(common::proto_frame{.stat = 2}, request_recved);
+    co_await conn->send_response(common::proto_frame{.stat = 2}, *request_recved);
     co_return false;
   }
 
   if (storage_exists(request_data.s_info().id())) {
     LOG_ERROR(std::format("storage {} has registed", request_data.s_info().id()));
-    co_await conn->send_response(common::proto_frame{.stat = 3}, request_recved);
+    co_await conn->send_response(common::proto_frame{.stat = 3}, *request_recved);
     co_return false;
   }
 
@@ -64,7 +64,7 @@ auto sm_regist_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
   auto response_to_send = (common::proto_frame *)malloc(sizeof(common::proto_frame) + response_data_to_send.ByteSizeLong());
   *response_to_send = {.data_len = (uint32_t)response_data_to_send.ByteSizeLong()};
   response_data_to_send.SerializeToArray(response_to_send->data, response_to_send->data_len);
-  auto ok = co_await conn->send_response(response_to_send, request_recved);
+  auto ok = co_await conn->send_response(response_to_send, *request_recved);
   free(response_to_send);
   if (!ok) {
     co_return false;
@@ -104,7 +104,7 @@ auto cm_fetch_one_storage_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>
   }
 
   if (!storage) {
-    co_await conn->send_response(common::proto_frame{.stat = 1}, request_recved);
+    co_await conn->send_response(common::proto_frame{.stat = 1}, *request_recved);
     LOG_ERROR(std::format("no valid storage for space {}", need_space));
     co_return false;
   }
@@ -117,7 +117,7 @@ auto cm_fetch_one_storage_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>
   auto response_to_send = (common::proto_frame *)malloc(sizeof(common::proto_frame) + response_data_to_send.ByteSizeLong());
   *response_to_send = common::proto_frame{.data_len = (uint32_t)response_data_to_send.ByteSizeLong()};
   response_data_to_send.SerializeToArray(response_to_send->data, response_to_send->data_len);
-  co_await conn->send_response(response_to_send, request_recved);
+  co_await conn->send_response(response_to_send, *request_recved);
   free(response_to_send);
   co_return true;
 }
@@ -125,7 +125,7 @@ auto cm_fetch_one_storage_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>
 auto cm_fetch_group_storages_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
   if (request_recved->data_len != sizeof(uint32_t)) {
     LOG_ERROR("cm_fetch_group_storages request data_len invalid");
-    co_await conn->send_response(common::proto_frame{.stat = 1}, request_recved);
+    co_await conn->send_response(common::proto_frame{.stat = 1}, *request_recved);
     co_return false;
   }
 
@@ -142,6 +142,6 @@ auto cm_fetch_group_storages_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bo
   auto response_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + response_data_to_send.ByteSizeLong()), [](auto p) { free(p); }};
   *response_to_send = {.data_len = (uint32_t)response_data_to_send.ByteSizeLong()};
   response_data_to_send.SerializeToArray(response_to_send->data, response_to_send->data_len);
-  co_await conn->send_response(response_to_send.get(), request_recved);
+  co_await conn->send_response(response_to_send.get(), *request_recved);
   co_return true;
 }

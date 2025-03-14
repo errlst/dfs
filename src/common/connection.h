@@ -8,6 +8,19 @@
 
 namespace common {
 
+/**
+ * @brief connection 使用同步的方式发送数据，异步的方式接收数据
+ *
+ * 在异步发送数据时，asio::asyc_write 内部会多次调用 asio::async_write_some，因此如果有多个协程同时进行异步发送，会导致数据错乱
+ *
+ * 有两种解决方案：
+ *
+ *      1. 异步 + 缓冲队列。但是对于当前协议格式，对于具有相同 payload 的 frame，也需要构造多个 frame（因为 frame 中包含了 id），且这种方式会导致发送的数据延迟增加。因此不考虑。
+ *
+ *          也可以尝试将 frame_header 和 payload 分开处理，但是这样会导致发送数据的复杂度增加，且不符合当前的设计。
+ *
+ *      2. 同步发送数据。
+ */
 class connection : public std::enable_shared_from_this<connection> {
   friend class acceptor;
 
@@ -46,8 +59,8 @@ public:
    * @brief 发送响应，frame 只需要设置 sta 和 data_len。保证发送前后的 frame 一致。
    *
    */
-  auto send_response(proto_frame *frame, std::shared_ptr<proto_frame> req_frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<bool>;
-  auto send_response(proto_frame frame, std::shared_ptr<proto_frame> req_frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<bool>;
+  auto send_response(proto_frame *frame, const proto_frame &req_frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<bool>;
+  auto send_response(proto_frame frame, const proto_frame &req_frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<bool>;
 
   /**
    * @brief 发送请求并等待响应
@@ -146,6 +159,13 @@ private:
    *
    */
   auto start_recv() -> asio::awaitable<void>;
+
+  /**
+   * @brief 发送帧
+   *
+   * @param frame 会将 frame_header 和 payload 一起发送，且发送前和发送后都会转换 frame_header 的字节序
+   */
+  auto send_frame(proto_frame *frame, std::source_location loc) -> asio::awaitable<bool>;
 
 private:
   asio::ip::tcp::socket m_sock;

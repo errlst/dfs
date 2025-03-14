@@ -1,6 +1,11 @@
 #include "log.h"
 
 auto common::init_log(std::string_view base_path, bool daemon, log_level level) -> void {
+  if (std::to_underlying(level) >= std::to_underlying(log_level::invalid)) {
+    LOG_CRITICAL("invalid log level");
+    exit(-1);
+  }
+
   auto logger = std::make_shared<spdlog::logger>("");
   logger->sinks().push_back(std::make_shared<spdlog::sinks::daily_file_sink_mt>(std::format("{}/log/log.log", base_path), 0, 0, 1024));
   if (!daemon) {

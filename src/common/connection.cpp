@@ -58,20 +58,12 @@ auto connection::send_request(proto_frame *frame, std::source_location loc) -> a
   frame->magic = FRAME_MAGIC;
   frame->id = m_request_frame_id++;
   frame->type = proto_type::request;
-  auto message_len = sizeof(proto_frame) + frame->data_len;
-  m_response_frames[frame->id] = {nullptr, std::make_unique<asio::steady_timer>(m_strand, std::chrono::days{365})}; // !!waiter 初始化放在 write 之前，防止收到了 response 但还没有初始化 waiter
-  trans_frame_to_net(frame);
-  LOG_DEBUG("send {} data", message_len);
-  auto [ec, n] = co_await asio::async_write(m_sock, asio::const_buffer(frame, message_len), asio::as_tuple(asio::use_awaitable));
-  trans_frame_to_host(frame);
-  if (n != message_len) {
-    LOG_ERROR("[{}:{}] send {} to {} failed, {}", loc.file_name(), loc.line(), proto_frame_to_string(*frame), address(), ec.message());
-    co_await close();
-    co_return std::nullopt;
-  }
+  m_response_frames[frame->id] = {nullptr, std::make_unique<asio::steady_timer>(m_strand, std::chrono::years{1})}; // !!waiter 初始化放在 write 之前，防止收到了 response 但还没有初始化 waiter
 
-  LOG_DEBUG("[{}:{}] send {} to {}", loc.file_name(), loc.line(), proto_frame_to_string(*frame), address());
-  co_return frame->id;
+  if (co_await send_frame(frame, loc)) {
+    co_return frame->id;
+  }
+  co_return std::nullopt;
 }
 
 auto connection::send_request(proto_frame frame, std::source_location loc) -> asio::awaitable<std::optional<uint16_t>> {
@@ -89,10 +81,13 @@ auto connection::send_request_without_data(proto_frame frame, std::source_locati
   frame.type = proto_type::request;
   m_response_frames[frame.id] = {nullptr, std::make_unique<asio::steady_timer>(m_strand, std::chrono::days{365})};
   trans_frame_to_net(&frame);
-  auto [ec, n] = co_await asio::async_write(m_sock, asio::const_buffer(&frame, sizeof(frame)), asio::as_tuple(asio::use_awaitable));
+
+  auto ec = asio::error_code{};
+  auto n = asio::write(m_sock, asio::const_buffer(&frame, sizeof(proto_frame)), ec);
   trans_frame_to_host(&frame);
-  if (n != sizeof(frame)) {
-    LOG_ERROR("[{}:{}] send {} to {} failed", loc.file_name(), loc.line(), proto_frame_to_string(frame), address());
+
+  if (ec || n != sizeof(proto_frame)) {
+    LOG_ERROR("[{}:{}] send {} to {} failed, {}", loc.file_name(), loc.line(), proto_frame_to_string(frame), address(), ec.message());
     co_await close();
     co_return std::nullopt;
   }
@@ -101,31 +96,20 @@ auto connection::send_request_without_data(proto_frame frame, std::source_locati
   co_return frame.id;
 }
 
-auto connection::send_response(proto_frame *frame, std::shared_ptr<proto_frame> req_frame, std::source_location loc) -> asio::awaitable<bool> {
+auto connection::send_response(proto_frame *frame, const proto_frame &req_frame, std::source_location loc) -> asio::awaitable<bool> {
   co_await asio::post(m_strand, asio::use_awaitable);
   if (m_closed) {
     co_return false;
   }
 
-  frame->id = req_frame->id;
+  frame->id = req_frame.id;
   frame->type = proto_type::response;
-  frame->cmd = req_frame->cmd;
-  auto message_len = sizeof(proto_frame) + frame->data_len;
-  LOG_DEBUG("send {} data, {}", message_len, proto_frame_to_string(*frame));
-  trans_frame_to_net(frame);
-  auto [ec, n] = co_await asio::async_write(m_sock, asio::const_buffer(frame, message_len), asio::as_tuple(asio::use_awaitable));
-  trans_frame_to_host(frame);
-  if (n != message_len) {
-    LOG_ERROR("[{}:{}] send {} to {} failed", loc.file_name(), loc.line(), proto_frame_to_string(*frame), address());
-    co_await close();
-    co_return false;
-  }
+  frame->cmd = req_frame.cmd;
 
-  LOG_DEBUG("[{}:{}] send {} to {}", loc.file_name(), loc.line(), proto_frame_to_string(*frame), address());
-  co_return true;
+  co_return co_await send_frame(frame, loc);
 }
 
-auto connection::send_response(proto_frame frame, std::shared_ptr<proto_frame> req_frame, std::source_location loc) -> asio::awaitable<bool> {
+auto connection::send_response(proto_frame frame, const proto_frame &req_frame, std::source_location loc) -> asio::awaitable<bool> {
   co_return co_await send_response(&frame, req_frame, loc);
 }
 
@@ -228,7 +212,6 @@ auto connection::start_recv() -> asio::awaitable<void> {
       co_return;
     }
     trans_frame_to_host(&frame_header);
-    LOG_DEBUG("read {} data, {}", n, proto_frame_to_string(frame_header));
 
     /* 校验 magic */
     if (frame_header.magic != FRAME_MAGIC || (frame_header.type != proto_type::request && frame_header.type != proto_type::response)) {
@@ -255,7 +238,6 @@ auto connection::start_recv() -> asio::awaitable<void> {
       co_await close();
       co_return;
     }
-    LOG_DEBUG("read {} data", n);
     *frame = frame_header;
 
     LOG_DEBUG("recv {} from {}", proto_frame_to_string(*frame), address());
@@ -273,4 +255,22 @@ auto connection::start_recv() -> asio::awaitable<void> {
     }
   }
 }
+
+auto connection::send_frame(proto_frame *frame, std::source_location loc) -> asio::awaitable<bool> {
+  auto message_len = sizeof(proto_frame) + frame->data_len;
+  trans_frame_to_net(frame);
+  auto ec = asio::error_code{};
+  auto n = asio::write(m_sock, asio::const_buffer(frame, message_len), ec);
+  trans_frame_to_host(frame);
+
+  if (ec || n != message_len) {
+    LOG_ERROR("[{}:{}] send {} to {} failed, {}", loc.file_name(), loc.line(), proto_frame_to_string(*frame), address(), ec.message());
+    co_await close();
+    co_return false;
+  }
+
+  LOG_DEBUG("[{}:{}] send {} to {} suc", loc.file_name(), loc.line(), proto_frame_to_string(*frame), address());
+  co_return true;
+}
+
 } // namespace common
