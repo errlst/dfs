@@ -64,7 +64,7 @@ auto main(int argc, char *argv[]) -> int {
   asio::co_spawn(io, metrics::metrics_service(storage_config.common.base_path), asio::detached);
 
   auto thread_count = storage_config.common.thread_count;
-  for (auto i = 0; i < thread_count - 1; ++i) {
+  for (auto i = 0u; i < thread_count - 1; ++i) {
     std::thread{[&] {
       io.run();
     }}.detach();

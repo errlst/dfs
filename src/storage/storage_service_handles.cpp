@@ -1,8 +1,9 @@
-#include "./storage_service_handles.h"
-#include "../common/metrics_service.h"
-#include "../common/util.h"
-#include "../proto/proto.pb.h"
+#include "storage_service_handles.h"
+#include "common/log.h"
+#include "common/metrics_service.h"
+#include "common/util.h"
 #include "migrate_service.h"
+#include "proto/proto.pb.h"
 #include "storage_config.h"
 
 static auto hot_store_group_ = std::shared_ptr<store_ctx_group>{};
@@ -151,7 +152,7 @@ auto ss_upload_sync_append_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool
   }
 
   /* 结束同步 */
-  if (request_recved->data_len == 0) {
+  if (request_recved->data_len == 0 || request_recved->stat == 255) {
     conn->del_data(s_conn_data::storage_sync_upload_file_id);
 
     auto res = hot_store_group()->close_write_file(file_id.value());

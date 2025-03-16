@@ -1,6 +1,7 @@
 #include "./master_service_handles.h"
 #include "../common/util.h"
 #include "../proto/proto.pb.h"
+#include "common/log.h"
 
 /**
  * @brief 定期获取 storage 的最大可用空间

@@ -13,6 +13,7 @@
 #include "../src/common/protocol.h"
 #include "../src/common/util.h"
 #include "../src/proto/proto.pb.h"
+#include "common/log.h"
 #include <print>
 
 auto show_usage() {
@@ -21,6 +22,7 @@ auto show_usage() {
 
 auto io = asio::io_context{};
 auto master_conn = std::shared_ptr<common::connection>{};
+auto file_to_write = std::string{};
 
 auto upload_file(uint64_t file_size) -> asio::awaitable<void> {
   auto request_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + sizeof(uint64_t)), free};
@@ -60,7 +62,6 @@ auto upload_file(uint64_t file_size) -> asio::awaitable<void> {
     co_return;
   }
 
-  auto file_to_write = common::random_string(file_size);
   auto idx = 0uz;
   request_to_send = common::create_request_frame(common::proto_cmd::cs_upload_append, 1_MB);
   while (idx < file_size) {
@@ -110,6 +111,8 @@ auto main(int argc, char *argv[]) -> int {
   auto fork_times = std::stoll(argv[1]) - 1;
   auto times = std::stoll(argv[2]);
   auto file_size = std::stoll(argv[3]);
+
+  file_to_write = common::random_string(file_size);
 
   for (auto i = 0; i < fork_times; ++i) {
     if (0 == fork()) {

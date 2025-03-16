@@ -3,6 +3,7 @@
 #include "../common/util.h"
 #include "../proto/proto.pb.h"
 #include <fstream>
+#include "common/log.h"
 
 auto master_conn = std::shared_ptr<common::connection>{};
 

@@ -226,6 +226,7 @@ auto connection::start_recv() -> asio::awaitable<void> {
     }
 
     /* 读取 payload */
+    LOG_DEBUG("recv frame header {}", proto_frame_to_string(frame_header));
     auto frame = std::shared_ptr<proto_frame>{(proto_frame *)malloc(sizeof(proto_frame) + frame_header.data_len), free};
     if (frame == nullptr) {
       LOG_ERROR(std::format("alloc memory failed, requested size is {}MB", frame_header.data_len / 1024 / 1024));

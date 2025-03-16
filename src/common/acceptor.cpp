@@ -4,7 +4,7 @@
 namespace common {
 
 acceptor::acceptor(asio::any_io_executor io, const std::string &ip, uint16_t port,
-                   uint32_t heart_timeout, uint32_t heart_interval)
+                   uint32_t heart_timeout, uint32_t heart_interval) try
     : m_acceptor{io}, m_heart_timeout{heart_timeout}, m_heart_interval{heart_interval} {
   auto ep = asio::ip::tcp::endpoint(asio::ip::make_address(ip), port);
   m_acceptor.open(ep.protocol());
@@ -16,6 +16,9 @@ acceptor::acceptor(asio::any_io_executor io, const std::string &ip, uint16_t por
     exit(-1);
   }
   LOG_INFO(std::format("accept at {}:{}", ip, port));
+} catch (const std::runtime_error &ec) {
+  LOG_CRITICAL("acceptor init failed, {}", ec.what());
+  exit(-1);
 }
 
 auto acceptor::accept() -> asio::awaitable<std::shared_ptr<connection>> {

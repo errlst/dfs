@@ -10,7 +10,7 @@
   inline const char *name##_strings[] = {BOOST_PP_SEQ_FOR_EACH_I(PROCESS_ONE_ELEMENT, % %, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))}; \
   template <typename T>                                                                                                             \
   constexpr const char *name##_to_string(T value) {                                                                                 \
-    int v = static_cast<int>(value);                                                                                                \
+    auto v = static_cast<uint32_t>(value);                                                                                               \
     if (v < sizeof(name##_strings) / sizeof(char *)) {                                                                              \
       return name##_strings[v];                                                                                                     \
     }                                                                                                                               \

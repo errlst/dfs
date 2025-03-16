@@ -1,3 +1,5 @@
+add_includedirs("$(projectdir)/src")
+
 target("client")
     set_kind("binary")
     add_files("*.cpp")

@@ -1,4 +1,4 @@
-add_requires("nlohmann_json")
+add_includedirs("$(projectdir)/src")
 
 target("master")
     set_kind("binary")

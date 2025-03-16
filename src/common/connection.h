@@ -1,6 +1,5 @@
 #pragma once
-#include "../common/log.h"
-#include "./protocol.h"
+#include "protocol.h"
 #include <any>
 #include <asio.hpp>
 #include <map>

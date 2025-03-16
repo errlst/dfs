@@ -1,28 +1,38 @@
 [
 {
   "directory": "/home/errlst/dfs",
-  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/errlst/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/master/linux/x86_64/debug/src/master/master_service.cpp.o", "src/master/master_service.cpp"],
-  "file": "src/master/master_service.cpp"
+  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-I/home/errlst/dfs/src", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/errlst/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/test_master_concurrenty/linux/x86_64/debug/test/test_master_concurrenty.cpp.o", "test/test_master_concurrenty.cpp"],
+  "file": "test/test_master_concurrenty.cpp"
 },
 {
   "directory": "/home/errlst/dfs",
-  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/errlst/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/master/linux/x86_64/debug/src/master/master_service_handles.cpp.o", "src/master/master_service_handles.cpp"],
-  "file": "src/master/master_service_handles.cpp"
-},
-{
-  "directory": "/home/errlst/dfs",
-  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/errlst/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/master/linux/x86_64/debug/src/master/main.cpp.o", "src/master/main.cpp"],
-  "file": "src/master/main.cpp"
-},
-{
-  "directory": "/home/errlst/dfs",
-  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/errlst/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/client/linux/x86_64/debug/src/client/main.cpp.o", "src/client/main.cpp"],
+  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-I/home/errlst/dfs/src", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/errlst/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/client/linux/x86_64/debug/src/client/main.cpp.o", "src/client/main.cpp"],
   "file": "src/client/main.cpp"
 },
 {
   "directory": "/home/errlst/dfs",
-  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-I/home/errlst/dfs/src", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/errlst/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/storage/linux/x86_64/debug/src/storage/signal.cpp.o", "src/storage/signal.cpp"],
-  "file": "src/storage/signal.cpp"
+  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/errlst/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/errlst/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-Wall", "-o", "build/.objs/proto/linux/x86_64/debug/src/proto/proto.pb.cc.o", "src/proto/proto.pb.cc"],
+  "file": "src/proto/proto.pb.cc"
+},
+{
+  "directory": "/home/errlst/dfs",
+  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-I/home/errlst/dfs/src", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/errlst/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/benchmark_stat/linux/x86_64/debug/test/benchmark_stat.cpp.o", "test/benchmark_stat.cpp"],
+  "file": "test/benchmark_stat.cpp"
+},
+{
+  "directory": "/home/errlst/dfs",
+  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-I/home/errlst/dfs/src", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/errlst/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/storage/linux/x86_64/debug/src/storage/storage_config.cpp.o", "src/storage/storage_config.cpp"],
+  "file": "src/storage/storage_config.cpp"
+},
+{
+  "directory": "/home/errlst/dfs",
+  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-I/home/errlst/dfs/src", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/errlst/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/storage/linux/x86_64/debug/src/storage/storage_signal.cpp.o", "src/storage/storage_signal.cpp"],
+  "file": "src/storage/storage_signal.cpp"
+},
+{
+  "directory": "/home/errlst/dfs",
+  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-I/home/errlst/dfs/src", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/errlst/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/storage/linux/x86_64/debug/src/storage/sync_service.cpp.o", "src/storage/sync_service.cpp"],
+  "file": "src/storage/sync_service.cpp"
 },
 {
   "directory": "/home/errlst/dfs",
@@ -51,33 +61,23 @@
 },
 {
   "directory": "/home/errlst/dfs",
-  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/errlst/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/errlst/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-Wall", "-o", "build/.objs/proto/linux/x86_64/debug/src/proto/proto.pb.cc.o", "src/proto/proto.pb.cc"],
-  "file": "src/proto/proto.pb.cc"
-},
-{
-  "directory": "/home/errlst/dfs",
-  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/errlst/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/clock_now_spend/linux/x86_64/debug/test/clock_now_spend.cpp.o", "test/clock_now_spend.cpp"],
-  "file": "test/clock_now_spend.cpp"
-},
-{
-  "directory": "/home/errlst/dfs",
-  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/errlst/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/bench_upload_file/linux/x86_64/debug/test/bench_upload_file.cpp.o", "test/bench_upload_file.cpp"],
+  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-I/home/errlst/dfs/src", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/errlst/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/bench_upload_file/linux/x86_64/debug/test/bench_upload_file.cpp.o", "test/bench_upload_file.cpp"],
   "file": "test/bench_upload_file.cpp"
 },
 {
   "directory": "/home/errlst/dfs",
-  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/errlst/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/benchmark_stat/linux/x86_64/debug/test/benchmark_stat.cpp.o", "test/benchmark_stat.cpp"],
-  "file": "test/benchmark_stat.cpp"
+  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-I/home/errlst/dfs/src", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/errlst/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/test_asio_async/linux/x86_64/debug/test/test_asio_async.cpp.o", "test/test_asio_async.cpp"],
+  "file": "test/test_asio_async.cpp"
 },
 {
   "directory": "/home/errlst/dfs",
-  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/errlst/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/test_reflect_enum/linux/x86_64/debug/test/test_reflect_enum.cpp.o", "test/test_reflect_enum.cpp"],
-  "file": "test/test_reflect_enum.cpp"
+  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-I/home/errlst/dfs/src", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/errlst/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/clock_now_spend/linux/x86_64/debug/test/clock_now_spend.cpp.o", "test/clock_now_spend.cpp"],
+  "file": "test/clock_now_spend.cpp"
 },
 {
   "directory": "/home/errlst/dfs",
-  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/errlst/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/test_master_concurrenty/linux/x86_64/debug/test/test_master_concurrenty.cpp.o", "test/test_master_concurrenty.cpp"],
-  "file": "test/test_master_concurrenty.cpp"
+  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/common/linux/x86_64/debug/src/common/log.cpp.o", "src/common/log.cpp"],
+  "file": "src/common/log.cpp"
 },
 {
   "directory": "/home/errlst/dfs",
@@ -101,6 +101,36 @@
 },
 {
   "directory": "/home/errlst/dfs",
+  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/common/linux/x86_64/debug/src/common/pid_file.cpp.o", "src/common/pid_file.cpp"],
+  "file": "src/common/pid_file.cpp"
+},
+{
+  "directory": "/home/errlst/dfs",
   "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/common/linux/x86_64/debug/src/common/acceptor.cpp.o", "src/common/acceptor.cpp"],
   "file": "src/common/acceptor.cpp"
+},
+{
+  "directory": "/home/errlst/dfs",
+  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/common/linux/x86_64/debug/src/common/signals.cpp.o", "src/common/signals.cpp"],
+  "file": "src/common/signals.cpp"
+},
+{
+  "directory": "/home/errlst/dfs",
+  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-I/home/errlst/dfs/src", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/errlst/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/test_reflect_enum/linux/x86_64/debug/test/test_reflect_enum.cpp.o", "test/test_reflect_enum.cpp"],
+  "file": "test/test_reflect_enum.cpp"
+},
+{
+  "directory": "/home/errlst/dfs",
+  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-I/home/errlst/dfs/src", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/errlst/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/master/linux/x86_64/debug/src/master/master_service.cpp.o", "src/master/master_service.cpp"],
+  "file": "src/master/master_service.cpp"
+},
+{
+  "directory": "/home/errlst/dfs",
+  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-I/home/errlst/dfs/src", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/errlst/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/master/linux/x86_64/debug/src/master/master_service_handles.cpp.o", "src/master/master_service_handles.cpp"],
+  "file": "src/master/master_service_handles.cpp"
+},
+{
+  "directory": "/home/errlst/dfs",
+  "arguments": ["/usr/bin/gcc-14", "-c", "-m64", "-g", "-O0", "-std=c++23", "-I/home/errlst/dfs/src", "-isystem", "/home/errlst/.xmake/packages/a/asio/1.32.0/534f961af8274a53a3ee065d110c24f3/include", "-isystem", "/home/errlst/.xmake/packages/n/nlohmann_json/v3.11.3/b4e38c4916bd42c39063f144e29030df/include", "-isystem", "/home/errlst/.xmake/packages/p/protobuf-cpp/29.2/0c1107242e4f4d52bd9a8f4ef3182373/include", "-isystem", "/home/errlst/.xmake/packages/a/abseil/20250127.0/d9136bb931bc4120a994f1845e071b83/include", "-isystem", "/home/errlst/.xmake/packages/s/spdlog/v1.15.1/badc8cc2a6f04a15b8ca07d6b89772a7/include", "-isystem", "/home/errlst/.xmake/packages/b/boost/1.87.0/573a0edfc02640548ca9ca6b15677ec0/include", "-Wall", "-o", "build/.objs/master/linux/x86_64/debug/src/master/main.cpp.o", "src/master/main.cpp"],
+  "file": "src/master/main.cpp"
 }]

@@ -1,4 +1,5 @@
 #include "common/acceptor.h"
+#include "common/log.h"
 #include "common/metrics_service.h"
 #include "common/pid_file.h"
 #include "migrate_service.h"

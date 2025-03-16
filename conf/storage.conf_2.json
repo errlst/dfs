@@ -2,7 +2,7 @@
   // base configure
   "common": {
     "base_path": "/home/errlst/dfs/build/base_path/storage_2",
-    "log_level": 2,
+    "log_level": 1,
     "thread_count": 3
   },
 

@@ -1,3 +1,6 @@
+add_includedirs("$(projectdir)/src")
+
+
 target("all")
     set_kind("phony")
     on_run(function ()
@@ -10,7 +13,7 @@ target("all")
     end)
     add_cflags("-pg")
     add_cxxflags("-pg")
-    
+
 
 for _, file in ipairs(os.files("*.cpp")) do
     local target_name = path.basename(file)

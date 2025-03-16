@@ -1,4 +1,5 @@
 #include "sync_service.h"
+#include "common/log.h"
 #include "common/util.h"
 #include "storage_config.h"
 #include "storage_service_handles.h"
@@ -83,7 +84,7 @@ auto sync_file_normal(std::string_view rel_path, uint64_t file_id, uint64_t file
     co_return false;
   }
 
-  LOG_DEBUG("sync {} in normal way", abs_path);
+  LOG_INFO("sync {} in normal way", abs_path);
 
   auto request_to_send = common::create_request_frame(common::proto_cmd::ss_upload_sync_append, 5_MB);
   while (true) {
@@ -114,7 +115,7 @@ auto sync_file_zero_copy(std::string_view rel_path, uint64_t file_id, uint64_t f
     co_return false;
   }
 
-  LOG_DEBUG("sync {} with zero copy", abs_path);
+  LOG_INFO("sync {} with zero copy", abs_path);
 
   /* 零拷贝优化 */
   auto file_fd = open(abs_path.data(), O_RDONLY);
@@ -125,22 +126,34 @@ auto sync_file_zero_copy(std::string_view rel_path, uint64_t file_id, uint64_t f
   }
 
   for (auto storage : valid_storages) {
-    auto id = co_await storage->send_request_without_data(common::proto_frame{.cmd = (uint16_t)common::proto_cmd::ss_upload_sync_append, .data_len = (uint32_t)file_size});
-    if (-1 == sendfile(storage->native_socket(), file_fd, nullptr, file_size)) {
-      LOG_ERROR("send file {} failed, {}", abs_path, strerror(errno));
-      errno = 0;
-      break;
+    auto id = co_await storage->send_request_without_data(common::proto_frame{.cmd = (uint16_t)common::proto_cmd::ss_upload_sync_append, .stat = 255, .data_len = (uint32_t)file_size});
+
+    auto rest_to_send = file_size;
+    auto offset = off_t{0};
+    while (rest_to_send > 0) {
+      auto n = sendfile(storage->native_socket(), file_fd, &offset, rest_to_send);
+      if (-1 == n) {
+        if (errno == EAGAIN || errno == EINTR) {
+          LOG_DEBUG("send file retry");
+          continue;
+        }
+
+        LOG_ERROR("send file {} failed, {}", abs_path, strerror(errno));
+        errno = 0;
+        break;
+      }
+
+      rest_to_send -= n;
+      LOG_DEBUG("send {} bytes, rest to send {} bytes", n, rest_to_send);
+    }
+
+    if (rest_to_send != 0) {
+      continue;
     }
 
     auto response_recved = co_await storage->recv_response(id.value());
     if (!response_recved || response_recved->stat != 0) {
       LOG_ERROR("sync file {} append failed, {}", abs_path, response_recved ? response_recved->stat : -1);
-      continue;
-    }
-
-    response_recved = co_await storage->send_request_and_wait_response(common::proto_frame{.cmd = (uint16_t)common::proto_cmd::ss_upload_sync_append});
-    if (!response_recved || response_recved->stat != 0) {
-      LOG_ERROR("sync file {} finish failed, {}", abs_path, response_recved ? response_recved->stat : -1);
       continue;
     }
   }
