@@ -1,18 +1,47 @@
-#include <boost/preprocessor.hpp>
 #include <iostream>
+#include <print>
+#include <utility>
 
-#define PROCESS_ONE_ELEMENT(r, unused, idx, elem) \
-  BOOST_PP_COMMA_IF(idx)                          \
-  BOOST_PP_STRINGIZE(elem)
+template <auto value>
+constexpr auto enum_name() {
+  auto name = std::string_view{__PRETTY_FUNCTION__};
+  auto start = name.find('=') + 2;
+  auto end = name.size() - 1;
+  name = std::string_view{name.data() + start, end - start};
+  start = name.rfind("::");
+  return start == std::string_view::npos ? name : std::string_view{name.data() + start + 2, name.size() - start - 2};
+}
 
-#define ENUM_MACRO(name, ...)                                                                                               \
-  enum class name { __VA_ARGS__ };                                                                                          \
-  const char *name##Strings[] = {BOOST_PP_SEQ_FOR_EACH_I(PROCESS_ONE_ELEMENT, % %, BOOST_PP_VARIADIC_TO_SEQ(__VA_ARGS__))}; \
-  template <typename T>                                                                                                     \
-  constexpr const char *name##ToString(T value) { return name##Strings[static_cast<int>(value)]; }
+template <typename Enum>
+  requires std::is_enum_v<Enum>
+constexpr auto enum_name(Enum value) -> std::string_view {
+  constexpr static auto names = []<std::size_t... Is>(std::index_sequence<Is...>) {
+    return std::array<std::string_view, std::to_underlying(Enum::sentinel)>{
+        enum_name<static_cast<Enum>(Is)>()...};
+  }(std::make_index_sequence<std::to_underlying(Enum::sentinel)>{});
 
-ENUM_MACRO(Esper, Unu, Du, Tri, Kvar, Kvin, Ses, Sep, Ok, Naux, Dek);
+  if (value < Enum::sentinel)
+    return names[static_cast<std::size_t>(value)];
+  else
+    return "unknown";
+}
 
-int main() {
-  std::cout << EsperToString(Esper::Kvin) << std::endl;
+enum class color {
+  red,
+  blue,
+  green,
+  sentinel,
+};
+
+auto main() -> int {
+  auto c = color::red;
+  std::println("{}", enum_name(c));
+
+  c = color::sentinel;
+  std::println("{}", enum_name(c));
+
+  c = static_cast<color>(3);
+  std::println("{}", enum_name(c));
+
+  return 0;
 }

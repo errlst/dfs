@@ -57,7 +57,7 @@ auto connection::send_request(proto_frame *frame, std::source_location loc) -> a
 
   frame->magic = FRAME_MAGIC;
   frame->id = m_request_frame_id++;
-  frame->type = proto_type::request;
+  frame->type = frame_type::request;
   m_response_frames[frame->id] = {nullptr, std::make_unique<asio::steady_timer>(m_strand, std::chrono::years{1})}; // !!waiter 初始化放在 write 之前，防止收到了 response 但还没有初始化 waiter
 
   if (co_await send_frame(frame, loc)) {
@@ -78,7 +78,7 @@ auto connection::send_request_without_data(proto_frame frame, std::source_locati
 
   frame.magic = FRAME_MAGIC;
   frame.id = m_request_frame_id++;
-  frame.type = proto_type::request;
+  frame.type = frame_type::request;
   m_response_frames[frame.id] = {nullptr, std::make_unique<asio::steady_timer>(m_strand, std::chrono::days{365})};
   trans_frame_to_net(&frame);
 
@@ -103,7 +103,7 @@ auto connection::send_response(proto_frame *frame, const proto_frame &req_frame,
   }
 
   frame->id = req_frame.id;
-  frame->type = proto_type::response;
+  frame->type = frame_type::response;
   frame->cmd = req_frame.cmd;
 
   co_return co_await send_frame(frame, loc);
@@ -156,13 +156,13 @@ auto connection::connect_to(std::string_view ip, uint16_t port) -> asio::awaitab
 
   auto req_header = (proto_frame *)request_recved;
   trans_frame_to_host(req_header);
-  if (req_header->magic != FRAME_MAGIC || req_header->cmd != (uint16_t)proto_cmd::xx_heart_establish) {
+  if (req_header->magic != FRAME_MAGIC || req_header->cmd != proto_cmd::xx_heart_establish) {
     LOG_ERROR(std::format("recv establish heart failed, invalid frame"));
     sock.close();
     co_return nullptr;
   }
 
-  auto res_header = proto_frame{.cmd = (uint16_t)proto_cmd::xx_heart_establish};
+  auto res_header = proto_frame{.cmd = proto_cmd::xx_heart_establish};
   trans_frame_to_host(&res_header);
   std::tie(ec, n) = co_await asio::async_write(sock, asio::const_buffer(&res_header, sizeof(res_header)), asio::as_tuple(asio::use_awaitable));
   if (n != sizeof(proto_frame)) {
@@ -179,7 +179,7 @@ auto connection::connect_to(std::string_view ip, uint16_t port) -> asio::awaitab
 }
 
 auto connection::start_heart() -> asio::awaitable<void> {
-  auto frame = proto_frame{.cmd = (uint8_t)proto_cmd::xx_heart_ping};
+  auto frame = proto_frame{.cmd = proto_cmd::xx_heart_ping};
   trans_frame_to_net(&frame);
   while (!m_closed) {
     m_heat_timer->expires_after(std::chrono::milliseconds{m_heart_interval});
@@ -214,14 +214,14 @@ auto connection::start_recv() -> asio::awaitable<void> {
     trans_frame_to_host(&frame_header);
 
     /* 校验 magic */
-    if (frame_header.magic != FRAME_MAGIC || (frame_header.type != proto_type::request && frame_header.type != proto_type::response)) {
+    if (frame_header.magic != FRAME_MAGIC || (frame_header.type != frame_type::request && frame_header.type != frame_type::response)) {
       LOG_ERROR(std::format("recv invalid magic {:#x}", frame_header.magic));
       co_await close();
       co_return;
     }
 
     // /* 忽略 heartbeat */
-    if (frame_header.cmd == (uint16_t)proto_cmd::xx_heart_ping) {
+    if (frame_header.cmd == proto_cmd::xx_heart_ping) {
       continue;
     }
 
@@ -242,9 +242,9 @@ auto connection::start_recv() -> asio::awaitable<void> {
     *frame = frame_header;
 
     LOG_DEBUG("recv {} from {}", proto_frame_to_string(*frame), address());
-    if (frame->type == proto_type::request) {
+    if (frame->type == frame_type::request) {
       asio::co_spawn(m_strand, m_on_recv_request(frame, shared_from_this()), asio::detached);
-    } else if (frame->type == proto_type::response) {
+    } else if (frame->type == frame_type::response) {
       auto &[res_frame, waiter] = m_response_frames[frame->id];
       res_frame = frame;
       if (waiter != nullptr) {

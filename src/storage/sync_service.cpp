@@ -126,7 +126,7 @@ auto sync_file_zero_copy(std::string_view rel_path, uint64_t file_id, uint64_t f
   }
 
   for (auto storage : valid_storages) {
-    auto id = co_await storage->send_request_without_data(common::proto_frame{.cmd = (uint16_t)common::proto_cmd::ss_upload_sync_append, .stat = 255, .data_len = (uint32_t)file_size});
+    auto id = co_await storage->send_request_without_data(common::proto_frame{.cmd = common::proto_cmd::ss_upload_sync_append, .stat = 255, .data_len = (uint32_t)file_size});
 
     auto rest_to_send = file_size;
     auto offset = off_t{0};

@@ -7,7 +7,7 @@
 #include "storage_config.h"
 #include "sync_service.h"
 
-static auto request_handle_for_master = std::map<uint16_t, request_handle>{
+static auto request_handle_for_master = std::map<common::proto_cmd, request_handle>{
     {common::proto_cmd::ms_get_max_free_space, ms_get_max_free_space_handle},
     {common::proto_cmd::ms_get_metrics, ms_get_metrics_handle},
 };
@@ -26,7 +26,7 @@ static auto master_disconnect(std::shared_ptr<common::connection> conn) -> asio:
   co_return;
 }
 
-static auto request_handle_for_storage = std::map<uint16_t, request_handle>{
+static auto request_handle_for_storage = std::map<common::proto_cmd, request_handle>{
     {common::proto_cmd::ss_upload_sync_open, ss_upload_sync_open_handle},
     {common::proto_cmd::ss_upload_sync_append, ss_upload_sync_append_handle},
 };
@@ -46,7 +46,7 @@ static auto storage_disconnect(std::shared_ptr<common::connection> conn) -> asio
   co_return;
 }
 
-static auto request_handle_for_client = std::map<uint16_t, request_handle>{
+static auto request_handle_for_client = std::map<common::proto_cmd, request_handle>{
     {common::proto_cmd::ss_regist, ss_regist_handle},
     {common::proto_cmd::cs_upload_open, cs_upload_open_handle},
     {common::proto_cmd::cs_upload_append, cs_upload_append_handle},
@@ -175,7 +175,7 @@ static auto regist_to_master() -> asio::awaitable<void> {
     request_data_to_send.set_master_magic(storage_config.storage_service.master_magic);
     request_data_to_send.set_storage_magic(s_info.magic());
 
-    auto request_to_send = common::create_request_frame(common::ss_regist, request_data_to_send.ByteSizeLong());
+    auto request_to_send = common::create_request_frame(common::proto_cmd::ss_regist, request_data_to_send.ByteSizeLong());
     request_data_to_send.SerializeToArray(request_to_send->data, request_to_send->data_len);
     auto response_recved = co_await s_conn->send_request_and_wait_response(request_to_send.get());
     if (!response_recved || response_recved->stat != 0) {

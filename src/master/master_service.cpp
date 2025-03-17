@@ -3,7 +3,7 @@
 #include "../common/log.h"
 #include "./master_service_handles.h"
 
-static auto request_handles_for_client = std::map<uint16_t, request_handle>{
+static auto request_handles_for_client = std::map<common::proto_cmd, request_handle>{
     {common::proto_cmd::sm_regist, sm_regist_handle},
     {common::proto_cmd::cm_fetch_one_storage, cm_fetch_one_storage_handle},
     {common::proto_cmd::cm_fetch_group_storages, cm_fetch_group_storages_handle},
@@ -14,7 +14,7 @@ static auto request_from_client(std::shared_ptr<common::proto_frame> request, st
   if (it != request_handles_for_client.end()) {
     co_return co_await it->second(request, conn);
   }
-  LOG_ERROR(std::format("unhandled cmd for client {}", request->cmd));
+  LOG_ERROR(std::format("unhandled cmd for client {}", common::proto_frame_to_string(*request)));
   co_return false;
 }
 
@@ -24,14 +24,14 @@ static auto client_disconnect(std::shared_ptr<common::connection> conn) -> asio:
   co_return;
 }
 
-static auto request_handles_for_storage = std::map<uint16_t, request_handle>{};
+static auto request_handles_for_storage = std::map<common::proto_cmd, request_handle>{};
 
 static auto request_from_storage(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<bool> {
   auto it = request_handles_for_storage.find(request->cmd);
   if (it != request_handles_for_storage.end()) {
     co_return co_await it->second(request, conn);
   }
-  LOG_ERROR(std::format("unhandled cmd for storage {}", request->cmd));
+  LOG_ERROR(std::format("unhandled cmd for storage {}", common::proto_frame_to_string(*request)));
   co_return false;
 }
 
