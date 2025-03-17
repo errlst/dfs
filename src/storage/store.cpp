@@ -149,15 +149,23 @@ auto store_ctx::read_file(uint64_t file_id, uint64_t size) -> std::optional<std:
 auto store_ctx::read_file(uint64_t file_id, char *dst, uint64_t size) -> std::optional<uint64_t> {
   auto [ifs, _] = peek_ifstream(file_id);
   if (!ifs || !ifs->good()) {
-    LOG_ERROR("read file failed");
+    LOG_CRITICAL("read file failed");
     return std::nullopt;
   }
 
-  if (ifs->eof()) {
-    return 0;
+  auto idx = 0;
+  while (idx < size) {
+    auto n = ifs->readsome(dst + idx, size - idx);
+    if (n == 0) {
+      if (ifs->eof() || ifs->rdstate() == 0) {
+        break;
+      }
+      LOG_CRITICAL("read some failed, {}", (int)ifs->rdstate());
+      return std::nullopt;
+    }
+    idx += n;
   }
-
-  return ifs->readsome(dst, size);
+  return idx;
 }
 
 auto store_ctx::close_read_file(uint64_t file_id) -> bool {

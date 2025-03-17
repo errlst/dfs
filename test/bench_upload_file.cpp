@@ -25,22 +25,18 @@ auto master_conn = std::shared_ptr<common::connection>{};
 auto file_to_write = std::string{};
 
 auto upload_file(uint64_t file_size) -> asio::awaitable<void> {
-  auto request_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + sizeof(uint64_t)), free};
-  *request_to_send = {
-      .cmd = common::proto_cmd::cm_fetch_one_storage,
-      .data_len = sizeof(uint64_t),
-  };
+
+  auto request_to_send = common::create_frame(common::proto_cmd::cm_fetch_one_storage, common::frame_type::request, sizeof(uint64_t));
   *((uint64_t *)request_to_send->data) = common::htonll(file_size);
-  auto id = co_await master_conn->send_request(request_to_send.get());
-  auto response = co_await master_conn->recv_response(id.value());
-  if (response->stat != 0) {
-    std::println("Failed to fetch storage");
+  auto response = co_await master_conn->send_request_and_wait_response(request_to_send.get());
+  if (!response || response->stat != common::FRAME_STAT_OK) {
+    std::println("fetch storage failed, ", response ? response->stat : -1);
     co_return;
   }
 
   auto storage = proto::cm_fetch_one_storage_response{};
   if (!storage.ParseFromArray(response->data, response->data_len)) {
-    std::println("Failed to parse response");
+    std::println("failed to parse cm_fetch_one_storage_response");
     co_return;
   }
 
@@ -49,21 +45,16 @@ auto upload_file(uint64_t file_size) -> asio::awaitable<void> {
     co_return;
   });
 
-  request_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + sizeof(uint64_t)), free};
-  *request_to_send = {
-      .cmd = common::proto_cmd::cs_upload_open,
-      .data_len = sizeof(uint64_t),
-  };
+  request_to_send = common::create_frame(common::proto_cmd::cs_upload_start, common::frame_type::request, sizeof(uint64_t));
   *((uint64_t *)request_to_send->data) = common::htonll(file_size);
-  id = co_await storage_conn->send_request(request_to_send.get());
-  response = co_await storage_conn->recv_response(id.value());
-  if (response->stat != 0) {
-    std::println("upload failed {} {}", __LINE__, response->stat);
+  response = co_await storage_conn->send_request_and_wait_response(request_to_send.get());
+  if (!response || response->stat != common::FRAME_STAT_OK) {
+    std::println("upload file failed, ", response ? response->stat : -1);
     co_return;
   }
 
   auto idx = 0uz;
-  request_to_send = common::create_request_frame(common::proto_cmd::cs_upload_append, 1_MB);
+  request_to_send = common::create_frame(common::proto_cmd::cs_upload, common::frame_type::request, 1_MB);
   while (idx < file_size) {
     auto end_idx = std::min(idx + 1_MB, file_size);
     request_to_send->data_len = (uint32_t)(end_idx - idx);
@@ -78,7 +69,7 @@ auto upload_file(uint64_t file_size) -> asio::awaitable<void> {
     idx = end_idx;
   }
 
-  response = co_await storage_conn->send_request_and_wait_response(common::proto_frame{.cmd = common::proto_cmd::cs_upload_close});
+  response = co_await storage_conn->send_request_and_wait_response(common::proto_frame{.cmd = common::proto_cmd::cs_upload, .stat = common::FRAME_STAT_FINISH});
   if (!response || response->stat != 0) {
     LOG_ERROR("upload failed {}", response ? response->stat : -1);
     co_return;

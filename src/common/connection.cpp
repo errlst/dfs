@@ -113,6 +113,10 @@ auto connection::send_response(proto_frame frame, const proto_frame &req_frame, 
   co_return co_await send_response(&frame, req_frame, loc);
 }
 
+auto connection::send_response(const proto_frame &req_frame, std::source_location loc) -> asio::awaitable<bool> {
+  co_return co_await send_response({.stat = 0}, req_frame, loc);
+}
+
 auto connection::send_request_and_wait_response(proto_frame *frame, std::source_location loc) -> asio::awaitable<std::shared_ptr<proto_frame>> {
   co_await asio::post(m_strand, asio::use_awaitable);
   if (m_closed) {
@@ -226,7 +230,7 @@ auto connection::start_recv() -> asio::awaitable<void> {
     }
 
     /* 读取 payload */
-    LOG_DEBUG("recv frame header {}", proto_frame_to_string(frame_header));
+    // LOG_DEBUG("recv frame header {}", proto_frame_to_string(frame_header));
     auto frame = std::shared_ptr<proto_frame>{(proto_frame *)malloc(sizeof(proto_frame) + frame_header.data_len), free};
     if (frame == nullptr) {
       LOG_ERROR(std::format("alloc memory failed, requested size is {}MB", frame_header.data_len / 1024 / 1024));

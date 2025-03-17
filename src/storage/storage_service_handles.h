@@ -155,16 +155,16 @@ auto ms_get_metrics_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
 
 auto ss_regist_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
 
-auto ss_upload_sync_open_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
+auto ss_upload_sync_start_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
 
-auto ss_upload_sync_append_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
+auto ss_upload_sync_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
 
-auto cs_upload_open_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
+auto cs_upload_start_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
 
-auto cs_upload_append_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
+auto cs_upload_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
 
 auto cs_upload_close_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
 
-auto cs_download_open_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
+auto cs_download_start_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
 
-auto cs_download_append_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;
+auto cs_download_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>;

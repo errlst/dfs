@@ -58,7 +58,7 @@ auto start_sync_service() -> void {
 auto get_valid_syncable_storages(std::string_view rel_path, uint64_t file_id, uint64_t file_size, std::string_view abs_path) -> asio::awaitable<std::vector<std::shared_ptr<common::connection>>> {
   auto res = std::vector<std::shared_ptr<common::connection>>{};
 
-  auto request_to_send = common::create_request_frame(common::proto_cmd::ss_upload_sync_open, sizeof(uint64_t) + rel_path.size());
+  auto request_to_send = common::create_frame(common::proto_cmd::ss_upload_sync_start, common::frame_type::request, sizeof(uint64_t) + rel_path.size());
   *(uint64_t *)request_to_send->data = common::htonll(file_size);
   std::copy(rel_path.begin(), rel_path.end(), request_to_send->data + sizeof(uint64_t));
 
@@ -86,7 +86,7 @@ auto sync_file_normal(std::string_view rel_path, uint64_t file_id, uint64_t file
 
   LOG_INFO("sync {} in normal way", abs_path);
 
-  auto request_to_send = common::create_request_frame(common::proto_cmd::ss_upload_sync_append, 5_MB);
+  auto request_to_send = common::create_frame(common::proto_cmd::ss_upload_sync, common::frame_type::request, 5_MB);
   while (true) {
     auto read_len = hot_store_group()->read_file(file_id, request_to_send->data, 5 * 1024 * 1024);
     if (!read_len.has_value()) {
@@ -126,7 +126,7 @@ auto sync_file_zero_copy(std::string_view rel_path, uint64_t file_id, uint64_t f
   }
 
   for (auto storage : valid_storages) {
-    auto id = co_await storage->send_request_without_data(common::proto_frame{.cmd = common::proto_cmd::ss_upload_sync_append, .stat = 255, .data_len = (uint32_t)file_size});
+    auto id = co_await storage->send_request_without_data(common::proto_frame{.cmd = common::proto_cmd::ss_upload_sync, .stat = 255, .data_len = (uint32_t)file_size});
 
     auto rest_to_send = file_size;
     auto offset = off_t{0};

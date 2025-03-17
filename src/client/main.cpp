@@ -2,8 +2,8 @@
 #include "../common/protocol.h"
 #include "../common/util.h"
 #include "../proto/proto.pb.h"
-#include <fstream>
 #include "common/log.h"
+#include <fstream>
 
 auto master_conn = std::shared_ptr<common::connection>{};
 
@@ -56,23 +56,23 @@ auto upload_file(std::string path) -> asio::awaitable<void> {
   LOG_INFO(std::format("start upload file"));
   request_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + sizeof(uint64_t)), free};
   *request_to_send = {
-      .cmd = common::proto_cmd::cs_upload_open,
+      .cmd = common::proto_cmd::cs_upload_start,
       .data_len = sizeof(uint64_t),
   };
   *((uint64_t *)request_to_send->data) = common::htonll(std::filesystem::file_size(path));
   id = co_await conn->send_request(request_to_send.get());
   if (!id) {
-    LOG_ERROR("failed to send cs_upload_open request");
+    LOG_ERROR("failed to send cs_upload_start request");
     co_return;
   }
 
   response_recved = co_await conn->recv_response(id.value());
   if (!response_recved) {
-    LOG_ERROR("failed to recv cs_upload_open response");
+    LOG_ERROR("failed to recv cs_upload_start response");
     co_return;
   }
   if (response_recved->stat != 0) {
-    LOG_ERROR(std::format("cs_upload_open response stat {}", response_recved->stat));
+    LOG_ERROR(std::format("cs_upload_start response stat {}", response_recved->stat));
     co_return;
   }
 
@@ -88,7 +88,7 @@ auto upload_file(std::string path) -> asio::awaitable<void> {
   while (!ifs.eof()) {
     LOG_INFO(std::format("upload file trunk {}", idx++));
     *request_to_send = common::proto_frame{
-        .cmd = common::proto_cmd::cs_upload_append,
+        .cmd = common::proto_cmd::cs_upload,
         .data_len = (uint32_t)ifs.readsome(request_to_send->data, 5_MB),
     };
     if (request_to_send->data_len == 0) {
@@ -97,19 +97,19 @@ auto upload_file(std::string path) -> asio::awaitable<void> {
 
     id = co_await conn->send_request(request_to_send.get());
     if (!id) {
-      LOG_ERROR("failed to send cs_upload_append request");
+      LOG_ERROR("failed to send cs_upload request");
       ok = false;
       break;
     }
 
     response_recved = co_await conn->recv_response(id.value());
     if (!response_recved) {
-      LOG_ERROR("failed to recv cs_upload_append response");
+      LOG_ERROR("failed to recv cs_upload response");
       ok = false;
       break;
     }
     if (response_recved->stat != 0) {
-      LOG_ERROR(std::format("cs_upload_append response stat {}", response_recved->stat));
+      LOG_ERROR(std::format("cs_upload response stat {}", response_recved->stat));
       ok = false;
       break;
     }
@@ -121,32 +121,17 @@ auto upload_file(std::string path) -> asio::awaitable<void> {
   /* 结束上传 */
   LOG_INFO(std::format("close upload"));
   auto file_name = path.substr(path.find_last_of('/') + 1);
-  request_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + file_name.size()), free};
-  *request_to_send = {
-      .cmd = common::proto_cmd::cs_upload_close,
-      .data_len = (uint32_t)file_name.size(),
-  };
+  request_to_send = common::create_frame(common::proto_cmd::cs_upload, common::frame_type::request, file_name.size(), common::FRAME_STAT_FINISH);
   std::copy(file_name.begin(), file_name.end(), request_to_send->data);
 
-  id = co_await conn->send_request(request_to_send.get());
-  if (!id) {
-    LOG_ERROR("failed to send cs_upload_close request");
-    co_return;
-  }
-
-  response_recved = co_await conn->recv_response(id.value());
-  if (!response_recved) {
-    LOG_ERROR("failed to recv cs_upload_close response");
-    co_return;
-  }
-  if (response_recved->stat != 0) {
-    LOG_ERROR(std::format("cs_upload_close response stat {}", response_recved->stat));
+  response_recved = co_await conn->send_request_and_wait_response(request_to_send.get());
+  if (!response_recved || response_recved->stat != common::FRAME_STAT_OK) {
+    LOG_ERROR("failed to upload file , {}", response_recved ? response_recved->stat : -1);
     co_return;
   }
 
   auto file_path = std::string_view{response_recved->data, response_recved->data_len};
   LOG_INFO(std::format("upload suc file: {}", file_path));
-
   co_await conn->close();
 }
 
@@ -157,32 +142,13 @@ auto download_file(std::string src, std::string dst) -> asio::awaitable<void> {
     co_return;
   }
 
+  /* 请求 storages */
   auto group_id = std::atol(src.substr(0, src.find_first_of('/')).data());
-
-  /* request storages */
-  auto request_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + sizeof(uint32_t)), [](auto p) { free(p); }};
-  *request_to_send = {
-      .cmd = common::proto_cmd::cm_fetch_group_storages,
-      .data_len = sizeof(uint32_t),
-  };
+  auto request_to_send = common::create_frame(common::proto_cmd::cm_fetch_group_storages, common::frame_type::request, sizeof(uint32_t));
   *((uint32_t *)request_to_send->data) = htonl(group_id);
-  auto id = co_await master_conn->send_request(request_to_send.get());
-  if (!id) {
-    LOG_ERROR("failed to send cm_group_storages request");
-    co_return;
-  }
-
-  auto response_recved = co_await master_conn->recv_response(id.value());
-  if (!response_recved) {
-    LOG_ERROR("failed to recv cm_group_storages response");
-    co_return;
-  }
-  if (response_recved->stat) {
-    LOG_ERROR(std::format("cm_group_storages response stat {}", response_recved->stat));
-    co_return;
-  }
-  if (response_recved->data_len == 0) {
-    LOG_ERROR(std::format("no valid storage in group {}", group_id));
+  auto response_recved = co_await master_conn->send_request_and_wait_response(request_to_send.get());
+  if (!response_recved || response_recved->stat != common::FRAME_STAT_OK) {
+    LOG_ERROR(std::format("fetch group {} failed, {}", group_id, response_recved ? response_recved->stat : -1));
     co_return;
   }
 
@@ -192,7 +158,7 @@ auto download_file(std::string src, std::string dst) -> asio::awaitable<void> {
     co_return;
   }
 
-  /* connect to storage */
+  /* 连接 storage */
   src = src.substr(src.find_first_of('/') + 1);
   LOG_INFO(std::format("request download {}", src));
   for (auto s_info : response_data_recved.s_infos()) {
@@ -206,60 +172,38 @@ auto download_file(std::string src, std::string dst) -> asio::awaitable<void> {
       co_return;
     });
 
-    /* download open */
-    request_to_send = std::shared_ptr<common::proto_frame>{(common::proto_frame *)malloc(sizeof(common::proto_frame) + src.size()), [](auto p) { free(p); }};
-    *request_to_send = {
-        .cmd = common::proto_cmd::cs_download_open,
-        .data_len = (uint32_t)src.size(),
-    };
+    /* 开始下载 */
+    request_to_send = common::create_frame(common::proto_cmd::cs_download_start, common::frame_type::request, src.size());
     std::copy(src.begin(), src.end(), request_to_send->data);
-    id = co_await conn->send_request(request_to_send.get());
-    if (!id) {
-      LOG_ERROR("failed to send cs_download_open request");
+    response_recved = co_await conn->send_request_and_wait_response(request_to_send.get());
+
+    if (!response_recved || response_recved->stat != common::FRAME_STAT_OK) {
+      LOG_ERROR(std::format("cs_download_start failed, {}", response_recved ? response_recved->stat : -1));
       continue;
     }
 
-    response_recved = co_await conn->recv_response(id.value());
-    if (!response_recved) {
-      LOG_ERROR("failed to recv cs_download_open response");
-      continue;
-    }
-    if (response_recved->stat) {
-      LOG_ERROR(std::format("cs_download_open response stat {}", response_recved->stat));
-      continue;
-    }
-
-    auto ifs = std::ifstream{std::string{dst}, std::ios::binary};
-    if (!ifs) {
-      LOG_ERROR(std::format("failed to open file {}", dst));
-      co_return;
-    }
-
-    /* download data */
+    /* 下载数据 */
     LOG_INFO(std::format("start download filesize {}", common::ntohll(*(uint64_t *)response_recved->data)));
     while (true) {
-      auto id = co_await conn->send_request(common::proto_frame{.cmd = common::proto_cmd::cs_download_append});
-      if (!id) {
-        LOG_ERROR("failed to send cs_download_append request");
-        break;
-      }
-
-      response_recved = co_await conn->recv_response(id.value());
+      response_recved = co_await conn->send_request_and_wait_response({.cmd = common::proto_cmd::cs_download});
       if (!response_recved) {
-        LOG_ERROR("failed to recv cs_download_append response");
-        break;
-      }
-      if (response_recved->stat) {
-        LOG_ERROR(std::format("cs_download_append response stat {}", response_recved->stat));
+        LOG_ERROR("failed to recv cs_download response");
         break;
       }
 
-      if (response_recved->data_len == 0) {
-        LOG_INFO(std::format("download {} suc", src));
-        co_return;
+      if (response_recved->stat == common::FRAME_STAT_OK ||
+          response_recved->stat == common::FRAME_STAT_FINISH) {
+        ofs.write(response_recved->data, response_recved->data_len);
+        if (response_recved->stat == common::FRAME_STAT_FINISH) {
+          ofs.close();
+          LOG_INFO("download finished");
+          break;
+        }
+        continue;
       }
 
-      ofs.write(response_recved->data, response_recved->data_len);
+      LOG_ERROR(std::format("cs_download response stat {}", response_recved->stat));
+      break;
     }
   }
 }
@@ -278,6 +222,7 @@ auto client() -> asio::awaitable<void> {
 
 auto main() -> int {
   auto io = asio::io_context{};
+  spdlog::set_level(spdlog::level::debug);
 
   asio::co_spawn(io, client(), asio::detached);
   std::thread{[&] {

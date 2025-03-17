@@ -12,9 +12,9 @@ auto trans_frame_to_net(proto_frame *frame) -> void {
 
 auto trans_frame_to_host(proto_frame *frame) -> void { trans_frame_to_net(frame); }
 
-auto create_request_frame(proto_cmd cmd, uint32_t data_len) -> std::shared_ptr<proto_frame> {
+auto create_frame(proto_cmd cmd, frame_type type, uint32_t data_len, uint8_t stat) -> std::shared_ptr<proto_frame> {
   auto frame = std::shared_ptr<proto_frame>{(proto_frame *)malloc(sizeof(proto_frame) + data_len), free};
-  *frame = {.cmd = cmd, .data_len = data_len};
+  *frame = {.cmd = cmd, .type = type, .stat = stat, .data_len = data_len};
   return frame;
 }
 

@@ -47,14 +47,14 @@ enum class proto_cmd : uint16_t {
    *
    * @param request     { uint64 filesize, string relpath }
    */
-  ss_upload_sync_open,
+  ss_upload_sync_start,
 
   /**
-   * @brief 发送同步文件的数据，发送请求时，data_len==0 或者 stat==255 均表示同步完成
+   * @brief 发送同步文件的数据。
    *
-   * @param request { array data }
+   * @param request { array data }。stat == STAT_FINISH 表示同步完成
    */
-  ss_upload_sync_append,
+  ss_upload_sync,
 
   /**
    * @brief 获取 storage 最大可用内存
@@ -91,22 +91,14 @@ enum class proto_cmd : uint16_t {
    *
    * @param request { uint64 filesize }
    */
-  cs_upload_open,
+  cs_upload_start,
 
   /**
    * @brief 上传数据（不能并行上传多个数据块）
    *
-   * @param request { array data }  如果长度为0，则表示异常需要中止上传
+   * @param request { array data }。stat == STAT_FINISH 表示上传完成
    */
-  cs_upload_append,
-
-  /**
-   * @brief 上传完成
-   *
-   * @param request   { string user_file_name }
-   * @param response  { string final_file_path }  <group_id>/<rel_path>
-   */
-  cs_upload_close,
+  cs_upload,
 
   /**
    * @brief 开始下载文件
@@ -114,17 +106,16 @@ enum class proto_cmd : uint16_t {
    * @param request   { string rel_path }
    * @param response  { uint64 filesize }
    */
-  cs_download_open,
+  cs_download_start,
 
   /**
    * @brief 下载数据
    *
-   * @param response  { array data }  长度为 0 表示下载完成
+   * @param response  { array data }。stat == STAT_FINISH 表示下载完成
    */
-  cs_download_append,
+  cs_download,
 
   sentinel,
-
 };
 
 /**
@@ -148,9 +139,9 @@ struct xx_heart_establish_request {
   uint32_t interval;
 };
 
-#define FRAME_MAGIC (uint16_t)0x55aa
-
-// ENUM_MACRO(proto_type, request, response);
+constexpr auto FRAME_MAGIC = uint16_t{0x55aa};
+constexpr auto FRAME_STAT_OK = uint8_t{0};
+constexpr auto FRAME_STAT_FINISH = uint8_t{255};
 
 /**
  * @brief 协议帧头
@@ -185,8 +176,7 @@ auto trans_frame_to_host(proto_frame *frame) -> void;
  * @brief 构造 frame
  *
  */
-auto create_request_frame(proto_cmd cmd, uint32_t data_len) -> std::shared_ptr<proto_frame>;
-// auto create_response_frame() -> std::shared_ptr<proto_frame>;
+auto create_frame(proto_cmd cmd, frame_type type, uint32_t data_len, uint8_t stat = FRAME_STAT_OK) -> std::shared_ptr<proto_frame>;
 
 /**
  * @brief 转换字符串

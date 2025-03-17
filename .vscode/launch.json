@@ -57,7 +57,7 @@
       "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}/build/linux/x86_64/debug/storage",
-      "args": ["-c", "${workspaceFolder}/conf/storage.conf_1.json"],
+      "args": ["-c", "${workspaceFolder}/conf/storage.conf_1.json", "-f"],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}/build/linux/x86_64/debug",
 

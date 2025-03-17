@@ -60,6 +60,7 @@ public:
    */
   auto send_response(proto_frame *frame, const proto_frame &req_frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<bool>;
   auto send_response(proto_frame frame, const proto_frame &req_frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<bool>;
+  auto send_response(const proto_frame &req_frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<bool>;
 
   /**
    * @brief 发送请求并等待响应
