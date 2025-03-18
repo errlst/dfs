@@ -14,4 +14,5 @@ auto common::init_log(std::string_view base_path, bool daemon, log_level level) 
   logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] %^[%l] [%s:%#]%$ %v");
   spdlog::set_default_logger(logger);
   spdlog::set_level(static_cast<spdlog::level::level_enum>(level));
+  spdlog::flush_on(spdlog::level::err);
 }

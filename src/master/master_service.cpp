@@ -44,7 +44,7 @@ static auto storage_disconnect(std::shared_ptr<common::connection> conn) -> asio
 static auto request_from_connection(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
   if (request == nullptr) {
     metrics::pop_one_connection();
-    switch (conn->get_data<uint8_t>(s_conn_data::type).value()) {
+    switch (conn->get_data<uint8_t>(s_conn_data::x_conn_type).value()) {
       case CONN_TYPE_CLIENT:
         co_return co_await client_disconnect(conn);
       case CONN_TYPE_STORAGE:
@@ -55,7 +55,7 @@ static auto request_from_connection(std::shared_ptr<common::proto_frame> request
 
   auto bt = metrics::push_one_request();
   auto info = metrics::request_end_info{};
-  switch (conn->get_data<uint8_t>(s_conn_data::type).value()) {
+  switch (conn->get_data<uint8_t>(s_conn_data::x_conn_type).value()) {
     case CONN_TYPE_CLIENT: {
       info.success = co_await request_from_client(request, conn);
       break;

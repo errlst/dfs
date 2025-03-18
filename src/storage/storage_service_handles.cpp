@@ -5,6 +5,7 @@
 #include "migrate_service.h"
 #include "proto/proto.pb.h"
 #include "storage_config.h"
+#include <sys/sendfile.h>
 
 static auto hot_store_group_ = std::shared_ptr<store_ctx_group>{};
 static auto cold_store_group_ = std::shared_ptr<store_ctx_group>{};
@@ -38,7 +39,7 @@ static auto master_conn_ = std::shared_ptr<common::connection>{};
 
 auto connected_to_master(std::shared_ptr<common::connection> conn) -> void {
   master_conn_ = conn;
-  master_conn_->set_data<s_conn_type>(s_conn_data::type, s_conn_type::master);
+  master_conn_->set_data<s_conn_type>(s_conn_data::x_type, s_conn_type::master);
 }
 
 auto disconnected_to_master() -> void {
@@ -57,7 +58,7 @@ static auto client_conns = std::set<std::shared_ptr<common::connection>>{};
 static auto client_conns_mut = std::mutex{};
 
 auto regist_client(std::shared_ptr<common::connection> conn) -> void {
-  conn->set_data<s_conn_type>(s_conn_data::type, s_conn_type::client);
+  conn->set_data<s_conn_type>(s_conn_data::x_type, s_conn_type::client);
   auto lock = std::unique_lock{client_conns_mut};
   client_conns.emplace(conn);
 }
@@ -76,7 +77,7 @@ static auto storage_conns_mut = std::mutex{};
 
 auto regist_storage(std::shared_ptr<common::connection> conn) -> void {
   unregist_client(conn);
-  conn->set_data<s_conn_type>(s_conn_data::type, s_conn_type::storage);
+  conn->set_data<s_conn_type>(s_conn_data::x_type, s_conn_type::storage);
   auto lock = std::unique_lock{storage_conns_mut};
   storage_conns.emplace(conn);
 }
@@ -118,7 +119,7 @@ auto ss_regist_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
 }
 
 auto ss_upload_sync_start_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
-  if (conn->has_data(s_conn_data::storage_sync_upload_file_id)) {
+  if (conn->has_data(s_conn_data::s_sync_up_fileid)) {
     LOG_ERROR("storage already request sync upload yield");
     co_await conn->send_response(common::proto_frame{.stat = 1}, *request_recved);
     co_return false;
@@ -138,13 +139,13 @@ auto ss_upload_sync_start_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool>
     co_return false;
   }
 
-  conn->set_data<uint64_t>(s_conn_data::storage_sync_upload_file_id, file_id.value());
+  conn->set_data<uint64_t>(s_conn_data::s_sync_up_fileid, file_id.value());
   co_await conn->send_response(common::proto_frame{.stat = 0}, *request_recved);
   co_return true;
 }
 
 auto ss_upload_sync_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
-  auto file_id = conn->get_data<uint64_t>(s_conn_data::storage_sync_upload_file_id);
+  auto file_id = conn->get_data<uint64_t>(s_conn_data::s_sync_up_fileid);
   if (!file_id.has_value()) {
     LOG_ERROR("storage not request sync upload yield");
     co_await conn->send_response(common::proto_frame{.stat = 1}, *request_recved);
@@ -153,7 +154,7 @@ auto ss_upload_sync_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
 
   /* 结束同步 */
   if (request_recved->data_len == 0 || request_recved->stat == 255) {
-    conn->del_data(s_conn_data::storage_sync_upload_file_id);
+    conn->del_data(s_conn_data::s_sync_up_fileid);
 
     auto res = hot_store_group()->close_write_file(file_id.value());
     if (!res) {
@@ -170,7 +171,7 @@ auto ss_upload_sync_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
 
   if (!hot_store_group()->write_file(file_id.value(), std::span{request_recved->data, request_recved->data_len})) {
     co_await conn->send_response(common::proto_frame{.stat = 3}, *request_recved);
-    conn->del_data(s_conn_data::storage_sync_upload_file_id);
+    conn->del_data(s_conn_data::s_sync_up_fileid);
     co_return false;
   }
 
@@ -196,7 +197,7 @@ auto ms_get_metrics_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
 }
 
 auto cs_upload_start_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
-  if (conn->has_data(s_conn_data::client_upload_file_id)) {
+  if (conn->has_data(s_conn_data::c_up_fileid)) {
     LOG_ERROR("client already request upload yield");
     co_await conn->send_response({.stat = 1}, *request_recved);
     co_return false;
@@ -215,13 +216,13 @@ auto cs_upload_start_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
     co_await conn->send_response({.stat = 3}, *request_recved);
     co_return false;
   }
-  conn->set_data<uint64_t>(s_conn_data::client_upload_file_id, file_id.value());
+  conn->set_data<uint64_t>(s_conn_data::c_up_fileid, file_id.value());
   co_await conn->send_response(*request_recved);
   co_return true;
 }
 
 auto cs_upload_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
-  auto file_id = conn->get_data<uint64_t>(s_conn_data::client_upload_file_id);
+  auto file_id = conn->get_data<uint64_t>(s_conn_data::c_up_fileid);
   if (!file_id) {
     LOG_ERROR("client not start upload yield");
     co_await conn->send_response({.stat = 1}, *request_recved);
@@ -246,7 +247,7 @@ auto cs_upload_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
     co_await conn->send_response(response_to_send.get(), *request_recved);
 
     new_hot_file(std::format("{}/{}", root_path, rel_path));
-    conn->del_data(s_conn_data::client_upload_file_id);
+    conn->del_data(s_conn_data::c_up_fileid);
     co_return true;
   }
 
@@ -254,7 +255,7 @@ auto cs_upload_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
   if (request_recved->stat != common::FRAME_STAT_OK) {
     LOG_ERROR("client upload unknown error {}", request_recved->stat);
     hot_store_group()->close_write_file(file_id.value());
-    conn->del_data(s_conn_data::client_upload_file_id);
+    conn->del_data(s_conn_data::c_up_fileid);
     co_await conn->send_response(*request_recved);
     co_return false;
   }
@@ -262,7 +263,7 @@ auto cs_upload_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
   /* 正常传输的数据 */
   if (!hot_store_group()->write_file(file_id.value(), std::span{request_recved->data, request_recved->data_len})) {
     co_await conn->send_response({.stat = 3}, *request_recved);
-    conn->del_data(s_conn_data::client_upload_file_id);
+    conn->del_data(s_conn_data::c_up_fileid);
     co_return false;
   }
 
@@ -271,7 +272,7 @@ auto cs_upload_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
 }
 
 auto cs_download_start_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
-  if (conn->has_data(s_conn_data::client_download_file_id)) {
+  if (conn->has_data(s_conn_data::c_down_file_id)) {
     LOG_ERROR("client already request download yield");
     co_await conn->send_response(common::proto_frame{.stat = 1}, *request_recved);
     co_return false;
@@ -279,15 +280,13 @@ auto cs_download_start_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
 
   /* 搜索文件 */
   auto valid_store_group = std::shared_ptr<store_ctx_group>{};
-  auto file_size = 0ul;
+  auto file_id = 0uz;
+  auto file_size = 0uz;
+  auto abs_path = std::string{};
   for (auto store_group : iterate_store_groups()) {
     if (auto res = store_group->open_read_file({request_recved->data, request_recved->data_len}); res.has_value()) {
       valid_store_group = store_group;
-      auto [file_id, file_size_, abs_path] = res.value();
-      file_size = file_size_;
-
-      conn->set_data<uint64_t>(s_conn_data::client_download_file_id, file_id);
-      conn->set_data<std::shared_ptr<store_ctx_group>>(s_conn_data::client_download_store_group, store_group);
+      std::tie(file_id, file_size, abs_path) = res.value();
 
       if (is_hot_store_group(store_group)) {
         access_hot_file(abs_path);
@@ -304,36 +303,72 @@ auto cs_download_start_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
     co_return false;
   }
 
+  if (file_size <= storage_config.performance.zero_copy_limit * 1_MB) {
+    conn->set_data<std::string>(s_conn_data::c_down_file_path, abs_path);
+    conn->set_data<uint32_t>(s_conn_data::c_down_file_size, file_size);
+  } else {
+    conn->set_data<uint64_t>(s_conn_data::c_down_file_id, file_id);
+    conn->set_data<std::shared_ptr<store_ctx_group>>(s_conn_data::c_down_store_group, valid_store_group);
+  }
+
   auto response_to_send = common::create_frame(request_recved->cmd, common::frame_type::response, sizeof(uint64_t));
   *(uint64_t *)response_to_send->data = common::htonll(file_size);
   co_return co_await conn->send_response(response_to_send.get(), *request_recved);
 }
 
 auto cs_download_handle(REQUEST_HANDLE_PARAMS) -> asio::awaitable<bool> {
-  auto file_id = conn->get_data<uint64_t>(s_conn_data::client_download_file_id);
-  if (!file_id) {
-    LOG_ERROR("client not request download yield");
-    co_await conn->send_response(common::proto_frame{.stat = 1}, *request_recved);
-    co_return false;
+  /* 普通下载 */
+  if (auto file_id = conn->get_data<uint64_t>(s_conn_data::c_down_file_id)) {
+    auto store_group = conn->get_data<std::shared_ptr<store_ctx_group>>(s_conn_data::c_down_store_group).value();
+    auto response_to_send = common::create_frame(request_recved->cmd, common::frame_type::response, 5_MB);
+    auto read_len = store_group->read_file(file_id.value(), response_to_send->data, 5_MB);
+    if (!read_len.has_value()) {
+      co_await conn->send_response({.stat = 1}, *request_recved);
+      co_return false;
+    }
+
+    if (read_len.value() != response_to_send->data_len) {
+      response_to_send->data_len = (uint32_t)read_len.value();
+      response_to_send->stat = common::FRAME_STAT_FINISH;
+    }
+    co_return co_await conn->send_response(response_to_send.get(), *request_recved);
   }
 
-  auto store_group = conn->get_data<std::shared_ptr<store_ctx_group>>(s_conn_data::client_download_store_group);
-  if (!store_group) {
-    LOG_ERROR("unknownd internal error");
-    co_await conn->send_response(common::proto_frame{.stat = 2}, *request_recved);
-    co_return false;
+  /* 零拷贝优化 */
+  if (auto abs_path = conn->get_data<std::string>(s_conn_data::c_down_file_path)) {
+    auto file_fd = open(abs_path->data(), O_RDONLY);
+    if (file_fd < 0) {
+      LOG_ERROR("open file {} failed, {}", abs_path.value(), strerror(errno));
+      co_return false;
+    }
+
+    auto file_size = conn->get_data<uint32_t>(s_conn_data::c_down_file_size).value();
+    if (!co_await conn->send_response_without_data({.stat = common::FRAME_STAT_FINISH, .data_len = (uint32_t)file_size}, *request_recved)) {
+      co_return false;
+    }
+
+    auto rest_to_send = file_size;
+    auto offset = off_t{0};
+    while (rest_to_send > 0) {
+      auto n = sendfile(conn->native_socket(), file_fd, &offset, rest_to_send);
+      if (-1 == n) {
+        if (errno == EAGAIN || errno == EINTR) {
+          co_await asio::post(asio::use_awaitable);
+          continue;
+        }
+
+        LOG_CRITICAL("sendfile {} failed, {}", abs_path.value(), strerror(errno));
+        co_await conn->close();
+        break;
+      }
+
+      rest_to_send -= n;
+      LOG_DEBUG("sendfile {} bytes, rest to send {} bytes", n, rest_to_send);
+    }
+    co_return true;
   }
 
-  auto response_to_send = common::create_frame(request_recved->cmd, common::frame_type::response, 5_MB);
-  auto read_len = store_group.value()->read_file(file_id.value(), response_to_send->data, 5_MB);
-  if (!read_len.has_value()) {
-    co_await conn->send_response(common::proto_frame{.stat = 3}, *request_recved);
-    co_return false;
-  }
-
-  if (read_len.value() != response_to_send->data_len) {
-    response_to_send->data_len = (uint32_t)read_len.value();
-    response_to_send->stat = common::FRAME_STAT_FINISH;
-  }
-  co_return co_await conn->send_response(response_to_send.get(), *request_recved);
+  LOG_ERROR("client not start download yield");
+  co_await conn->send_response({.stat = 2}, *request_recved);
+  co_return false;
 }

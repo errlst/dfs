@@ -10,7 +10,7 @@ constexpr auto CONN_TYPE_CLIENT = 0;
 constexpr auto CONN_TYPE_STORAGE = 1;
 
 enum s_conn_data : uint64_t {
-  type, // uint8
+  x_conn_type, // uint8
 
   storage_id,         // uint32
   storage_ip,         // string
@@ -28,7 +28,7 @@ inline auto ms_config = master_service_conf{};
 inline auto client_conns_mut = std::mutex{};
 inline auto client_conns = std::set<std::shared_ptr<common::connection>>{};
 inline auto regist_client(std::shared_ptr<common::connection> conn) -> void {
-  conn->set_data<uint8_t>(s_conn_data::type, CONN_TYPE_CLIENT);
+  conn->set_data<uint8_t>(s_conn_data::x_conn_type, CONN_TYPE_CLIENT);
   auto lock = std::unique_lock{client_conns_mut};
   client_conns.emplace(conn);
 }
@@ -46,7 +46,7 @@ inline auto storage_conns = std::map<uint32_t, std::shared_ptr<common::connectio
 inline auto storage_conns_vec = std::vector<std::shared_ptr<common::connection>>{};
 inline auto regist_storage(std::shared_ptr<common::connection> conn) -> void {
   unregist_client(conn);
-  conn->set_data<uint8_t>(s_conn_data::type, CONN_TYPE_STORAGE);
+  conn->set_data<uint8_t>(s_conn_data::x_conn_type, CONN_TYPE_STORAGE);
   auto lock = std::unique_lock{storage_conns_mut};
   storage_conns[conn->get_data<uint32_t>(s_conn_data::storage_id).value()] = conn;
   storage_conns_vec.emplace_back(conn);

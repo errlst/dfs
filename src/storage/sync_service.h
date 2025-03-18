@@ -19,6 +19,12 @@
 auto sync_service() -> asio::awaitable<void>;
 
 /**
+ * @brief 初始化同步服务
+ *
+ */
+auto init_sync_service() -> asio::awaitable<void>;
+
+/**
  * @brief 手动触发同步服务
  *
  */

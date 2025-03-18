@@ -1,9 +1,11 @@
 #pragma once
+#include "log.h"
 #include "protocol.h"
 #include <any>
 #include <asio.hpp>
 #include <map>
 #include <source_location>
+#include <stacktrace>
 
 namespace common {
 
@@ -47,11 +49,6 @@ public:
    */
   auto send_request(proto_frame *frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<std::optional<uint16_t>>;
   auto send_request(proto_frame frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<std::optional<uint16_t>>;
-
-  /**
-   * @brief 发送请求，用于零拷贝优化
-   *
-   */
   auto send_request_without_data(proto_frame frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<std::optional<uint16_t>>;
 
   /**
@@ -61,6 +58,7 @@ public:
   auto send_response(proto_frame *frame, const proto_frame &req_frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<bool>;
   auto send_response(proto_frame frame, const proto_frame &req_frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<bool>;
   auto send_response(const proto_frame &req_frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<bool>;
+  auto send_response_without_data(proto_frame frame, const proto_frame &req_frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<bool>;
 
   /**
    * @brief 发送请求并等待响应
@@ -107,12 +105,16 @@ public:
    *
    */
   template <typename T>
-  auto get_data(uint64_t key) -> std::optional<T> {
+  auto get_data(uint64_t key) -> std::optional<T> try {
     auto it = m_datas.find(key);
     if (it == m_datas.end()) {
       return std::nullopt;
     }
     return std::any_cast<T>(it->second);
+  } catch (const std::bad_any_cast &ec) {
+    auto entry = std::stacktrace::current(1, 1).at(0);
+    LOG_CRITICAL("[{}:{}] get key {} invalid type {}", entry.source_file(), entry.source_line(), key, typeid(T).name());
+    return std::nullopt;
   }
 
   /**

@@ -1,3 +1,4 @@
+#include "common/exception_handle.h"
 #include "common/log.h"
 #include "common/metrics_service.h"
 #include "common/pid_file.h"
@@ -7,7 +8,7 @@
 #include "storage_signal.h"
 #include <print>
 
-static auto show_usage() -> void {
+auto show_usage() -> void {
   std::println("usgae: storage [options]");
   std::println("options:");
   std::println("  -h  show this help message and exit");
@@ -60,8 +61,8 @@ auto main(int argc, char *argv[]) -> int {
   auto io = asio::io_context{};
   auto gurad = asio::make_work_guard(io);
 
-  asio::co_spawn(io, storage_service(), asio::detached);
-  asio::co_spawn(io, metrics::metrics_service(storage_config.common.base_path), asio::detached);
+  asio::co_spawn(io, storage_service(), common::exception_handle);
+  asio::co_spawn(io, metrics::metrics_service(storage_config.common.base_path), common::exception_handle);
 
   auto thread_count = storage_config.common.thread_count;
   for (auto i = 0u; i < thread_count - 1; ++i) {

@@ -1,6 +1,7 @@
 #include "./metrics_service.h"
 #include "../common/log.h"
 #include "../common/util.h"
+#include "exception_handle.h"
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <sys/sysinfo.h>
@@ -305,7 +306,7 @@ auto add_metrics_extension(std::string name, std::function<nlohmann::json()> ext
 }
 
 auto metrics_service(const std::string &base_path) -> asio::awaitable<void> {
-  asio::co_spawn(co_await asio::this_coro::executor, flush_request(), asio::detached);
+  asio::co_spawn(co_await asio::this_coro::executor, flush_request(), common::exception_handle);
 
   auto timer = asio::steady_timer{co_await asio::this_coro::executor};
   while (true) {

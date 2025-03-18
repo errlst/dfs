@@ -72,6 +72,6 @@
   // 调优选项
   "performance": {
     // 小文件零拷贝限制（单位为 MB）
-    "zero_copy_limit": 1
+    "zero_copy_limit": 100
   }
 }

@@ -1,4 +1,5 @@
 #include "sync_service.h"
+#include "common/exception_handle.h"
 #include "common/log.h"
 #include "common/util.h"
 #include "storage_config.h"
@@ -47,6 +48,11 @@ auto sync_service() -> asio::awaitable<void> {
     auto etime = std::chrono::steady_clock::now();
     LOG_INFO("sync service suc, sync {} files cost {}ms", total_file, std::chrono::duration_cast<std::chrono::milliseconds>(etime - btime).count());
   }
+}
+
+auto init_sync_service() -> asio::awaitable<void> {
+  asio::co_spawn(co_await asio::this_coro::executor, sync_service(), common::exception_handle);
+  co_return;
 }
 
 auto start_sync_service() -> void {
@@ -121,7 +127,6 @@ auto sync_file_zero_copy(std::string_view rel_path, uint64_t file_id, uint64_t f
   auto file_fd = open(abs_path.data(), O_RDONLY);
   if (file_fd < 0) {
     LOG_ERROR("open file {} failed, {}", abs_path, strerror(errno));
-    errno = 0;
     co_return false;
   }
 
@@ -134,12 +139,11 @@ auto sync_file_zero_copy(std::string_view rel_path, uint64_t file_id, uint64_t f
       auto n = sendfile(storage->native_socket(), file_fd, &offset, rest_to_send);
       if (-1 == n) {
         if (errno == EAGAIN || errno == EINTR) {
-          LOG_DEBUG("send file retry");
+          co_await asio::post(asio::use_awaitable);
           continue;
         }
 
-        LOG_ERROR("send file {} failed, {}", abs_path, strerror(errno));
-        errno = 0;
+        LOG_CRITICAL("send file {} failed, {}", abs_path, strerror(errno));
         break;
       }
 

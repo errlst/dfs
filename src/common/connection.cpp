@@ -1,5 +1,6 @@
 #include "connection.h"
 #include "./log.h"
+#include "exception_handle.h"
 #include <asio/experimental/parallel_group.hpp>
 
 namespace common {
@@ -15,8 +16,8 @@ connection::connection(asio::ip::tcp::socket &&sock)
 auto connection::start(std::function<asio::awaitable<void>(std::shared_ptr<proto_frame>, std::shared_ptr<connection>)> on_recv_request) -> void {
   m_on_recv_request = on_recv_request;
   auto self = shared_from_this();
-  asio::co_spawn(m_strand, [self] { return self->start_recv(); }, asio::detached);
-  asio::co_spawn(m_strand, [self] { return self->start_heart(); }, asio::detached);
+  asio::co_spawn(m_strand, [self] { return self->start_recv(); }, exception_handle);
+  asio::co_spawn(m_strand, [self] { return self->start_heart(); }, exception_handle);
 }
 
 auto connection::close() -> asio::awaitable<void> {
@@ -117,6 +118,27 @@ auto connection::send_response(const proto_frame &req_frame, std::source_locatio
   co_return co_await send_response({.stat = 0}, req_frame, loc);
 }
 
+auto connection::send_response_without_data(proto_frame frame, const proto_frame &req_frame, std::source_location loc) -> asio::awaitable<bool> {
+  frame.magic = FRAME_MAGIC;
+  frame.id = req_frame.id;
+  frame.type = frame_type::response;
+  frame.cmd = req_frame.cmd;
+  trans_frame_to_net(&frame);
+
+  auto ec = asio::error_code{};
+  auto n = asio::write(m_sock, asio::const_buffer(&frame, sizeof(proto_frame)));
+  trans_frame_to_host(&frame);
+
+  if (ec || n != sizeof(proto_frame)) {
+    LOG_ERROR("[{}:{}] send {} to {} failed, {}", loc.file_name(), loc.line(), proto_frame_to_string(frame), address(), ec.message());
+    co_await close();
+    co_return false;
+  }
+
+  LOG_DEBUG("[{}:{}] send {} to {}", loc.file_name(), loc.line(), proto_frame_to_string(frame), address());
+  co_return true;
+}
+
 auto connection::send_request_and_wait_response(proto_frame *frame, std::source_location loc) -> asio::awaitable<std::shared_ptr<proto_frame>> {
   co_await asio::post(m_strand, asio::use_awaitable);
   if (m_closed) {
@@ -136,7 +158,7 @@ auto connection::send_request_and_wait_response(proto_frame frame, std::source_l
 }
 
 auto connection::add_exetension_work(std::function<asio::awaitable<void>(std::shared_ptr<connection>)> work, std::function<void()> on_close) -> void {
-  asio::co_spawn(m_strand, work(shared_from_this()), asio::detached);
+  asio::co_spawn(m_strand, work(shared_from_this()), exception_handle);
   m_on_close_works.emplace_back(on_close);
 }
 
@@ -247,7 +269,7 @@ auto connection::start_recv() -> asio::awaitable<void> {
 
     LOG_DEBUG("recv {} from {}", proto_frame_to_string(*frame), address());
     if (frame->type == frame_type::request) {
-      asio::co_spawn(m_strand, m_on_recv_request(frame, shared_from_this()), asio::detached);
+      asio::co_spawn(m_strand, m_on_recv_request(frame, shared_from_this()), exception_handle);
     } else if (frame->type == frame_type::response) {
       auto &[res_frame, waiter] = m_response_frames[frame->id];
       res_frame = frame;

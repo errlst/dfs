@@ -1,6 +1,7 @@
-#include "./migrate_service.h"
-#include "../common/log.h"
-#include "../common/util.h"
+#include "migrate_service.h"
+#include "common/exception_handle.h"
+#include "common/log.h"
+#include "common/util.h"
 #include "storage_config.h"
 #include <sys/stat.h>
 
@@ -86,9 +87,6 @@ static auto migrate_to_hot_service() -> asio::awaitable<void> {
 static auto migrate_service_timer = std::unique_ptr<asio::steady_timer>{};
 
 auto migrate_service() -> asio::awaitable<void> {
-  init_migrate_to_cold();
-  init_migrate_to_hot();
-
   migrate_service_timer = std::make_unique<asio::steady_timer>(co_await asio::this_coro::executor);
   while (true) {
     migrate_service_timer->expires_after(std::chrono::seconds{1000});
@@ -98,6 +96,13 @@ auto migrate_service() -> asio::awaitable<void> {
     co_await migrate_to_cold_service();
     co_await migrate_to_hot_service();
   }
+}
+
+auto init_migrate_service() -> asio::awaitable<void> {
+  init_migrate_to_cold();
+  init_migrate_to_hot();
+  asio::co_spawn(co_await asio::this_coro::executor, migrate_service(), common::exception_handle);
+  co_return;
 }
 
 auto start_migrate_service() -> void {

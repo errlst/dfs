@@ -23,35 +23,17 @@ enum class s_conn_type {
  *
  */
 enum s_conn_data : uint64_t {
-  /**
-   * @brief 连接类型 s_connection_type
-   *
-   */
-  type,
+  x_type, // s_conn_type
 
-  /**
-   * @brief client 上传文件的 file_id，uint64
-   *
-   */
-  client_upload_file_id,
+  c_up_fileid, // uint64_t
 
-  /**
-   * @brief client 下载文件的 file_id，uint64
-   *
-   */
-  client_download_file_id,
+  c_down_file_id,     // uint64_t
+  c_down_store_group, // std::shared_ptr<store_ctx_group>
 
-  /**
-   * @brief client 下载文件的 store_ctx_group，shared_ptr<store_ctx_group>
-   *
-   */
-  client_download_store_group,
+  c_down_file_path, // std::string
+  c_down_file_size, // uint32_t
 
-  /**
-   * @brief storage 同步文件的 file_id，uint64
-   *
-   */
-  storage_sync_upload_file_id,
+  s_sync_up_fileid, // uint64_t
 };
 
 /************************************************************************************************************** */

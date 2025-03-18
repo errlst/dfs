@@ -72,7 +72,7 @@ static auto client_disconnect(std::shared_ptr<common::connection> conn) -> asio:
 static auto request_from_connection(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
   if (request == nullptr) {
     metrics::pop_one_connection();
-    switch (conn->get_data<s_conn_type>(s_conn_data::type).value()) {
+    switch (conn->get_data<s_conn_type>(s_conn_data::x_type).value()) {
       case s_conn_type::client:
         co_await client_disconnect(conn);
         break;
@@ -86,7 +86,7 @@ static auto request_from_connection(std::shared_ptr<common::proto_frame> request
     co_return;
   }
 
-  auto conn_type = conn->get_data<s_conn_type>(s_conn_data::type);
+  auto conn_type = conn->get_data<s_conn_type>(s_conn_data::x_type);
   if (!conn_type) {
     LOG_CRITICAL("unknown error, conn_type invalid");
     co_return;
@@ -199,10 +199,10 @@ auto storage_metrics() -> nlohmann::json {
 auto storage_service() -> asio::awaitable<void> {
   init_store_group();
 
-  co_await regist_to_master();
-  asio::co_spawn(co_await asio::this_coro::executor, sync_service(), asio::detached);
-  asio::co_spawn(co_await asio::this_coro::executor, migrate_service(), asio::detached);
+  co_await init_sync_service();
+  co_await init_migrate_service();
   co_await metrics::add_metrics_extension("storage_metrics", storage_metrics);
+  co_await regist_to_master();
 
   auto acceptor = common::acceptor{co_await asio::this_coro::executor,
                                    storage_config.storage_service.ip, (uint16_t)storage_config.storage_service.port,

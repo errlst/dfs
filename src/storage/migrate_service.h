@@ -8,6 +8,12 @@
 auto migrate_service() -> asio::awaitable<void>;
 
 /**
+ * @brief 初始化迁移服务
+ *
+ */
+auto init_migrate_service() -> asio::awaitable<void>;
+
+/**
  * @brief 手动进行数据迁移
  *
  */
