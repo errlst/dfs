@@ -53,10 +53,16 @@ auto read_pid_file(std::string_view base_path) -> int {
 
 auto remove_pid_file(std::string_view base_path) -> void {
   auto pid_path = std::format("{}/data/pid.txt", base_path);
-  if (std::filesystem::exists(pid_path)) {
-    std::filesystem::remove(pid_path);
-    LOG_INFO("remove pid file {}", pid_path);
+  auto ifs = std::ifstream{pid_path};
+  if (!ifs.is_open()) {
+    return;
   }
+
+  auto pid = 0;
+  ifs >> pid;
+  kill(pid, SIGQUIT);
+  std::filesystem::remove(pid_path);
+  LOG_INFO("remove pid file {}", pid_path);
 }
 
 } // namespace common

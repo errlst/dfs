@@ -74,14 +74,48 @@ static auto init_migrate_to_hot() -> void {
 /******************************************************************************* */
 /******************************************************************************* */
 
-static auto migrate_to_cold_service() -> asio::awaitable<void> {
+static auto migrate_to_cold_once(std::string_view abs_path) -> asio::awaitable<void> {
+  LOG_INFO(std::format("migrate to cold {}", abs_path));
+  co_return;
+}
 
+static auto migrate_to_cold_service() -> asio::awaitable<void> {
+  if (storage_config.migrate_service.to_cold_action == SMS_TO_COLD_DISABLE) {
+    co_return;
+  }
+
+  auto to_cold_files = std::vector<std::string>{};
+  for (const auto &[abs_path, time] : hot_file_atime_or_ctime) {
+    if ((int64_t)time + storage_config.migrate_service.to_cold_action < std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count()) {
+      to_cold_files.push_back(abs_path);
+    }
+  }
+
+  for (const auto &file : to_cold_files) {
+    co_await migrate_to_cold_once(file);
+  }
+}
+
+static auto migrate_to_hot_once(std::string_view abs_path) -> asio::awaitable<void> {
+  LOG_INFO(std::format("migrate to hot {}", abs_path));
   co_return;
 }
 
 static auto migrate_to_hot_service() -> asio::awaitable<void> {
+  if (storage_config.migrate_service.to_hot_action == SMS_TO_HOT_DISABLE) {
+    co_return;
+  }
 
-  co_return;
+  auto to_hot_files = std::vector<std::string>{};
+  for (const auto &[abs_path, times] : cold_file_access_times) {
+    if (times >= storage_config.migrate_service.to_hot_action) {
+      to_hot_files.push_back(abs_path);
+    }
+  }
+
+  for (const auto &file : to_hot_files) {
+    co_await migrate_to_hot_once(file);
+  }
 }
 
 static auto migrate_service_timer = std::unique_ptr<asio::steady_timer>{};

@@ -36,7 +36,7 @@ static auto request_from_storage(std::shared_ptr<common::proto_frame> request, s
 }
 
 static auto storage_disconnect(std::shared_ptr<common::connection> conn) -> asio::awaitable<void> {
-  LOG_INFO(std::format("storage disconnect"));
+  LOG_ERROR("storage {} disconnect", conn->address());
   unregist_storage(conn);
   co_return;
 }
