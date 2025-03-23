@@ -1,9 +1,10 @@
 #include "migrate_service.h"
 #include "common/exception_handle.h"
 #include "common/log.h"
-#include "common/util.h"
 #include "storage_config.h"
 #include <sys/stat.h>
+import common;
+
 
 #define SMS_TO_COLD_DISABLE 0
 #define SMS_TO_COLD_ATIME 1

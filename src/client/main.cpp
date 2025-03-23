@@ -1,15 +1,17 @@
-#include "../common/connection.h"
-#include "../common/protocol.h"
-#include "../common/util.h"
-#include "../proto/proto.pb.h"
 #include "common/log.h"
+#include "proto/proto.pb.h"
+#include <asio.hpp>
+#include <filesystem>
 #include <fstream>
+#include <memory>
+
+import common;
 
 auto master_conn = std::shared_ptr<common::connection>{};
 
 auto upload_file(std::string path) -> asio::awaitable<void> {
   if (!std::filesystem::exists(path)) {
-    LOG_ERROR(std::format("invalid file ", path));
+    LOG_ERROR("invalid file ", path);
   }
 
   /* request */

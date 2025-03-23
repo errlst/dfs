@@ -1,6 +1,7 @@
 #include "storage_config.h"
-#include "common/util.h"
 #include <random>
+import common;
+
 
 auto init_storage_config(std::string_view config_path) -> void {
   auto json = common::read_config(config_path);

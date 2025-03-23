@@ -6,6 +6,8 @@
 #include "proto/proto.pb.h"
 #include "storage_config.h"
 #include "sync_service.h"
+import common;
+
 
 static auto request_handle_for_master = std::map<common::proto_cmd, request_handle>{
     {common::proto_cmd::ms_get_max_free_space, ms_get_max_free_space_handle},

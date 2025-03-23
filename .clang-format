@@ -2,3 +2,4 @@ IndentWidth: 2
 AlwaysBreakTemplateDeclarations: Yes
 IndentCaseLabels: true
 ColumnLimit: 0
+NamespaceIndentation: All

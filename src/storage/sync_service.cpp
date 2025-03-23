@@ -1,11 +1,11 @@
 #include "sync_service.h"
 #include "common/exception_handle.h"
 #include "common/log.h"
-#include "common/util.h"
 #include "storage_config.h"
 #include "storage_service_handles.h"
 #include <queue>
 #include <sys/sendfile.h>
+import common;
 
 /* 双缓冲队列 */
 static auto not_sync_files = std::queue<std::string>{};

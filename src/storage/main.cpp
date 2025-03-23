@@ -2,11 +2,12 @@
 #include "common/log.h"
 #include "common/metrics_service.h"
 #include "common/pid_file.h"
-#include "common/util.h"
 #include "storage_config.h"
 #include "storage_service.h"
 #include "storage_signal.h"
 #include <print>
+import common;
+
 
 auto show_usage() -> void {
   std::println("usgae: storage [options]");

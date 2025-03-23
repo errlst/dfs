@@ -3,6 +3,8 @@
 #include "common/signals.h"
 #include "migrate_service.h"
 #include "sync_service.h"
+import common;
+
 
 #define SIG_QUIT SIGINT
 #define SIG_SYNC SIGUSR1

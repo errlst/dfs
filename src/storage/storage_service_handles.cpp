@@ -1,11 +1,11 @@
 #include "storage_service_handles.h"
 #include "common/log.h"
 #include "common/metrics_service.h"
-#include "common/util.h"
 #include "migrate_service.h"
 #include "proto/proto.pb.h"
 #include "storage_config.h"
 #include <sys/sendfile.h>
+import common;
 
 static auto hot_store_group_ = std::shared_ptr<store_ctx_group>{};
 static auto cold_store_group_ = std::shared_ptr<store_ctx_group>{};

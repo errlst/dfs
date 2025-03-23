@@ -1,22 +1,16 @@
 {
-  // base configure
   "common": {
     "base_path": "/home/errlst/dfs/build/base_path/master",
-    "log_level": 0
+    "log_level": 0,
+    "thread_count": 3
   },
 
-  // network configure
-  "network": {
-    "heart_timeout": 500000,
-    "heart_interval": 100000
-  },
-
-  // master configure
-  "master_service": {
+  "server": {
     "ip": "0.0.0.0",
     "port": 8888,
-    "thread_count": 5,
+    "heart_timeout": 500000,
+    "heart_interval": 100000,
     "group_size": 3,
-    "master_magic": 12345678
+    "magic": 12345678
   }
 }
