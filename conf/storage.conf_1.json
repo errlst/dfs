@@ -6,14 +6,7 @@
     "thread_count": 3
   },
 
-  // network configure
-  "network": {
-    "heart_timeout": 50000,
-    "heart_interval": 10000
-  },
-
-  // storage configure
-  "storage_service": {
+  "server": {
     "id": 1, // 从1开始计数
     "ip": "0.0.0.0",
     "port": 9000,
@@ -22,11 +15,13 @@
     "master_magic": 12345678,
     "sync_interval": 1000, // 同步周期，单位为秒
     "hot_paths": ["/home/errlst/dfs/build/base_path/storage_1/hot"],
-    "cold_paths": ["/home/errlst/dfs/build/base_path/storage_1/cold"]
+    "cold_paths": ["/home/errlst/dfs/build/base_path/storage_1/cold"],
+    "heart_timeout": 5000,
+    "heart_interval": 1000
   },
 
   // migrate service
-  "migrate_service": {
+  "migrate": {
     // 热数据迁移到冷数据的规则
     // 0 关闭服务
     // 1 根据最近访问时间迁移
@@ -62,11 +57,6 @@
     ///////////////////////////////////////////////
 
     // 服务启动规则
-  },
-
-  // monitor service
-  "metrics_service": {
-    "interval": 1000
   },
 
   // 调优选项

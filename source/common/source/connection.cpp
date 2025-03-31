@@ -1,5 +1,6 @@
 #include <common/connection.h>
 #include <common/exception.h>
+#include <common/util.h>
 
 namespace common {
 
@@ -32,9 +33,6 @@ namespace common {
     m_heat_timer->cancel();
     m_sock.close();
     co_await m_on_recv_request(nullptr, shared_from_this());
-    for (auto on_close : m_on_close_works) {
-      co_await on_close(shared_from_this());
-    }
   }
 
   auto connection::recv_response(uint16_t id) -> asio::awaitable<std::shared_ptr<proto_frame>> {
@@ -51,7 +49,7 @@ namespace common {
     co_return ret;
   }
 
-  auto connection::send_request(proto_frame *frame, std::source_location loc) -> asio::awaitable<std::optional<uint16_t>> {
+  auto connection::send_request(proto_frame_ptr frame, std::source_location loc) -> asio::awaitable<std::optional<uint16_t>> {
     co_await asio::post(m_strand, asio::use_awaitable);
     if (m_closed) {
       co_return std::nullopt;
@@ -69,7 +67,7 @@ namespace common {
   }
 
   auto connection::send_request(proto_frame frame, std::source_location loc) -> asio::awaitable<std::optional<uint16_t>> {
-    co_return co_await send_request(&frame, loc);
+    co_return co_await send_request(std::make_shared<proto_frame>(frame), loc);
   }
 
   auto connection::send_request_without_data(proto_frame frame, std::source_location loc) -> asio::awaitable<std::optional<uint16_t>> {
@@ -98,7 +96,7 @@ namespace common {
     co_return frame.id;
   }
 
-  auto connection::send_response(proto_frame *frame, const proto_frame &req_frame, std::source_location loc) -> asio::awaitable<bool> {
+  auto connection::send_response(proto_frame_ptr frame, const proto_frame &req_frame, std::source_location loc) -> asio::awaitable<bool> {
     co_await asio::post(m_strand, asio::use_awaitable);
     if (m_closed) {
       co_return false;
@@ -112,7 +110,7 @@ namespace common {
   }
 
   auto connection::send_response(proto_frame frame, const proto_frame &req_frame, std::source_location loc) -> asio::awaitable<bool> {
-    co_return co_await send_response(&frame, req_frame, loc);
+    co_return co_await send_response(std::make_shared<proto_frame>(frame), req_frame, loc);
   }
 
   auto connection::send_response(const proto_frame &req_frame, std::source_location loc) -> asio::awaitable<bool> {
@@ -140,7 +138,7 @@ namespace common {
     co_return true;
   }
 
-  auto connection::send_request_and_wait_response(proto_frame *frame, std::source_location loc) -> asio::awaitable<std::shared_ptr<proto_frame>> {
+  auto connection::send_request_and_wait_response(proto_frame_ptr frame, std::source_location loc) -> asio::awaitable<std::shared_ptr<proto_frame>> {
     co_await asio::post(m_strand, asio::use_awaitable);
     if (m_closed) {
       co_return nullptr;
@@ -155,13 +153,11 @@ namespace common {
   }
 
   auto connection::send_request_and_wait_response(proto_frame frame, std::source_location loc) -> asio::awaitable<std::shared_ptr<proto_frame>> {
-    co_return co_await send_request_and_wait_response(&frame, loc);
+    co_return co_await send_request_and_wait_response(std::make_shared<proto_frame>(frame), loc);
   }
 
-  auto connection::add_work(std::function<asio::awaitable<void>(std::shared_ptr<connection>)> work,
-                            std::function<asio::awaitable<void>(std::shared_ptr<connection>)> on_close) -> void {
+  auto connection::add_work(std::function<asio::awaitable<void>(std::shared_ptr<connection>)> work) -> void {
     asio::co_spawn(m_strand, work(shared_from_this()), exception_handle);
-    m_on_close_works.emplace_back(on_close);
   }
 
   auto connection::connect_to(std::string_view ip, uint16_t port) -> asio::awaitable<std::shared_ptr<connection>> {
@@ -284,12 +280,12 @@ namespace common {
     }
   }
 
-  auto connection::send_frame(proto_frame *frame, std::source_location loc) -> asio::awaitable<bool> {
+  auto connection::send_frame(proto_frame_ptr frame, std::source_location loc) -> asio::awaitable<bool> {
     auto message_len = sizeof(proto_frame) + frame->data_len;
-    trans_frame_to_net(frame);
+    trans_frame_to_net(frame.get());
     auto ec = asio::error_code{};
-    auto n = asio::write(m_sock, asio::const_buffer(frame, message_len), ec);
-    trans_frame_to_host(frame);
+    auto n = asio::write(m_sock, asio::const_buffer(frame.get(), message_len), ec);
+    trans_frame_to_host(frame.get());
 
     if (ec || n != message_len) {
       LOG_ERROR("[{}:{}] send {} to {} failed, {}", loc.file_name(), loc.line(), *frame, address(), ec.message());

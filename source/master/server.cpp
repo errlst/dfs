@@ -1,5 +1,5 @@
-#include "master_server.h"
-#include "master_server_for_client.h"
+#include "server.h"
+#include "server_for_client.h"
 #include <common/acceptor.h>
 #include <common/metrics.h>
 #include <common/metrics_request.h>

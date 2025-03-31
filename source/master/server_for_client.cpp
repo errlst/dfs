@@ -1,4 +1,4 @@
-#include "master_server_for_client.h"
+#include "server_for_client.h"
 #include <common/util.h>
 #include <proto.pb.h>
 
@@ -39,7 +39,8 @@ namespace master_detail {
       s_info->set_ip(storage->get_data<storage_ip_t>(conn_data::storage_ip).value());
     }
     auto response = common::create_frame(request->cmd, common::frame_type::response, response_data.ByteSizeLong());
-    if (auto ok = co_await conn->send_response(response.get(), *request); !ok) {
+    response_data.SerializeToArray(response->data, response->data_len);
+    if (auto ok = co_await conn->send_response(response, *request); !ok) {
       co_return false;
     }
 
@@ -81,7 +82,7 @@ namespace master_detail {
 
     auto response = common::create_frame(request->cmd, common::frame_type::response, response_data.ByteSizeLong());
     response_data.SerializeToArray(response->data, response->data_len);
-    co_await conn->send_response(*response, *request);
+    co_await conn->send_response(response, *request);
     co_return true;
   }
 
@@ -105,7 +106,7 @@ namespace master_detail {
 
     auto response = common::create_frame(request->cmd, common::frame_type::response, response_data.ByteSizeLong());
     response_data.SerializeToArray(response->data, response->data_len);
-    co_await conn->send_response(response.get(), *request);
+    co_await conn->send_response(response, *request);
     co_return true;
   }
 
@@ -127,7 +128,7 @@ namespace master {
   }
 
   auto request_from_client(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<bool> {
-    if (auto it = request_handles.find(request->cmd); it != request_handles.end()) {
+    if (auto it = client_request_handles.find(request->cmd); it != client_request_handles.end()) {
       co_return co_await it->second(request, conn);
     }
     LOG_ERROR("invalid request {} from client {}", *request, conn->address());

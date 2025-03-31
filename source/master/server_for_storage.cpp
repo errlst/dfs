@@ -1,31 +1,55 @@
-#include "master_server_for_storage.h"
+#include "server_for_storage.h"
 #include <common/util.h>
 
 namespace master_detail {
 
   auto request_storage_max_free_space(common::connection_ptr conn) -> asio::awaitable<void> {
-    request_storage_max_free_space_timer = std::make_shared<asio::steady_timer>(co_await asio::this_coro::executor);
+    auto timer = asio::steady_timer{co_await asio::this_coro::executor};
 
-    while (request_storage_max_free_space_running) {
+    while (true) {
       auto response = co_await conn->send_request_and_wait_response({.cmd = common::proto_cmd::ms_get_max_free_space});
-      if (!response || response->stat != common::FRAME_STAT_OK) {
-        LOG_ERROR("get storage free space failed, {}", response ? response->stat : -1);
+      if (!response) {
         co_return;
+      } else if (response->stat != common::FRAME_STAT_OK) {
+        LOG_ERROR("get storage free space failed, {}", response->stat);
+        continue;
       }
 
       auto free_space = common::htonll(*(uint64_t *)response->data);
       conn->set_data<storage_max_free_space_t>(conn_data::storage_max_free_space, free_space);
       LOG_DEBUG(std::format("get storage free space {}", free_space));
 
-      request_storage_max_free_space_timer->expires_after(std::chrono::seconds{10});
-      co_await request_storage_max_free_space_timer->async_wait(asio::use_awaitable);
+      timer.expires_after(std::chrono::seconds{100});
+      co_await timer.async_wait(asio::use_awaitable);
     }
   }
 
-  auto stop_request_storage_max_free_space(common::connection_ptr conn) -> asio::awaitable<void> {
-    request_storage_max_free_space_running = false;
-    request_storage_max_free_space_timer->cancel();
-    co_return;
+  auto request_storage_metrics(common::connection_ptr conn) -> asio::awaitable<void> {
+    auto timer = asio::steady_timer{co_await asio::this_coro::executor};
+
+    while (true) {
+      auto response = co_await conn->send_request_and_wait_response(common::proto_frame{.cmd = common::proto_cmd::ms_get_metrics});
+      if (!response) {
+        co_return;
+      } else if (response->stat != common::FRAME_STAT_OK) {
+        LOG_ERROR("get storage metrics failed, {}", response->stat);
+        continue;
+      }
+
+      auto metrics = nlohmann::json::parse(std::string_view{response->data, response->data_len}, nullptr, false);
+      if (metrics.is_discarded()) {
+        LOG_ERROR(std::format("parse storage metrics failed {}", std::string_view{response->data, response->data_len}));
+        continue;
+      }
+
+      {
+        auto lock = std::unique_lock{storage_metricses_lock};
+        storage_metricses[conn] = metrics;
+      }
+
+      timer.expires_after(std::chrono::seconds{100});
+      co_await timer.async_wait(asio::use_awaitable);
+    }
   }
 
 } // namespace master_detail
@@ -33,6 +57,17 @@ namespace master_detail {
 namespace master {
 
   using namespace master_detail;
+
+  auto storage_metrics() -> nlohmann::json {
+    auto ret = nlohmann::json::array();
+    {
+      auto lock = std::unique_lock{storage_metricses_lock};
+      for (const auto &[_, metrics] : storage_metricses) {
+        ret.push_back(metrics);
+      }
+    }
+    return ret;
+  }
 
   auto on_storage_disconnect(common::connection_ptr conn) -> asio::awaitable<void> {
     LOG_ERROR("storage {} disconnect", conn->address());
@@ -46,7 +81,8 @@ namespace master {
     storage_conns[conn->get_data<storage_id_t>(conn_data::storage_id).value()] = conn;
     storage_conns_vec.emplace_back(conn);
 
-    conn->add_work(request_storage_max_free_space, stop_request_storage_max_free_space);
+    conn->add_work(request_storage_max_free_space);
+    conn->add_work(request_storage_metrics);
   }
 
   auto unregist_storage(std::shared_ptr<common::connection> conn) -> void {

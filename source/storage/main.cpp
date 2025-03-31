@@ -1,13 +1,11 @@
-#include "common/exception_handle.h"
-#include "common/log.h"
-#include "common/metrics_service.h"
-#include "common/pid_file.h"
-#include "storage_config.h"
-#include "storage_service.h"
-#include "storage_signal.h"
+#include "config.h"
+#include "server.h"
+#include "signal.h"
+#include <common/exception.h>
+#include <common/pid.h>
+#include <common/util.h>
 #include <print>
-import common;
-
+#include <string_view>
 
 auto show_usage() -> void {
   std::println("usgae: storage [options]");
@@ -47,25 +45,24 @@ auto main(int argc, char *argv[]) -> int {
     }
   }
 
-  init_storage_config(config_path);
+  storage::init_config(config_path);
 
-  if (send_signal) {
-    signal_process(signal_to_send, common::read_pid_file(storage_config.common.base_path));
-    return 0;
-  }
+  // if (send_signal) {
+  //   signal_process(signal_to_send, common::read_pid_file(storage_config.common.base_path));
+  //   return 0;
+  // }
 
-  common::init_base_path(storage_config.common.base_path);
-  common::init_log(storage_config.common.base_path, false, static_cast<common::log_level>(storage_config.common.log_level));
-  common::write_pid_file("storage", storage_config.common.base_path, force);
-  init_storage_signal();
+  common::init_base_path(storage::storage_config.common.base_path);
+  common::init_log(storage::storage_config.common.base_path, false, static_cast<common::log_level>(storage::storage_config.common.log_level));
+  common::write_pid_file("storage", storage::storage_config.common.base_path, true);
+  storage::init_signal();
 
   auto io = asio::io_context{};
   auto gurad = asio::make_work_guard(io);
 
-  asio::co_spawn(io, storage_service(), common::exception_handle);
-  asio::co_spawn(io, metrics::metrics_service(storage_config.common.base_path), common::exception_handle);
+  asio::co_spawn(io, storage::storage_server(), common::exception_handle);
 
-  auto thread_count = storage_config.common.thread_count;
+  auto thread_count = storage::storage_config.common.thread_count;
   for (auto i = 0u; i < thread_count - 1; ++i) {
     std::thread{[&] {
       io.run();

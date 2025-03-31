@@ -22,7 +22,7 @@ auto upload_file(std::string path) -> asio::awaitable<void> {
       .data_len = sizeof(uint64_t),
   };
   *((uint64_t *)request_to_send->data) = common::htonll(std::filesystem::file_size(path));
-  auto id = co_await master_conn->send_request(request_to_send.get());
+  auto id = co_await master_conn->send_request(request_to_send);
   if (!id) {
     LOG_ERROR("failed to send cm_fetch_one_storage request");
     co_return;
@@ -63,7 +63,7 @@ auto upload_file(std::string path) -> asio::awaitable<void> {
       .data_len = sizeof(uint64_t),
   };
   *((uint64_t *)request_to_send->data) = common::htonll(std::filesystem::file_size(path));
-  id = co_await conn->send_request(request_to_send.get());
+  id = co_await conn->send_request(request_to_send);
   if (!id) {
     LOG_ERROR("failed to send cs_upload_start request");
     co_return;
@@ -98,7 +98,7 @@ auto upload_file(std::string path) -> asio::awaitable<void> {
       break;
     }
 
-    id = co_await conn->send_request(request_to_send.get());
+    id = co_await conn->send_request(request_to_send);
     if (!id) {
       LOG_ERROR("failed to send cs_upload request");
       ok = false;
@@ -127,7 +127,7 @@ auto upload_file(std::string path) -> asio::awaitable<void> {
   request_to_send = common::create_frame(common::proto_cmd::cs_upload, common::frame_type::request, file_name.size(), common::FRAME_STAT_FINISH);
   std::copy(file_name.begin(), file_name.end(), request_to_send->data);
 
-  response_recved = co_await conn->send_request_and_wait_response(request_to_send.get());
+  response_recved = co_await conn->send_request_and_wait_response(request_to_send);
   if (!response_recved || response_recved->stat != common::FRAME_STAT_OK) {
     LOG_ERROR("failed to upload file , {}", response_recved ? response_recved->stat : -1);
     co_return;
@@ -149,7 +149,7 @@ auto download_file(std::string src, std::string dst) -> asio::awaitable<void> {
   auto group_id = std::atol(src.substr(0, src.find_first_of('/')).data());
   auto request_to_send = common::create_frame(common::proto_cmd::cm_fetch_group_storages, common::frame_type::request, sizeof(uint32_t));
   *((uint32_t *)request_to_send->data) = htonl(group_id);
-  auto response_recved = co_await master_conn->send_request_and_wait_response(request_to_send.get());
+  auto response_recved = co_await master_conn->send_request_and_wait_response(request_to_send);
   if (!response_recved || response_recved->stat != common::FRAME_STAT_OK) {
     LOG_ERROR(std::format("fetch group {} failed, {}", group_id, response_recved ? response_recved->stat : -1));
     co_return;
@@ -178,7 +178,7 @@ auto download_file(std::string src, std::string dst) -> asio::awaitable<void> {
     /* 开始下载 */
     request_to_send = common::create_frame(common::proto_cmd::cs_download_start, common::frame_type::request, src.size());
     std::copy(src.begin(), src.end(), request_to_send->data);
-    response_recved = co_await conn->send_request_and_wait_response(request_to_send.get());
+    response_recved = co_await conn->send_request_and_wait_response(request_to_send);
 
     if (!response_recved || response_recved->stat != common::FRAME_STAT_OK) {
       LOG_ERROR(std::format("cs_download_start failed, {}", response_recved ? response_recved->stat : -1));

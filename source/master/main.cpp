@@ -1,5 +1,5 @@
-#include "master_config.h"
-#include "master_server.h"
+#include "config.h"
+#include "server.h"
 #include <common/exception.h>
 #include <common/log.h>
 #include <common/pid.h>

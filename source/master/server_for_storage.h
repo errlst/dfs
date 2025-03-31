@@ -1,9 +1,10 @@
 #pragma once
 
-#include "master_config.h"
-#include "master_server_util.h"
+#include "config.h"
+#include "server_util.h"
 #include <common/connection.h>
 #include <common/protocol.h>
+#include <nlohmann/json.hpp>
 
 namespace master_detail {
 
@@ -15,9 +16,9 @@ namespace master_detail {
 
   inline auto storage_conns_vec = std::vector<std::shared_ptr<common::connection>>{};
 
-  inline auto request_storage_max_free_space_timer = std::shared_ptr<asio::steady_timer>{};
+  inline auto storage_metricses = std::map<common::connection_ptr, nlohmann::json>{};
 
-  inline auto request_storage_max_free_space_running = true;
+  inline auto storage_metricses_lock = std::mutex{};
 
   /**
    * @brief 获取 storage 的最大可用空间
@@ -26,14 +27,20 @@ namespace master_detail {
   auto request_storage_max_free_space(common::connection_ptr conn) -> asio::awaitable<void>;
 
   /**
-   * @brief 停止获取
+   * @brief 获取 storage 的监控信息
    *
    */
-  auto stop_request_storage_max_free_space(common::connection_ptr conn) -> asio::awaitable<void>;
+  auto request_storage_metrics(common::connection_ptr conn) -> asio::awaitable<void>;
 
 } // namespace master_detail
 
 namespace master {
+
+  /**
+   * @brief 获取 storage 的监控信息
+   *
+   */
+  auto storage_metrics() -> nlohmann::json;
 
   /**
    * @brief storage 离线

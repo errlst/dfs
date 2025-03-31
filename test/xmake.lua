@@ -1,6 +1,3 @@
-add_includedirs("$(projectdir)/src")
-
-
 target("all")
     set_kind("phony")
     on_run(function ()

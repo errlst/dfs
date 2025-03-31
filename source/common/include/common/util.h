@@ -44,6 +44,12 @@ namespace common {
    */
   auto iterate_normal_file(std::string_view path) -> std::generator<std::string>;
 
+  /**
+   * @brief 输出十六进制数据
+   *
+   */
+  auto bytes_to_hex_str(std::span<char> data) -> std::string;
+
 } // namespace common
 
 inline auto operator""_KB(unsigned long long val) -> uint64_t { return val * 1024; }

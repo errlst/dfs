@@ -53,7 +53,7 @@ namespace common {
      *
      * @return 成功返回对应的 id
      */
-    auto send_request(proto_frame *frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<std::optional<uint16_t>>;
+    auto send_request(proto_frame_ptr frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<std::optional<uint16_t>>;
     auto send_request(proto_frame frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<std::optional<uint16_t>>;
     auto send_request_without_data(proto_frame frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<std::optional<uint16_t>>;
 
@@ -61,7 +61,7 @@ namespace common {
      * @brief 发送响应，frame 只需要设置 sta 和 data_len。保证发送前后的 frame 一致。
      *
      */
-    auto send_response(proto_frame *frame, const proto_frame &req_frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<bool>;
+    auto send_response(proto_frame_ptr frame, const proto_frame &req_frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<bool>;
     auto send_response(proto_frame frame, const proto_frame &req_frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<bool>;
     auto send_response(const proto_frame &req_frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<bool>;
     auto send_response_without_data(proto_frame frame, const proto_frame &req_frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<bool>;
@@ -70,16 +70,14 @@ namespace common {
      * @brief 发送请求并等待响应
      *
      */
-    auto send_request_and_wait_response(proto_frame *frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<std::shared_ptr<proto_frame>>;
+    auto send_request_and_wait_response(proto_frame_ptr frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<std::shared_ptr<proto_frame>>;
     auto send_request_and_wait_response(proto_frame frame, std::source_location loc = std::source_location::current()) -> asio::awaitable<std::shared_ptr<proto_frame>>;
 
     /**
-     * @brief 在 connection 的 strand 中增加任务
+     * @brief 在 connection 的 strand 中增加任务（发送或接受消息失败则视为关闭连接，而无需显示的关闭连接回调
      *
-     * @param on_close 连接断开后的任务处理函数
      */
-    auto add_work(std::function<asio::awaitable<void>(connection_ptr)> work,
-                  std::function<asio::awaitable<void>(connection_ptr)> on_close) -> void;
+    auto add_work(std::function<asio::awaitable<void>(connection_ptr)> work) -> void;
 
     /**
      * @brief 获取 ip
@@ -174,7 +172,7 @@ namespace common {
      *
      * @param frame 会将 frame_header 和 payload 一起发送，且发送前和发送后都会转换 frame_header 的字节序
      */
-    auto send_frame(proto_frame *frame, std::source_location loc) -> asio::awaitable<bool>;
+    auto send_frame(proto_frame_ptr frame, std::source_location loc) -> asio::awaitable<bool>;
 
   private:
     asio::ip::tcp::socket m_sock;
@@ -195,7 +193,6 @@ namespace common {
     uint32_t m_heart_interval = -1;
 
     /* 关闭连接 */
-    std::vector<std::function<asio::awaitable<void>(connection_ptr)>> m_on_close_works;
     bool m_closed = false;
 
     /* 用户定义数据 */

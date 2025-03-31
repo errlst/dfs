@@ -1,6 +1,6 @@
 #pragma once
 
-#include "master_server_for_storage.h"
+#include "server_for_storage.h" // IWYU pragma: keep
 #include <set>
 
 namespace master_detail {
@@ -17,7 +17,7 @@ namespace master_detail {
 
   auto cm_fetch_group_storages_handle(common::proto_frame_ptr request, common::connection_ptr conn) -> asio::awaitable<bool>;
 
-  inline auto request_handles = std::map<common::proto_cmd, request_handle_t>{
+  inline auto client_request_handles = std::map<common::proto_cmd, request_handle_t>{
       {common::proto_cmd::sm_regist, sm_regist_handle},
       {common::proto_cmd::cm_fetch_one_storage, cm_fetch_one_storage_handle},
       {common::proto_cmd::cm_fetch_group_storages, cm_fetch_group_storages_handle},

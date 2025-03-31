@@ -76,4 +76,12 @@ namespace common {
     }
   }
 
+  auto bytes_to_hex_str(std::span<char> data) -> std::string {
+    auto ret = std::string{};
+    for (auto hex : data) {
+      ret += std::format("{:02X} ", hex);
+    }
+    return ret;
+  }
+
 } // namespace common

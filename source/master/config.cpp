@@ -1,4 +1,4 @@
-#include "master_config.h"
+#include "config.h"
 #include <common/util.h>
 
 namespace master {
