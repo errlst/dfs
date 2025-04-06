@@ -30,7 +30,7 @@ namespace master_detail {
 
     /* 响应同组 storage */
     auto response_data = proto::sm_regist_response{};
-    response_data.set_group_id(group_which_storage_belongs(request_data.s_info().id()));
+    response_data.set_group_id(group_storage_belongs_to(request_data.s_info().id()));
     for (auto storage : group_members_of_storage(request_data.s_info().id())) {
       auto s_info = response_data.add_s_infos();
       s_info->set_id(storage->get_data<storage_id_t>(conn_data::storage_id).value());

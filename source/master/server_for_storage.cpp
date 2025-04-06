@@ -19,7 +19,7 @@ namespace master_detail {
       conn->set_data<storage_max_free_space_t>(conn_data::storage_max_free_space, free_space);
       LOG_DEBUG(std::format("get storage free space {}", free_space));
 
-      timer.expires_after(std::chrono::seconds{100});
+      timer.expires_after(std::chrono::seconds{1});
       co_await timer.async_wait(asio::use_awaitable);
     }
   }
@@ -47,7 +47,7 @@ namespace master_detail {
         storage_metricses[conn] = metrics;
       }
 
-      timer.expires_after(std::chrono::seconds{100});
+      timer.expires_after(std::chrono::seconds{1});
       co_await timer.async_wait(asio::use_awaitable);
     }
   }
@@ -59,11 +59,13 @@ namespace master {
   using namespace master_detail;
 
   auto storage_metrics() -> nlohmann::json {
-    auto ret = nlohmann::json::array();
+    auto ret = nlohmann::json::object();
     {
       auto lock = std::unique_lock{storage_metricses_lock};
-      for (const auto &[_, metrics] : storage_metricses) {
-        ret.push_back(metrics);
+      for (const auto &[conn, metrics] : storage_metricses) {
+        auto storage_id = conn->get_data<storage_id_t>(conn_data::storage_id).value();
+        auto group_id = group_storage_belongs_to(storage_id);
+        ret[std::to_string(group_id)].push_back(metrics);
       }
     }
     return ret;

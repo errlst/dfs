@@ -3,3 +3,4 @@ AlwaysBreakTemplateDeclarations: Yes
 IndentCaseLabels: true
 ColumnLimit: 0
 NamespaceIndentation: All
+BreakBeforeBraces: Allman

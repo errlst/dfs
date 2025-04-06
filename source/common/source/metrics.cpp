@@ -20,18 +20,18 @@ namespace common_detail {
       timer.expires_after(std::chrono::seconds{1});
       co_await timer.async_wait(asio::use_awaitable);
 
-      auto req_ = get_request_metrics();
-      auto cpu_ = get_cpu_metrics();
-      auto mem_ = get_mem_metrics();
-      auto net_ = get_net_metrics();
+      auto tmp_metrics = nlohmann::json{
+          {"request", get_request_metrics()},
+          {"cpu", get_cpu_metrics()},
+          {"mem", get_mem_metrics()},
+          {"net", get_net_metrics()},
+      };
+      for (const auto &[name, work] : metrics_extensions) {
+        tmp_metrics[name] = work();
+      }
 
       auto lock = std::unique_lock{metrics_lock};
-      metrics = {
-          {"request", req_},
-          {"cpu", cpu_},
-          {"mem", mem_},
-          {"net", net_},
-      };
+      metrics = std::move(tmp_metrics);
 
       auto ofs = std::ofstream{out_file};
       if (!ofs.is_open()) {
@@ -57,6 +57,10 @@ namespace common {
     co_await start_net_metrics();
 
     asio::co_spawn(co_await asio::this_coro::executor, do_metrics(out_file), asio::detached);
+  }
+
+  auto add_metrics_extension(std::tuple<std::string, std::function<nlohmann::json()>> extension) -> void {
+    metrics_extensions.push_back(std::move(extension));
   }
 
   auto get_metrics() -> nlohmann::json {

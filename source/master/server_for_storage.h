@@ -88,12 +88,12 @@ namespace master {
    * @brief 计算 storage 所属的组
    *
    */
-  inline auto group_which_storage_belongs(storage_id_t id) -> uint32_t { return (id - 1) / master_config.server.group_size + 1; }
+  inline auto group_storage_belongs_to(storage_id_t id) -> uint32_t { return (id - 1) / master_config.server.group_size + 1; }
 
   /**
    * @brief 某个 storage 的所有组员（包括自己）
    *
    */
-  inline auto group_members_of_storage(storage_id_t id) -> std::vector<std::shared_ptr<common::connection>> { return storages_of_group(group_which_storage_belongs(id)); }
+  inline auto group_members_of_storage(storage_id_t id) -> std::vector<std::shared_ptr<common::connection>> { return storages_of_group(group_storage_belongs_to(id)); }
 
 } // namespace master

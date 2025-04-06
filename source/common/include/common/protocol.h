@@ -94,9 +94,9 @@ namespace common {
     cs_upload_start,
 
     /**
-     * @brief 上传数据（不能并行上传多个数据块）
+     * @brief 上传数据（不能并行上传多个数据块）。
      *
-     * @param request { array data }。stat == STAT_FINISH 表示上传完成
+     * @param request { array data }。stat == STAT_FINISH 表示上传完成，且此时 data 为文件名
      */
     cs_upload,
 

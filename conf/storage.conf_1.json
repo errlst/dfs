@@ -9,7 +9,7 @@
   "server": {
     "id": 1, // 从1开始计数
     "ip": "0.0.0.0",
-    "port": 9000,
+    "port": 9001,
     "master_ip": "127.0.0.1",
     "master_port": 8888,
     "master_magic": 12345678,
