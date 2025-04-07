@@ -1,10 +1,11 @@
 #pragma once
 
+#include "json.h"
 #include <generator>
-#include <nlohmann/json.hpp>
 #include <string>
 
-namespace common {
+namespace common
+{
 
   /**
    * @brief 获取磁盘可用空间

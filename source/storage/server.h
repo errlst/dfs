@@ -1,14 +1,14 @@
 #pragma once
 #include <common/connection.h>
-#include <nlohmann/json.hpp>
+#include <common/json.h>
 
-namespace storage_detail {
-
+namespace storage_detail
+{
   /**
-   * @brief storage 性能监控
+   * @brief
    *
    */
-  auto storage_metrics() -> nlohmann::json;
+  auto storage_info_metrics() -> nlohmann::json;
 
   /**
    * @brief 处理请求
@@ -18,7 +18,8 @@ namespace storage_detail {
 
 } // namespace storage_detail
 
-namespace storage {
+namespace storage
+{
 
   /**
    * @brief storage 服务

@@ -2,8 +2,8 @@
 
 #include "store.h"
 
-namespace storage_detail {
-
+namespace storage_detail
+{
   using namespace storage;
 
   inline auto hot_store_group_ = std::shared_ptr<store_ctx_group>{};
@@ -12,8 +12,8 @@ namespace storage_detail {
 
 } // namespace storage_detail
 
-namespace storage {
-
+namespace storage
+{
   /**
    * @brief 初始化 store group
    *

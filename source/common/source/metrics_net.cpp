@@ -1,23 +1,27 @@
 #include <asio.hpp>
+#include <common/json.h>
 #include <common/log.h>
 #include <common/metrics_net.h>
 #include <fstream>
-#include <nlohmann/json.hpp>
 #include <sstream>
 
-namespace common_detail {
+namespace common_detail
+{
 
-  auto parse_proc_net_dev() -> void {
+  auto parse_proc_net_dev() -> void
+  {
     auto ifs = std::ifstream{"/proc/net/dev"};
     auto line = std::string{};
     std::getline(ifs, line);
     std::getline(ifs, line);
 
-    while (std::getline(ifs, line)) {
+    while (std::getline(ifs, line))
+    {
       auto iss = std::istringstream{line};
       auto name = std::string{};
       iss >> name;
-      if (name == "lo") {
+      if (name == "lo")
+      {
         continue;
       }
 
@@ -36,9 +40,11 @@ namespace common_detail {
     }
   }
 
-  auto do_net_metrics() -> asio::awaitable<void> {
+  auto do_net_metrics() -> asio::awaitable<void>
+  {
     auto timer = asio::steady_timer{co_await asio::this_coro::executor};
-    while (true) {
+    while (true)
+    {
       timer.expires_after(std::chrono::seconds{1});
       co_await timer.async_wait(asio::use_awaitable);
 
@@ -50,15 +56,18 @@ namespace common_detail {
   }
 } // namespace common_detail
 
-namespace common {
+namespace common
+{
 
   using namespace common_detail;
 
-  auto start_net_metrics() -> asio::awaitable<void> {
+  auto start_net_metrics() -> asio::awaitable<void>
+  {
     asio::co_spawn(co_await asio::this_coro::executor, do_net_metrics(), asio::detached);
   }
 
-  auto get_net_metrics() -> nlohmann::json {
+  auto get_net_metrics() -> nlohmann::json
+  {
     return {
         {"total_send", met_metrics_bk.total_send},
         {"total_recv", met_metrics_bk.total_recv},

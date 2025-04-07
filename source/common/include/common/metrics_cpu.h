@@ -2,17 +2,20 @@
 
 #include <asio.hpp>
 #include <cstdint>
-#include <nlohmann/json.hpp>
+#include "json.h"
 #include <vector>
 
-namespace common_detail {
+namespace common_detail
+{
 
-  inline struct cpu_metrics_t {
+  inline struct cpu_metrics_t
+  {
     double load_1, load_5, load_15;
     double usage_percent;
     std::vector<double> core_usages_percent;
 
-    struct last_info {
+    struct last_info
+    {
       uint64_t last_total_ticks;
       uint64_t last_idle_ticks;
     };
@@ -38,7 +41,8 @@ namespace common_detail {
 
 } // namespace common_detail
 
-namespace common {
+namespace common
+{
 
   auto start_cpu_metrics() -> asio::awaitable<void>;
 

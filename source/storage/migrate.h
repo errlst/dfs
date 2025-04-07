@@ -2,14 +2,12 @@
 #include <asio.hpp>
 #include <map>
 
-namespace storage_detail {
-
-  inline auto hot_file_atime_or_ctime = std::map<std::string, uint64_t>{};
-
+namespace storage_detail
+{
+  inline auto hot_file_atime_or_ctime = std::map<std::string, uint64_t>{}; // 热数据访问或修改时间
   inline auto hot_file_atime_or_ctime_mut = std::mutex{};
 
-  inline auto cold_file_access_times = std::map<std::string, uint64_t>{};
-
+  inline auto cold_file_access_times = std::map<std::string, uint64_t>{}; // 冷数据最近访问次数
   inline auto cold_file_access_times_mut = std::mutex{};
 
   inline auto migrate_service_timer = std::unique_ptr<asio::steady_timer>{};
@@ -58,7 +56,8 @@ namespace storage_detail {
 
 } // namespace storage_detail
 
-namespace storage {
+namespace storage
+{
 
   /**
    * @brief 初始化迁移服务

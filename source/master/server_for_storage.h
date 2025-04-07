@@ -3,10 +3,11 @@
 #include "config.h"
 #include "server_util.h"
 #include <common/connection.h>
+#include <common/json.h>
 #include <common/protocol.h>
-#include <nlohmann/json.hpp>
 
-namespace master_detail {
+namespace master_detail
+{
 
   using namespace master;
 
@@ -34,7 +35,8 @@ namespace master_detail {
 
 } // namespace master_detail
 
-namespace master {
+namespace master
+{
 
   /**
    * @brief 获取 storage 的监控信息

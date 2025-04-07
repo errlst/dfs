@@ -2,7 +2,7 @@
 
 #include <asio.hpp>
 #include <mutex>
-#include <nlohmann/json.hpp>
+#include "json.h"
 
 namespace common_detail {
   

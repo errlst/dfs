@@ -1,4 +1,5 @@
 #include <asio.hpp>
+#include <common/json.h>
 #include <common/log.h>
 #include <common/metrics.h>
 #include <common/metrics_cpu.h>
@@ -6,17 +7,19 @@
 #include <common/metrics_net.h>
 #include <common/metrics_request.h>
 #include <fstream>
-#include <nlohmann/json.hpp>
 #include <string>
 
-namespace common_detail {
+namespace common_detail
+{
 
   using namespace common;
 
-  auto do_metrics(std::string out_file) -> asio::awaitable<void> {
+  auto do_metrics(std::string out_file) -> asio::awaitable<void>
+  {
     auto timer = asio::steady_timer{co_await asio::this_coro::executor};
 
-    while (true) {
+    while (true)
+    {
       timer.expires_after(std::chrono::seconds{1});
       co_await timer.async_wait(asio::use_awaitable);
 
@@ -26,7 +29,8 @@ namespace common_detail {
           {"mem", get_mem_metrics()},
           {"net", get_net_metrics()},
       };
-      for (const auto &[name, work] : metrics_extensions) {
+      for (const auto &[name, work] : metrics_extensions)
+      {
         tmp_metrics[name] = work();
       }
 
@@ -34,7 +38,8 @@ namespace common_detail {
       metrics = std::move(tmp_metrics);
 
       auto ofs = std::ofstream{out_file};
-      if (!ofs.is_open()) {
+      if (!ofs.is_open())
+      {
         LOG_CRITICAL("metrics open file {} failed", out_file);
       }
 
@@ -45,11 +50,13 @@ namespace common_detail {
 
 } // namespace common_detail
 
-namespace common {
+namespace common
+{
 
   using namespace common_detail;
 
-  auto start_metrics(const std::string &out_file) -> asio::awaitable<void> {
+  auto start_metrics(const std::string &out_file) -> asio::awaitable<void>
+  {
     LOG_INFO("start metrics output {}", out_file);
     co_await start_request_metrics();
     co_await start_cpu_metrics();
@@ -59,11 +66,13 @@ namespace common {
     asio::co_spawn(co_await asio::this_coro::executor, do_metrics(out_file), asio::detached);
   }
 
-  auto add_metrics_extension(std::tuple<std::string, std::function<nlohmann::json()>> extension) -> void {
+  auto add_metrics_extension(std::tuple<std::string, std::function<nlohmann::json()>> extension) -> void
+  {
     metrics_extensions.push_back(std::move(extension));
   }
 
-  auto get_metrics() -> nlohmann::json {
+  auto get_metrics() -> nlohmann::json
+  {
     auto lock = std::unique_lock{metrics_lock};
     return metrics;
   }

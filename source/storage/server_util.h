@@ -5,13 +5,15 @@
 #include <cstdint>
 #include <string>
 
-namespace storage {
+namespace storage
+{
 
   /**
    * @brief 连接类型
    *
    */
-  enum class conn_type_t {
+  enum class conn_type_t
+  {
     client,
     storage,
     master,
@@ -21,7 +23,8 @@ namespace storage {
    * @brief 连接需要的额外数据
    *
    */
-  enum conn_data : uint64_t {
+  enum conn_data : uint64_t
+  {
     conn_type,
 
     client_upload_file_id,

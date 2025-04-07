@@ -1,16 +1,22 @@
 #include "server_for_storage.h"
 #include <common/util.h>
 
-namespace master_detail {
+namespace master_detail
+{
 
-  auto request_storage_max_free_space(common::connection_ptr conn) -> asio::awaitable<void> {
+  auto request_storage_max_free_space(common::connection_ptr conn) -> asio::awaitable<void>
+  {
     auto timer = asio::steady_timer{co_await asio::this_coro::executor};
 
-    while (true) {
+    while (true)
+    {
       auto response = co_await conn->send_request_and_wait_response({.cmd = common::proto_cmd::ms_get_max_free_space});
-      if (!response) {
+      if (!response)
+      {
         co_return;
-      } else if (response->stat != common::FRAME_STAT_OK) {
+      }
+      else if (response->stat != common::FRAME_STAT_OK)
+      {
         LOG_ERROR("get storage free space failed, {}", response->stat);
         continue;
       }
@@ -24,20 +30,26 @@ namespace master_detail {
     }
   }
 
-  auto request_storage_metrics(common::connection_ptr conn) -> asio::awaitable<void> {
+  auto request_storage_metrics(common::connection_ptr conn) -> asio::awaitable<void>
+  {
     auto timer = asio::steady_timer{co_await asio::this_coro::executor};
 
-    while (true) {
+    while (true)
+    {
       auto response = co_await conn->send_request_and_wait_response(common::proto_frame{.cmd = common::proto_cmd::ms_get_metrics});
-      if (!response) {
+      if (!response)
+      {
         co_return;
-      } else if (response->stat != common::FRAME_STAT_OK) {
+      }
+      else if (response->stat != common::FRAME_STAT_OK)
+      {
         LOG_ERROR("get storage metrics failed, {}", response->stat);
         continue;
       }
 
       auto metrics = nlohmann::json::parse(std::string_view{response->data, response->data_len}, nullptr, false);
-      if (metrics.is_discarded()) {
+      if (metrics.is_discarded())
+      {
         LOG_ERROR(std::format("parse storage metrics failed {}", std::string_view{response->data, response->data_len}));
         continue;
       }
@@ -54,15 +66,18 @@ namespace master_detail {
 
 } // namespace master_detail
 
-namespace master {
+namespace master
+{
 
   using namespace master_detail;
 
-  auto storage_metrics() -> nlohmann::json {
+  auto storage_metrics() -> nlohmann::json
+  {
     auto ret = nlohmann::json::object();
     {
       auto lock = std::unique_lock{storage_metricses_lock};
-      for (const auto &[conn, metrics] : storage_metricses) {
+      for (const auto &[conn, metrics] : storage_metricses)
+      {
         auto storage_id = conn->get_data<storage_id_t>(conn_data::storage_id).value();
         auto group_id = group_storage_belongs_to(storage_id);
         ret[std::to_string(group_id)].push_back(metrics);
@@ -71,13 +86,15 @@ namespace master {
     return ret;
   }
 
-  auto on_storage_disconnect(common::connection_ptr conn) -> asio::awaitable<void> {
+  auto on_storage_disconnect(common::connection_ptr conn) -> asio::awaitable<void>
+  {
     LOG_ERROR("storage {} disconnect", conn->address());
     unregist_storage(conn);
     co_return;
   }
 
-  auto regist_storage(std::shared_ptr<common::connection> conn) -> void {
+  auto regist_storage(std::shared_ptr<common::connection> conn) -> void
+  {
     conn->set_data<conn_type_t>(conn_data::conn_type, conn_type_t::storage);
     auto lock = std::unique_lock{storage_conns_lock};
     storage_conns[conn->get_data<storage_id_t>(conn_data::storage_id).value()] = conn;
@@ -87,36 +104,44 @@ namespace master {
     conn->add_work(request_storage_metrics);
   }
 
-  auto unregist_storage(std::shared_ptr<common::connection> conn) -> void {
+  auto unregist_storage(std::shared_ptr<common::connection> conn) -> void
+  {
     auto lock = std::unique_lock{storage_conns_lock};
     storage_conns.erase(conn->get_data<storage_id_t>(conn_data::storage_id).value());
     storage_conns_vec = {};
-    for (const auto &[_, conn] : storage_conns) {
+    for (const auto &[_, conn] : storage_conns)
+    {
       storage_conns_vec.emplace_back(conn);
     }
   }
 
-  auto storage_vec() -> std::vector<std::shared_ptr<common::connection>> {
+  auto storage_vec() -> std::vector<std::shared_ptr<common::connection>>
+  {
     auto lock = std::unique_lock{storage_conns_lock};
     return storage_conns_vec;
   }
 
-  auto storage_registed(storage_id_t id) -> bool {
+  auto storage_registed(storage_id_t id) -> bool
+  {
     auto lock = std::unique_lock{storage_conns_lock};
     return storage_conns.contains(id);
   }
 
-  auto next_storage_round_robin() -> std::shared_ptr<common::connection> {
+  auto next_storage_round_robin() -> std::shared_ptr<common::connection>
+  {
     static auto idx = 0ul;
     auto lock = std::unique_lock{storage_conns_lock};
     return storage_conns_vec[(idx++) % storage_conns_vec.size()];
   }
 
-  auto storages_of_group(uint32_t group) -> std::vector<std::shared_ptr<common::connection>> {
+  auto storages_of_group(uint32_t group) -> std::vector<std::shared_ptr<common::connection>>
+  {
     auto ret = std::vector<std::shared_ptr<common::connection>>{};
-    for (auto i = 0u, id = master_config.server.group_size * (group - 1) + 1; i < master_config.server.group_size; ++i, ++id) {
+    for (auto i = 0u, id = master_config.server.group_size * (group - 1) + 1; i < master_config.server.group_size; ++i, ++id)
+    {
       auto lock = std::unique_lock{storage_conns_lock};
-      if (auto it = storage_conns.find(id); it != storage_conns.end()) {
+      if (auto it = storage_conns.find(id); it != storage_conns.end())
+      {
         ret.push_back(it->second);
       }
     }

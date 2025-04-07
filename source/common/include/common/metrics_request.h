@@ -4,15 +4,17 @@
 #include <asio.hpp>
 #include <atomic>
 #include <chrono>
-#include <nlohmann/json.hpp>
+#include "json.h"
 
-namespace common_detail {
+namespace common_detail
+{
 
   /**
    * @brief 请求相关的指标
    *
    */
-  inline struct request_metrics_t {
+  inline struct request_metrics_t
+  {
 
     std::atomic_uint64_t connection_count;
 
@@ -27,7 +29,8 @@ namespace common_detail {
     std::atomic_uint64_t count_concurrent;
 
     /* 一段时间内的请求 */
-    struct time_window {
+    struct time_window
+    {
       std::atomic_uint64_t total; // 总请求数量
       uint64_t total_bk;
       std::atomic_uint64_t success; // 成功请求数量
@@ -42,7 +45,8 @@ namespace common_detail {
 
 } // namespace common_detail
 
-namespace common {
+namespace common
+{
 
   /**
    * @brief 请求指标监控
@@ -61,7 +65,8 @@ namespace common {
    *
    * @param success     请求是否成功
    */
-  struct request_end_info {
+  struct request_end_info
+  {
     bool success;
   };
 

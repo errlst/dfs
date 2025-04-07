@@ -1,12 +1,14 @@
 #pragma once
 
 #include <asio.hpp>
+#include "json.h"
 #include <mutex>
-#include <nlohmann/json.hpp>
 
-namespace common_detail {
+namespace common_detail
+{
 
-  inline struct net_metrics_t {
+  inline struct net_metrics_t
+  {
     uint64_t total_send, total_recv;
     uint64_t packets_send, packets_recv;
     uint64_t errin, errout;
@@ -25,7 +27,8 @@ namespace common_detail {
 
 } // namespace common_detail
 
-namespace common {
+namespace common
+{
 
   auto start_net_metrics() -> asio::awaitable<void>;
 

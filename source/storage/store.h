@@ -18,9 +18,11 @@
   store_file_name，实际存储时的文件名（包括随机后缀），如 abc.txt_nIk6cAOx
 */
 
-namespace storage {
+namespace storage
+{
 
-  class store_ctx {
+  class store_ctx
+  {
   public:
     store_ctx(std::string_view root_path);
 
@@ -95,6 +97,12 @@ namespace storage {
     auto free_space() -> uint64_t;
 
     /**
+     * @brief 获取总空间
+     *
+     */
+    auto total_space() -> uint64_t { return m_disk_total; }
+
+    /**
      * @brief 获取 root_path
      *
      */
@@ -165,22 +173,14 @@ namespace storage {
     auto disk_space_is_enough(uint64_t size) -> bool;
 
   private:
-    /* 根路径 */
-    std::string m_root_path;
+    std::string m_root_path;              // 根路径
+    std::atomic_uint16_t m_flat_idx = 0;  // 扁平路径索引
+    uint64_t m_disk_total = 0;            // 磁盘总空间
+    std::atomic_uint64_t m_disk_free = 0; // 磁盘可用空间
 
-    /* 扁平路径索引 */
-    std::atomic_uint16_t m_flat_idx = 0;
-
-    /* 磁盘剩余空间的缓存 */
-    std::atomic_uint64_t m_disk_free = 0;
-
-    /* 磁盘总空间 */
-    uint64_t m_disk_total = 0;
-
-    /* 文件流 + 相对路径 */
-    std::map<uint64_t, std::pair<std::shared_ptr<std::ifstream>, std::string>> m_ifstreams;
+    std::map<uint64_t, std::pair<std::shared_ptr<std::ifstream>, std::string>> m_ifstreams; // <流, 相对路径>
     std::mutex m_ifstreams_mtx;
-    std::map<uint64_t, std::pair<std::shared_ptr<std::ofstream>, std::string>> m_ofstreams;
+    std::map<uint64_t, std::pair<std::shared_ptr<std::ofstream>, std::string>> m_ofstreams; // <流, 相对路径>
     std::mutex m_ofstream_mut;
   };
 
@@ -188,7 +188,8 @@ namespace storage {
    * @brief store_ctx_group 的函数调用均是对 store_ctx 的封装，具体说明参考 store_ctx
    *
    */
-  class store_ctx_group {
+  class store_ctx_group
+  {
   public:
     store_ctx_group(const std::string &name, const std::vector<std::string> &path);
 
@@ -225,10 +226,16 @@ namespace storage {
     auto max_free_space() -> uint64_t;
 
     /**
-     * @brief 获取跟路径
+     * @brief 获取根路径
      *
      */
     auto root_path(uint64_t file_id) -> std::string { return m_stores[file_id % m_stores.size()]->root_path(); }
+
+    /**
+     * @brief 获取 stores
+     *
+     */
+    auto stores() -> std::vector<std::shared_ptr<store_ctx>> { return m_stores; }
 
   private:
     /**

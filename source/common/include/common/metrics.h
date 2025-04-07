@@ -1,9 +1,10 @@
 #pragma once
 
 #include <asio.hpp>
-#include <nlohmann/json.hpp>
+#include "json.h"
 
-namespace common_detail {
+namespace common_detail
+{
 
   inline auto metrics = nlohmann::json{};
 
@@ -15,7 +16,8 @@ namespace common_detail {
 
 } // namespace common_detail
 
-namespace common {
+namespace common
+{
 
   auto start_metrics(const std::string &out_file) -> asio::awaitable<void>;
 
