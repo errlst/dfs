@@ -87,7 +87,7 @@ function generateStorageNode(id) {
         cold: [
           {
             free_space: Math.floor(Math.random() * 1e12),
-            root_path: `/home/errlst/dfs/build/base_path/storage_${id}/hot`,
+            root_path: `/home/errlst/dfs/build/base_path/storage_${id}/cold`,
             total_space: 1081101176832,
           },
         ],

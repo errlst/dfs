@@ -20,10 +20,11 @@ namespace storage_detail
     for (auto group : store_groups())
     {
       auto infos = nlohmann::json::array();
-      for (auto store : hot_store_group()->stores())
+      for (auto store : group->stores())
       {
         auto info = nlohmann::json::object();
         info["root_path"] = store->root_path();
+        LOG_DEBUG("store root path {}", store->root_path());
         info["total_space"] = store->total_space();
         info["free_space"] = store->free_space();
         infos.push_back(info);
@@ -31,11 +32,11 @@ namespace storage_detail
 
       if (is_hot_store_group(group))
       {
-        store_infos["hot"] = infos;
+        store_infos["hot"] = std::move(infos);
       }
       else
       {
-        store_infos["cold"] = infos;
+        store_infos["cold"] = std::move(infos);
       }
     }
 
