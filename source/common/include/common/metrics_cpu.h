@@ -1,8 +1,8 @@
 #pragma once
 
+#include "json.h"
 #include <asio.hpp>
 #include <cstdint>
-#include "json.h"
 #include <vector>
 
 namespace common_detail

@@ -1,9 +1,11 @@
 #include <common/protocol.h>
 #include <netinet/in.h>
 
-namespace common {
+namespace common
+{
 
-  auto trans_frame_to_net(proto_frame *frame) -> void {
+  auto trans_frame_to_net(proto_frame *frame) -> void
+  {
     frame->magic = htons(frame->magic);
     frame->id = htons(frame->id);
     frame->cmd = static_cast<proto_cmd>(htons(std::to_underlying(frame->cmd)));
@@ -12,7 +14,8 @@ namespace common {
 
   auto trans_frame_to_host(proto_frame *frame) -> void { trans_frame_to_net(frame); }
 
-  auto create_frame(proto_cmd cmd, frame_type type, uint32_t data_len, uint8_t stat) -> std::shared_ptr<proto_frame> {
+  auto create_frame(proto_cmd cmd, frame_type type, uint32_t data_len, uint8_t stat) -> std::shared_ptr<proto_frame>
+  {
     auto frame = std::shared_ptr<proto_frame>{(proto_frame *)malloc(sizeof(proto_frame) + data_len), free};
     *frame = {
         .cmd = cmd,

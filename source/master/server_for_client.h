@@ -3,7 +3,8 @@
 #include "server_for_storage.h" // IWYU pragma: keep
 #include <set>
 
-namespace master_detail {
+namespace master_detail
+{
 
   using namespace master;
 
@@ -24,7 +25,8 @@ namespace master_detail {
   };
 } // namespace master_detail
 
-namespace master {
+namespace master
+{
 
   /**
    * @brief 注册 client

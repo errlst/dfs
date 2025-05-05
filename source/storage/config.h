@@ -3,17 +3,21 @@
 #include <string>
 #include <vector>
 
-namespace storage {
+namespace storage
+{
 
-  inline struct storage_config_t {
-    
-    struct {
+  inline struct storage_config_t
+  {
+
+    struct
+    {
       std::string base_path;
       uint32_t log_level;
       uint32_t thread_count;
     } common;
 
-    struct {
+    struct
+    {
       uint32_t id;
       std::string ip;
       uint32_t port;
@@ -26,14 +30,16 @@ namespace storage {
       uint32_t heart_timeout;
       uint32_t heart_interval;
 
-      struct {
+      struct
+      {
         uint32_t storage_magic;
         uint32_t group_id;
       } internal;
 
     } server;
 
-    struct {
+    struct
+    {
       uint32_t to_cold_rule;
       uint32_t to_cold_timeout;
       uint32_t to_cold_action;
@@ -43,7 +49,8 @@ namespace storage {
       uint32_t to_hot_action;
     } migrate;
 
-    struct {
+    struct
+    {
       uint32_t zero_copy_limit;
     } performance;
 

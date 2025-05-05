@@ -1,0 +1,180 @@
+@startuml
+actor "客户端用户" as ClientUser
+actor "系统管理员" as Admin
+
+rectangle "轻量级分布式文件系统" {
+    usecase "文件上传" as Upload #LightBlue
+    usecase "文件下载" as Download #LightBlue
+    usecase "管理存储节点" as ManageNodes #LightGreen
+    usecase "监控系统性能" as MonitorPerf #LightGreen
+    usecase "触发数据迁移" as TriggerMigrate #LightGreen
+    usecase "触发数据同步" as TriggerSync #LightGreen
+    usecase "查看系统日志" as ViewLogs #LightGreen
+
+    ClientUser -- Upload
+    ClientUser -- Download
+
+    Admin -- ManageNodes
+    Admin -- MonitorPerf
+    Admin -- TriggerMigrate
+    Admin -- TriggerSync
+    Admin -- ViewLogs
+}
+
+note left of Upload: 上传本地文件至系统
+note left of Download: 从系统下载文件到本地
+note right of ManageNodes: 注册、注销、查看节点状态
+note right of MonitorPerf: 实时查看系统资源及性能指标
+note right of TriggerMigrate: 手动触发冷热数据迁移
+note right of TriggerSync: 手动触发存储节点数据同步
+note right of ViewLogs: 查看系统运行日志
+
+@enduml
+
+
+
+@startuml
+left to right direction
+skinparam actorStyle awesome
+
+actor 用户 as User
+rectangle "分布式存储系统" {
+  actor "主控服务器" as Master
+  actor "存储节点" as Storage
+  actor "性能监控" as Monitor
+  actor "系统管理" as Admin
+  
+  User -- (文件上传)
+  User -- (文件下载)
+  User -- (文件删除)
+  (文件操作) <|-- (断点续传)
+  (文件操作) <|-- (文件校验)
+  
+  Master -- (节点注册)
+  Master -- (负载均衡)
+  Master -- (元数据管理)
+  (请求分发) .> (负载均衡) : extends
+  
+  Storage -- (分块存储)
+  Storage -- (数据同步)
+  Storage -- (冷热迁移)
+  
+  Monitor -- (实时监控)
+  Monitor -- (历史分析)
+  Monitor -- (阈值告警)
+  
+  Admin -- (动态配置)
+  Admin -- (日志管理)
+  Admin -- (信号处理)
+  
+  User --> Master : 获取节点信息\n查询元数据
+  User --> Storage : 直接文件传输
+  Master --> Storage : 节点状态监控\n数据同步指令
+  Monitor --> Master : 性能数据采集
+  Monitor --> Storage : 资源监控
+  Admin --> Master : 策略配置更新
+  Admin --> Storage : 存储策略调整
+}
+@enduml
+
+' ' 客户端模块用例图
+' @startuml Client_Module
+' left to right direction
+' actor "普通用户" as User
+' actor "管理员" as Admin
+
+' rectangle "客户端模块" {
+'   (文件上传) as upload
+'   (文件下载) as download
+'   (文件删除) as delete
+'   (元数据查询) as query
+'   (断点续传) as resume
+'   (命令行操作) as cli
+'   (错误提示) as error
+
+'   User --> upload : 分块传输\nMD5校验
+'   User --> download 
+'   User --> cli : 使用命令行工具
+'   Admin --> error : 查看详细日志
+'   upload .> resume : extends
+'   download .> resume : extends
+' }
+' @enduml
+
+' ' 主控服务器模块用例图
+' @startuml Master_Module
+' left to right direction
+' actor "存储节点" as Storage
+' actor "客户端" as Client
+
+' rectangle "主控服务器模块" {
+'   (节点注册) as register
+'   (心跳检测) as heartbeat
+'   (负载均衡) as balance
+'   (元数据存储) as metadata
+'   (动态扩展) as scaling
+'   (分组管理) as group
+
+'   Storage --> register : 启动时注册
+'   Storage --> heartbeat : 超时注销
+'   Client --> balance : 负载策略
+'   balance --> metadata : 基于节点状态
+'   scaling --> group : 自动加入分组
+' }
+' @enduml
+
+' ' 存储节点模块用例图（优化点：增加智能迁移策略）
+' @startuml Storage_Module
+' left to right direction
+' actor "主控服务器" as Master
+' actor "客户端" as Client
+
+' rectangle "存储节点模块" {
+'   (文件存储) as store
+'   (数据同步) as sync
+'   (SSD热迁移) as hot
+'   (HDD冷迁移) as cold
+'   (零拷贝传输) as zerocopy
+'   (性能上报) as report
+
+'   Client --> store : 直接读写操作
+'   Master --> sync 
+'   Master --> hot : 如访问频率>5次/天
+'   Master --> cold : 如30天未访问
+'   store .> zerocopy : <<extends>>\n小文件（可配置阈值）
+'   report --> Master : CPU/内存/磁盘指标
+' }
+' @enduml
+
+' ' 性能监控模块用例图（优化点：增加预测性报警）
+' @startuml Monitor_Module
+' actor "管理员" as Admin
+
+' rectangle "性能监控模块" {
+'   (实时仪表盘) as dashboard
+'   (历史数据分析) as history
+
+'   Admin --> dashboard : 查看WEB可视化
+'   Admin --> history : 查看历史数据
+'   dashboard --> history : 时间轴对比
+' }
+' @enduml
+
+' ' 系统管理模块用例图（优化点：容器化部署支持）
+' @startuml SysMgmt_Module
+' actor "运维人员" as Ops
+
+' rectangle "系统管理模块" {
+'   (日志轮转) as logrotate
+'   (容器部署) as docker
+'   (数据同步信号) as sync_sig
+'   (热配置更新) as hotupdate
+'   (优雅退出) as shutdown
+
+'   Ops --> docker : 一键部署脚本
+'   Ops --> sync_sig : 触发跨节点同步
+'   Ops --> hotupdate : 动态修改策略
+'   logrotate --> shutdown : 退出前保存
+'   hotupdate .> logrotate : 不影响服务
+' }
+' @enduml

@@ -6,7 +6,8 @@
 #include <common/util.h>
 #include <iostream>
 
-auto show_usage() -> void {
+auto show_usage() -> void
+{
   std::cout << "usgae: storage [options]\n";
   std::cout << "options:\n";
   std::cout << "  -h\tshow this help message and exit\n";
@@ -14,20 +15,28 @@ auto show_usage() -> void {
   std::cout << "  -d\trun as a daemon\n";
 }
 
-auto main(int argc, char *argv[]) -> int {
+auto main(int argc, char *argv[]) -> int
+{
   auto config_file = std::string{};
-  for (auto i = 1; i < argc; ++i) {
-    if (std::string_view(argv[i]) == "-h") {
+  for (auto i = 1; i < argc; ++i)
+  {
+    if (std::string_view(argv[i]) == "-h")
+    {
       show_usage();
       return 0;
-    } else if (std::string_view(argv[i]) == "-c") {
-      if (i + 1 >= argc) {
+    }
+    else if (std::string_view(argv[i]) == "-c")
+    {
+      if (i + 1 >= argc)
+      {
         show_usage();
         return -1;
       }
       config_file = argv[i + 1];
       i += 1;
-    } else {
+    }
+    else
+    {
       show_usage();
     }
   }
@@ -42,10 +51,13 @@ auto main(int argc, char *argv[]) -> int {
 
   asio::co_spawn(io, master::master_server(), common::exception_handle);
 
-  for (auto i = 1; i < master::master_config.common.thread_count; ++i) {
-    std::thread{[&io] {
-      io.run();
-    }}.detach();
+  for (auto i = 1; i < master::master_config.common.thread_count; ++i)
+  {
+    std::thread{[&io]
+                {
+                  io.run();
+                }}
+        .detach();
   }
 
   return io.run();

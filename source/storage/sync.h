@@ -4,11 +4,12 @@
 #include <generator>
 #include <queue>
 
-namespace storage_detail {
+namespace storage_detail
+{
 
-  inline auto not_sync_files = std::queue<std::string>{};
+  inline auto not_synced_files = std::queue<std::string>{};
 
-  inline auto not_sync_files_bk = std::queue<std::string>{};
+  inline auto not_synced_files_bk = std::queue<std::string>{};
 
   inline auto not_synced_files_mut = std::mutex{};
 
@@ -52,7 +53,8 @@ namespace storage_detail {
 
 } // namespace storage_detail
 
-namespace storage {
+namespace storage
+{
 
   /**
    * @brief 开始同步

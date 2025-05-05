@@ -1,5 +1,6 @@
 #include "migrate.h"
 #include "config.h"
+#include "store_util.h"
 #include <common/exception.h>
 #include <common/log.h>
 #include <common/util.h>
@@ -50,9 +51,12 @@ namespace storage_detail
     LOG_INFO("to cold migrate init suc");
   }
 
-  auto migrate_to_cold_once(std::string_view abs_path) -> asio::awaitable<void>
+  auto migrate_to_cold_once(const std::string &abs_path) -> asio::awaitable<void>
   {
     LOG_INFO(std::format("migrate to cold {}", abs_path));
+    cold_store_group()->copy_from_another_store(abs_path);
+    std::filesystem::remove(abs_path);
+    after_hot_to_cold(abs_path);
     co_return;
   }
 
@@ -66,7 +70,7 @@ namespace storage_detail
     auto to_cold_files = std::vector<std::string>{};
     for (const auto &[abs_path, time] : hot_file_atime_or_ctime)
     {
-      if ((int64_t)time + storage_config.migrate.to_cold_action < std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count())
+      if ((int64_t)time + storage_config.migrate.to_cold_timeout < std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count())
       {
         to_cold_files.push_back(abs_path);
       }
@@ -97,9 +101,12 @@ namespace storage_detail
     LOG_INFO("to hot migrate init suc");
   }
 
-  auto migrate_to_hot_once(std::string_view abs_path) -> asio::awaitable<void>
+  auto migrate_to_hot_once(const std::string &abs_path) -> asio::awaitable<void>
   {
     LOG_INFO(std::format("migrate to hot {}", abs_path));
+    hot_store_group()->copy_from_another_store(abs_path);
+    std::filesystem::remove(abs_path);
+    after_cold_to_hot(abs_path);
     co_return;
   }
 
@@ -206,6 +213,24 @@ namespace storage
     auto new_times = ++old_times;
     cold_file_access_times[abs_path] = new_times;
     LOG_DEBUG(std::format("access cold file {} times {} -> {}", abs_path, old_times, new_times));
+  }
+
+  auto after_hot_to_cold(const std::string &abs_path) -> void
+  {
+    auto lock = std::unique_lock{hot_file_atime_or_ctime_mut};
+    hot_file_atime_or_ctime.erase(abs_path);
+    lock = std::unique_lock{cold_file_access_times_mut};
+    cold_file_access_times[abs_path] = 0;
+    LOG_DEBUG(std::format("after hot to cold {}", abs_path));
+  }
+
+  auto after_cold_to_hot(const std::string &abs_path) -> void
+  {
+    auto lock = std::unique_lock{cold_file_access_times_mut};
+    cold_file_access_times.erase(abs_path);
+    lock = std::unique_lock{hot_file_atime_or_ctime_mut};
+    hot_file_atime_or_ctime[abs_path] = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    LOG_DEBUG(std::format("after cold to hot {}", abs_path));
   }
 
 } // namespace storage

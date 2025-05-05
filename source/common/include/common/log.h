@@ -4,9 +4,11 @@
 #include <spdlog/spdlog.h>
 #include <string_view>
 
-namespace common {
+namespace common
+{
 
-  enum class log_level {
+  enum class log_level
+  {
     _, // 对齐 spdlog::level::level_enum
     debug,
     info,

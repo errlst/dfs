@@ -2,9 +2,11 @@
 
 #include "connection.h"
 
-namespace common {
+namespace common
+{
 
-  class acceptor {
+  class acceptor
+  {
   public:
     acceptor(asio::any_io_executor io,
              const std::string &ip, uint16_t port,

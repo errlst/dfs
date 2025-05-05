@@ -1,7 +1,8 @@
 #pragma once
 #include "server_util.h"
 
-namespace storage_detail {
+namespace storage_detail
+{
 
   using namespace storage;
 
@@ -18,7 +19,8 @@ namespace storage_detail {
 
 } // namespace storage_detail
 
-namespace storage {
+namespace storage
+{
 
   /**
    * @brief 注册到 master

@@ -1,0 +1,37 @@
+@startuml
+' !include https://raw.githubusercontent.com/plantuml/plantuml/master/themes/cerulean/cerulean.puml
+
+title 系统模块划分与主要交互
+
+component [客户端模块] as Client
+component [主控服务器模块] as Master
+component [存储节点模块] as Storage
+component [性能监控模块] as Monitor
+component [系统管理模块] as AdminMgmt
+
+' Client interactions
+Client --(0)- Master : 节点发现/列表查询
+Client --(0)- Storage : 文件上传/下载/管理\n(数据与元数据直接交互)
+
+' Storage interactions
+Storage --(0)- Master : 节点注册/心跳响应\n指标响应(应主控轮询)
+Storage <--(0)-> Storage : 数据同步\n同组节点注册
+
+' Master interactions (polling Storage)
+Master --(0)-> Storage : 指标/状态轮询
+
+' Admin/System Management interactions
+AdminMgmt --(0)- Master : 节点管理指令
+AdminMgmt --(0)- Storage : 触发迁移/同步指令
+AdminMgmt --(0)- Monitor : 监控数据查询
+' AdminMgmt --(0)- AdminMgmt : 日志管理 (内部功能)
+Storage --(0)-> AdminMgmt : 上报日志
+Master --(0)-> AdminMgmt : 上报日志
+
+' Style for clarity
+skinparam component {
+  ArrowThickness 1.5
+  ArrowColor #222222
+}
+
+@enduml

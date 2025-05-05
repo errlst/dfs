@@ -1,7 +1,7 @@
 #pragma once
 
-#include <asio.hpp>
 #include "json.h"
+#include <asio.hpp>
 #include <mutex>
 
 namespace common_detail

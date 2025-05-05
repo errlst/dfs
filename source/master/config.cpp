@@ -1,9 +1,11 @@
 #include "config.h"
 #include <common/util.h>
 
-namespace master {
+namespace master
+{
 
-  auto init_config(std::string_view config_path) -> void {
+  auto init_config(std::string_view config_path) -> void
+  {
     auto json = common::read_config(config_path);
 
     master_config = {

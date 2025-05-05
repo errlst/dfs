@@ -1,0 +1,125 @@
+@startuml
+
+title 网络连接类图 (common::connection)
+
+class "connection" <<(C,lightblue)>> {
+  -asio::ip::tcp::socket m_sock
+  -asio::strand<asio::any_io_executor> m_strand
+  -atomic<uint16_t> m_request_frame_id
+  -unique_ptr<asio::steady_timer> m_heat_timer
+  -uint32_t m_heart_timeout
+  -uint32_t m_heart_interval
+  -bool m_closed
+  -map<uint64_t, std::any> m_datas
+  -map<uint16_t, pair<shared_ptr<proto_frame>, unique_ptr<asio::steady_timer>>> m_response_frames
+  -function<asio::awaitable<void>(proto_frame_ptr, connection_ptr)> m_on_recv_request
+
+  +connection(asio::ip::tcp::socket&& sock, ...)
+  +start(on_recv_request_handler) : void
+  +close() : asio::awaitable<void>
+  +recv_response(uint16_t id) : asio::awaitable<proto_frame_ptr>
+  +send_request(...) : asio::awaitable<optional<uint16_t>>
+  +send_response(...) : asio::awaitable<bool>
+  +send_request_and_wait_response(...) : asio::awaitable<proto_frame_ptr>
+  +add_work(work_function) : void
+  +get_data<T>(uint64_t key) : optional<T>
+  +set_data<T>(uint64_t key, T value) : void
+  +has_data(uint64_t key) : bool
+  +del_data(uint64_t key) : void
+  +address() : string
+  +native_socket() : int // 用于 sendfile 等需要底层句柄的场景
+
+  + {static} connect_to(string_view ip, uint16_t port) : asio::awaitable<connection_ptr>
+
+  -- Private --
+  -start_heart() : asio::awaitable<void>
+  -start_recv() : asio::awaitable<void>
+  -send_frame(proto_frame_ptr frame, ...) : asio::awaitable<bool>
+}
+
+note right of connection::m_strand
+  使用 strand 序列化同一连接上的
+  所有异步操作，实现线程安全
+end note
+note right of connection::m_response_frames
+  存储发送请求后等待中的响应。
+  键为请求ID，值为 {收到的响应帧指针, 等待计时器}
+end note
+note right of connection::m_datas
+  用于存储与此连接相关的任意业务数据
+  (通过 std::any 存储任意类型)
+end note
+@enduml
+
+@startuml
+
+title 接收消息流程 (connection::start_recv)
+
+participant "connection::start_recv\n协程 (在 strand 上)" as RecvCoroutine #LightYellow
+participant "asio::ip::tcp::socket" as Socket
+participant "asio::steady_timer\n(读超时)" as ReadTimer #LightBlue
+participant "请求处理回调\n(m_on_recv_request)" as RequestHandler #lightblue
+participant "m_response_frames\n(等待响应Map)" as ResponseMap #Pink
+
+RecvCoroutine -> RecvCoroutine : 进入主循环
+loop 连接未关闭 (!m_closed)
+    RecvCoroutine -> ReadTimer : 1. 设置读超时定时器\n(超时时长: m_heart_timeout)
+    activate ReadTimer
+    RecvCoroutine -> Socket : 2. 异步读取协议帧头 (12 Bytes)\n并等待
+    activate Socket
+    alt 定时器到期
+        ReadTimer --> RecvCoroutine : 2a. 定时器到期事件
+        deactivate ReadTimer
+        RecvCoroutine -> Socket : 2a.1 取消 socket 操作
+        Socket --> RecvCoroutine : 2a.2 读取操作因取消而失败
+        deactivate Socket
+        RecvCoroutine -> RecvCoroutine : 处理读取错误 (超时),\n调用 close()
+        RecvCoroutine -> RecvCoroutine : 退出协程
+    else 成功读取帧头
+        Socket --> RecvCoroutine : 2b. 返回读取字节数 (应为 sizeof(proto_frame))
+        deactivate Socket
+        ReadTimer --> ReadTimer : 2b.1 取消超时定时器
+        deactivate ReadTimer
+
+        RecvCoroutine -> RecvCoroutine : 3. 字节序转换, 校验 magic/type
+        alt 校验失败 或 读取字节数错误
+            RecvCoroutine -> RecvCoroutine : 记录错误,\n调用 close(), 退出协程
+        end
+
+        alt 4. cmd == xx_heart_ping (心跳帧)
+            RecvCoroutine -> RecvCoroutine : 忽略此帧, 继续循环\n(返回步骤 1)
+        else 4. 非心跳帧 (业务帧)
+            ' //LOG_DEBUG("recv frame header ...")
+            RecvCoroutine -> Socket : 5. 异步读取 payload (data_len 字节)\n并等待
+            activate Socket
+            Socket --> RecvCoroutine : 6. 返回读取字节数 (应为 data_len)
+            deactivate Socket
+            RecvCoroutine -> RecvCoroutine : 7. 合并帧头与 payload 成完整帧
+             alt 8. 读取 payload 字节数错误
+                RecvCoroutine -> RecvCoroutine : 记录错误,\n调用 close(), 退出协程
+             end
+        end alt
+
+        ' // LOG_DEBUG("recv {} from {}", frame, address())
+        alt 9. 帧类型 == request
+            RecvCoroutine -> RequestHandler : 9a. co_spawn(用户注册的回调函数,\n接收到的帧, connection智能指针)\n// 回调在 connection 的 strand 上运行
+            activate RequestHandler
+            deactivate RequestHandler
+        else 9. 帧类型 == response
+            RecvCoroutine -> ResponseMap : 9b. 根据 frame->id 查找等待中的响应条目
+            activate ResponseMap
+            ResponseMap --> RecvCoroutine : 9b.1 返回 {存储 frame 指针, 等待计时器指针}
+            deactivate ResponseMap
+            RecvCoroutine -> RecvCoroutine : 9b.2 存储接收到的响应帧指针
+            RecvCoroutine -> ResponseMap : 9b.3 移除 map 中的该等待条目
+            ResponseMap --> RecvCoroutine :
+            alt 9b.4 等待计时器指针有效 // 表示有协程正在等待此响应
+               RecvCoroutine -> ResponseMap : 9b.5 获取等待计时器指针
+               RecvCoroutine -> ResponseMap : 9b.6 等待计时器 cancel() // 唤醒等待 recv_response 的协程
+            else // 9b.4 等待计时器指针无效 (响应到达但没有等待者?)
+               RecvCoroutine -> RecvCoroutine : 记录致命错误并退出 // 代码中的检查
+            end alt
+        end alt
+    end alt
+end loop
+@enduml

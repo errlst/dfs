@@ -1,12 +1,14 @@
 #pragma once
 
+#include "json.h"
 #include <asio.hpp>
 #include <mutex>
-#include "json.h"
 
-namespace common_detail {
-  
-  inline struct mem_metrics_t {
+namespace common_detail
+{
+
+  inline struct mem_metrics_t
+  {
     uint64_t total;
     uint64_t available;
   } mem_metrics, mem_metrics_bk;
@@ -23,7 +25,8 @@ namespace common_detail {
 
 } // namespace common_detail
 
-namespace common {
+namespace common
+{
 
   auto start_mem_metrics() -> asio::awaitable<void>;
 

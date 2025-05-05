@@ -2,7 +2,8 @@
 
 #include <exception>
 
-namespace common {
+namespace common
+{
 
   auto exception_handle(std::exception_ptr ex) -> void;
 

@@ -9,7 +9,8 @@
 #include <source_location>
 #include <stacktrace>
 
-namespace common {
+namespace common
+{
 
   class connection;
 
@@ -28,7 +29,8 @@ namespace common {
    *
    *      2. 同步发送数据。
    */
-  class connection : public std::enable_shared_from_this<connection> {
+  class connection : public std::enable_shared_from_this<connection>
+  {
 
   public:
     connection(asio::ip::tcp::socket &&sock,
@@ -103,20 +105,28 @@ namespace common {
      *
      */
     template <typename T>
-    auto set_data(uint64_t key, T value) -> void { m_datas[key] = std::move(value); }
+    auto set_data(uint64_t key, T value) -> void
+    {
+      m_datas[key] = std::move(value);
+    }
 
     /**
      * @brief 获取用户数据
      *
      */
     template <typename T>
-    auto get_data(uint64_t key) -> std::optional<T> try {
+    auto get_data(uint64_t key) -> std::optional<T>
+    try
+    {
       auto it = m_datas.find(key);
-      if (it == m_datas.end()) {
+      if (it == m_datas.end())
+      {
         return std::nullopt;
       }
       return std::any_cast<T>(it->second);
-    } catch (const std::bad_any_cast &ec) {
+    }
+    catch (const std::bad_any_cast &ec)
+    {
       auto entry = std::stacktrace::current(1, 1).at(0);
       LOG_CRITICAL("[{}:{}] get key {} invalid type {}", entry.source_file(), entry.source_line(), key, typeid(T).name());
       return std::nullopt;

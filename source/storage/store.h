@@ -108,6 +108,21 @@ namespace storage
      */
     auto root_path() -> std::string { return m_root_path; }
 
+    /**
+     * @brief 生成一个有效的绝对路径
+     *
+     */
+    auto gen_abs_path(uint64_t need_size) -> std::string;
+
+    /**
+     * @brief 从另一个 store 中拷贝文件
+     *
+     * @param file_size 需要拷贝文件的大小
+     * @param abs_path 需要拷贝文件的绝对路径 root/00/00/1.txt
+     * @param rel_path 需要拷贝文件的相对路径 00/00/1.txt
+     */
+    auto copy_from_another_store(uint64_t file_size, const std::string &abs_path, const std::string &rel_path) -> bool;
+
   private:
     /**
      * @brief 获取 ofstream
@@ -217,6 +232,18 @@ namespace storage
     auto read_file(uint64_t file_id, char *dst, uint64_t size) -> std::optional<uint64_t>;
 
     auto close_read_file(uint64_t file_id) -> bool { return m_stores[file_id % m_stores.size()]->close_read_file(file_id); }
+
+    /**
+     * @brief 从另一个 store 中拷贝文件
+     *
+     */
+    auto copy_from_another_store(const std::string &abs_path) -> bool;
+
+    /**
+     * @brief 生成有效的绝对路径
+     *
+     */
+    auto gen_abs_path(uint64_t need_size) -> std::string;
 
     /**
      * @brief 最大空闲空间

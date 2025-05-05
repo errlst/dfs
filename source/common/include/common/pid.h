@@ -2,7 +2,8 @@
 
 #include <string_view>
 
-namespace common {
+namespace common
+{
 
   /**
    * @brief 写入 pid 到 <base_path>/data/pid.txt

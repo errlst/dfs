@@ -2,9 +2,11 @@
 #include <common/util.h>
 #include <random>
 
-namespace storage {
+namespace storage
+{
 
-  auto init_config(std::string_view config_file) -> void {
+  auto init_config(std::string_view config_file) -> void
+  {
     auto json = common::read_config(config_file);
 
     storage_config = {

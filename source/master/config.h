@@ -3,17 +3,21 @@
 #include <cstdint>
 #include <string>
 
-namespace master {
+namespace master
+{
 
-  inline struct master_service_conf_t {
+  inline struct master_service_conf_t
+  {
 
-    struct {
+    struct
+    {
       std::string base_path;
       uint8_t log_level;
       uint8_t thread_count;
     } common;
 
-    struct {
+    struct
+    {
       std::string ip;
       uint16_t port;
       uint16_t heart_timeout;

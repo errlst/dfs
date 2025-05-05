@@ -3,7 +3,8 @@
 #include "server_for_storage.h"
 #include <set>
 
-namespace storage_detail {
+namespace storage_detail
+{
 
   using namespace storage;
 
@@ -29,7 +30,8 @@ namespace storage_detail {
 
 } // namespace storage_detail
 
-namespace storage {
+namespace storage
+{
 
   /**
    * @brief 注册 client

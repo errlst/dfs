@@ -1,0 +1,60 @@
+@startuml
+
+title 数据同步服务主流程 (存储节点内部)
+
+participant "同步服务协程\n(do_sync_service)" as SyncService #LightYellow
+participant "待同步文件队列\n(not_sync_files)" as SyncQueue #Pink
+participant "本地存储管理\n(store_ctx_group)" as Store #orchid
+participant "注册的同组节点列表\n(registed_storages)" as PeerList #LightGreen
+participant "同步帮助函数\n(sync_file_normal/\nsync_file_zero_copy)" as SyncHelpers #lightblue
+
+SyncService -> SyncService : 1. 初始化定时器
+loop 系统运行期间
+    SyncService -> SyncService : 2. 等待定时器触发 或 接收到外部触发信号
+    SyncService -> PeerList : 3. 检查是否有同组存储节点在线 (registed_storages().size() > 0)
+    alt 无同组节点在线
+        SyncService -> SyncService : 3a. 记录警告日志, 继续下一轮等待
+        ' continue
+    end
+
+    SyncService -> SyncQueue : 4. 获取待同步文件列表 (pop_not_synced_files())
+    activate SyncQueue
+    SyncQueue --> SyncService : 5. 返回待同步文件路径列表 (rel_path)\n// 将文件移至临时队列
+    deactivate SyncQueue
+
+    loop 6. 遍历每个待同步文件 (rel_path)
+        SyncService -> Store : 6a. 打开文件并获取文件信息 (open_read_file(rel_path))\n// 仅从热存储组读取
+        activate Store
+        Store --> SyncService : Optional<file_id, file_size, abs_path>
+        deactivate Store
+        alt 6b. 打开文件失败
+            SyncService -> SyncService : 6b.1 记录警告日志, 跳过此文件
+            ' continue
+        end
+
+        SyncService -> SyncService : 6c. 判断同步方式 (普通/零拷贝)\n根据 file_size 和 zero_copy_limit
+
+        alt 6d. 普通同步
+            SyncService -> SyncHelpers : 6d.1 sync_file_normal(rel_path, file_id, file_size, abs_path)
+            activate SyncHelpers
+            SyncHelpers --> SyncService : 6d.2 返回 bool (成功/失败)
+            deactivate SyncHelpers
+        else 6e. 零拷贝同步
+            SyncService -> SyncHelpers : 6e.1 sync_file_zero_copy(rel_path, file_id, file_size, abs_path)
+            activate SyncHelpers
+            SyncHelpers --> SyncService : 6e.2 返回 bool (成功/失败)
+            deactivate SyncHelpers
+        end alt
+
+        SyncService -> Store : 6f. 关闭读取流 (close_read_file(file_id))
+        activate Store
+        Store --> SyncService : bool
+        deactivate Store
+         alt 6g. 关闭文件失败
+            SyncService -> SyncService : 6g.1 记录错误日志
+        end
+    end loop
+
+    SyncService -> SyncService : 7. 记录本批次同步完成日志 (统计文件数和耗时)
+end loop
+@enduml

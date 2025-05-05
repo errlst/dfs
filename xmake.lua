@@ -19,7 +19,7 @@ add_packages("spdlog")
 add_cxxflags("-Wall")
 add_ldflags("-lstdc++exp")
 
-set_toolchains("clang-19")
+set_toolchains("gcc-14")
 
 includes("source/common/xmake.lua")
 includes("source/proto/xmake.lua")

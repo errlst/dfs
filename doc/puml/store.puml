@@ -1,0 +1,182 @@
+@startuml
+
+title 本地存储管理类图
+
+class "store_ctx_group" <<(G,orchid) Group>> {
+  -string m_name
+  -vector<shared_ptr<store_ctx>> m_stores
+  -atomic<uint64_t> m_store_idx
+
+  +create_file(uint64_t file_size) : optional<uint64_t>
+  +create_file(uint64_t file_size, string_view rel_path) : optional<uint64_t>
+  +write_file(uint64_t file_id, span<char> data) : bool
+  +open_read_file(string_view rel_path) : optional<tuple<uint64_t, uint64_t, string>>
+  +read_file(uint64_t file_id, ...) : ...
+  +max_free_space() : uint64_t
+  +root_path(uint64_t file_id) : string
+  +stores() : vector<shared_ptr<store_ctx>>
+  -- Internal --
+  -iterate_store(uint64_t start_idx) : generator<pair<shared_ptr<store_ctx>, uint64_t>>
+}
+
+class "store_ctx" <<(C,lightblue) Context>> {
+  -string m_root_path
+  -atomic<uint16_t> m_flat_idx
+  -uint64_t m_disk_total
+  -atomic<uint64_t> m_disk_free
+  -map<uint64_t, pair<shared_ptr<ofstream>, string>> m_ofstreams
+  -mutex m_ofstream_mut
+  -map<uint64_t, pair<shared_ptr<ifstream>, string>> m_ifstreams
+  -mutex m_ifstreams_mtx
+
+  +store_ctx(string_view root_path)
+  +create_file(uint64_t file_id, uint64_t file_size) : bool
+  +create_file(uint64_t file_id, uint64_t file_size, string_view rel_path) : bool
+  +append_data(uint64_t file_id, span<char> data) : bool
+  +close_write_file(uint64_t file_id, ...) : optional<pair<string, string>>
+  +open_read_file(uint64_t file_id, string_view rel_path) : optional<uint64_t>
+  +read_file(uint64_t file_id, ...) : ...
+  +close_read_file(uint64_t file_id) : bool
+  +free_space() : uint64_t
+  +total_space() : uint64_t
+  +root_path() : string
+  -- Internal --
+  -peek_ofstream/pop_ofstream(...) : ...
+  -peek_ifstream/pop_ifstream(...) : ...
+  -create_ofstream(string_view rel_path, uint64_t file_size) : shared_ptr<ofstream>
+  -next_flat_path() : string
+  -valid_rel_path(string_view flat_path) : string
+  -flat_of_rel_path(string_view rel_path) : string
+  -disk_space_is_enough(uint64_t size) : bool
+  -reduce_disk_free(uint64_t size) : void
+}
+
+store_ctx_group --o store_ctx : 包含 1..*
+
+note right of store_ctx_group::m_stores
+  文件操作分发至
+  m_stores[file_id % size]
+end note
+
+note right of store_ctx::m_ofstreams
+  管理打开的写流
+  (以 file_id 为键)
+end note
+ note right of store_ctx::m_ifstreams
+  管理打开的读流
+  (以 file_id 为键)
+end note
+
+@enduml
+
+
+@startuml
+
+title store_ctx 本地存储布局示意
+
+folder "root_path\n(如 /dfs/storage_1/hot)" as Root {
+  folder "00" as Dir00 #AliceBlue
+  folder "01" as Dir01 #AliceBlue
+  folder "..." as DirXX #AliceBlue
+  folder "FF" as DirFF #AliceBlue
+}
+
+folder "00" as SubDir00_Ex #LightSkyBlue {
+  folder "00" as Sub0000 #LightGreen
+  folder "01" as Sub0001 #LightGreen
+  folder "..." as Sub00YY #LightGreen
+  folder "FF" as Sub00FF #LightGreen
+}
+
+Root --> Dir00 : 包含
+Root --> Dir01
+Root --> DirXX
+Root --> DirFF
+
+Dir00 --> SubDir00_Ex : 包含
+
+SubDir00_Ex --> Sub0000 : 包含
+SubDir00_Ex --> Sub0001
+SubDir00_Ex --> Sub00YY
+SubDir00_Ex --> Sub00FF
+
+artifact "abc.txt_nIk6cAOx" as File1 #orange
+artifact "xyz.dat_AbCdEfGh" as File2 #orange
+artifact "..." as OtherFiles #orange
+
+Sub0000 --> File1 : 存储于
+Sub0000 --> File2 : 存储于
+' 连接到 Sub0000 表示文件存储在该目录下
+
+note top of Root : store_ctx 管理的根目录
+note top of DirXX : 第一层子目录 (00-FF)\n基于 m_flat_idx >> 8
+note top of Sub00YY : 第二层子目录 (00-FF)\n基于 m_flat_idx & 0xFF\n组合形成 扁平路径 (flat_path)
+note right of File1 : 实际存储文件名\n包含 用户文件名 + 随机后缀\n形成 相对路径 (rel_path)\n如 00/00/abc.txt_nIk6cAOx
+
+@enduml
+
+
+@startuml
+
+title 文件下载查找流程 (存储节点内部，store_ctx_group)
+
+participant "客户端请求处理函数\n(如 cs_download_start_handle)" as Handler
+participant "store_ctx_group\n(如 热存储组)" as Group #orchid
+participant "store_ctx A" as StoreA #lightblue
+participant "store_ctx B" as StoreB #lightblue
+participant "操作系统/文件系统" as OS
+
+Handler -> Group : 1. open_read_file(rel_path)\n
+activate Group
+
+Group -> Group : 2. 遍历内部 store_ctx 列表\n(StoreA, StoreB, ...)
+
+loop 遍历每个 store_ctx 直到找到文件或遍历结束
+    Group -> StoreA : 3a. open_read_file(candidate_file_id, rel_path)\n// candidate_file_id 由 group 生成
+    activate StoreA
+    StoreA -> OS : 4a. 尝试在 StoreA 的 root_path 下打开文件:\n root_path_A/rel_path
+    activate OS
+    alt 文件存在于 StoreA
+        OS --> StoreA : 5a. 成功打开, 返回文件句柄
+        deactivate OS
+        StoreA -> StoreA : 6a. 获取文件大小,\n关联 candidate_file_id 与 ifstream
+        StoreA --> Group : 7a. 返回 Optional(文件大小 value)\n(表示文件找到)
+        deactivate StoreA
+        Group --> Handler : 8. 返回 tuple(\n  candidate_file_id, \n  文件大小, \n  StoreA 绝对路径\n)
+        deactivate Group
+        
+    else 文件不存在于 StoreA 或打开失败
+        OS --> StoreA : 5b. 文件不存在/打开失败
+        deactivate OS
+        StoreA --> Group : 7b. 返回 Optional(nullopt)\n(表示文件未找到于此 store_ctx)
+        deactivate StoreA
+    end alt
+
+    Group -> StoreB : 3b. open_read_file(another_candidate_file_id, rel_path)\n// 继续尝试 StoreB
+    activate StoreB
+    StoreB -> OS : 4b. 尝试在 StoreB 的 root_path 下打开文件:\n root_path_B/rel_path
+    activate OS
+    alt 文件存在于 StoreB
+        OS --> StoreB : 5c. 成功打开...
+        deactivate OS
+        StoreB -> StoreB : 6c. 获取文件大小...
+        StoreB --> Group : 7c. 返回 Optional(文件大小 value)
+        deactivate StoreB
+        Group --> Handler : 8. 返回 tuple(\n another_candidate_file_id, \n 文件大小, \n StoreB 绝对路径\n)
+        deactivate Group
+         
+    else 文件不存在于 StoreB 或打开失败
+        OS --> StoreB : 5d. 文件不存在...
+        deactivate OS
+        StoreB --> Group : 7d. 返回 Optional(nullopt)
+        deactivate StoreB
+    end alt
+
+    ... 继续遍历组内其他 store_ctx ...
+
+end loop
+
+Group --> Handler : 9. 返回 Optional(nullopt)\n(所有 store_ctx 均未找到)
+deactivate Group
+
+@enduml

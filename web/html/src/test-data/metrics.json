@@ -1,0 +1,151 @@
+{
+  "cpu": {
+    "core_usages": [
+      0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 1.96, 0.0, 0.0, 0.0, 0.0, 0.99, 0.0,
+      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+    ],
+    "load_1": 0.38,
+    "load_15": 0.27,
+    "load_5": 0.34,
+    "usage_percent": 0.22
+  },
+  "master_info": {
+    "base_path": "/home/errlst/dfs/build/base_path/master",
+    "ip": "0.0.0.0",
+    "magic": 12345678,
+    "port": 8888,
+    "storage_count": 0,
+    "storage_group_size": 3,
+    "thread_count": 3
+  },
+  "mem": {
+    "available": 10455314432,
+    "total": 16487739392
+  },
+  "net": {
+    "dropin": 0,
+    "dropout": 0,
+    "errin": 0,
+    "errout": 0,
+    "packets_recv": 5270,
+    "packets_send": 5270,
+    "total_recv": 1062092,
+    "total_send": 1062092
+  },
+  "request": {
+    "connection_count": 0,
+    "count_concurrent": 0,
+    "count_in_long_consumption": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "count_in_mid_consumption": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "count_in_short_consumption": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "count_last_day": {
+      "peak": 1,
+      "success": 1,
+      "total": 1
+    },
+    "count_last_hour": {
+      "peak": 1,
+      "success": 1,
+      "total": 1
+    },
+    "count_last_minute": {
+      "peak": 1,
+      "success": 1,
+      "total": 1
+    },
+    "count_last_second": {
+      "peak": 0,
+      "success": 0,
+      "total": 0
+    },
+    "count_since_start": {
+      "peak": 1,
+      "success": 1,
+      "total": 1
+    }
+  },
+  "storage_metrics": {
+    "1": [
+      {
+        "cpu": {
+          "core_usages": [
+            1.01, 0.99, 0.0, 0.0, 0.0, 9.18, 0.0, 0.0, 0.99, 0.0, 1.0, 0.99,
+            0.0, 0.0, 0.99, 0.0, 1.98, 1.0, 1.0, 0.0, 2.0, 0.0
+          ],
+          "load_1": 0.38,
+          "load_15": 0.27,
+          "load_5": 0.34,
+          "usage_percent": 0.9
+        },
+        "mem": {
+          "available": 10453340160,
+          "total": 16487739392
+        },
+        "net": {
+          "dropin": 0,
+          "dropout": 0,
+          "errin": 0,
+          "errout": 0,
+          "packets_recv": 2790,
+          "packets_send": 2790,
+          "total_recv": 562284,
+          "total_send": 562284
+        },
+        "request": {
+          "connection_count": 0,
+          "count_concurrent": 0,
+          "count_in_long_consumption": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          "count_in_mid_consumption": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          "count_in_short_consumption": [18, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          "count_last_day": {
+            "peak": 1,
+            "success": 18,
+            "total": 18
+          },
+          "count_last_hour": {
+            "peak": 1,
+            "success": 18,
+            "total": 18
+          },
+          "count_last_minute": {
+            "peak": 1,
+            "success": 18,
+            "total": 18
+          },
+          "count_last_second": {
+            "peak": 1,
+            "success": 2,
+            "total": 2
+          },
+          "count_since_start": {
+            "peak": 1,
+            "success": 18,
+            "total": 18
+          }
+        },
+        "storage_info": {
+          "base_path": "/home/errlst/dfs/build/base_path/storage_1",
+          "id": 1,
+          "ip": "0.0.0.0",
+          "port": 9001,
+          "store_infos": {
+            "cold": [
+              {
+                "free_space": 1004783575040,
+                "root_path": "/home/errlst/dfs/build/base_path/storage_1/cold",
+                "total_space": 1081101176832
+              }
+            ],
+            "hot": [
+              {
+                "free_space": 1004783558656,
+                "root_path": "/home/errlst/dfs/build/base_path/storage_1/hot",
+                "total_space": 1081101176832
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

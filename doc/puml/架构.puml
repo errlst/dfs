@@ -1,0 +1,105 @@
+@startuml
+left to right direction
+
+package "交互层（客户端）" as client {
+  [命令行工具] as cli
+  [异步通信模块] as asio
+  [断点续传引擎] as resume
+  [文件校验模块] as checksum
+}
+
+package "控制层（主控服务器）" as master {
+  [节点注册中心] as register
+  [元数据库(SQLite)] as metadata
+  [负载均衡器] as balancer
+  [心跳检测服务] as heartbeat
+}
+
+package "存储层（存储节点）" as storage {
+  [零拷贝传输] as sendfile
+  [冷热迁移引擎] as tiering
+  [数据同步模块] as sync
+  [性能采集器] as metrics
+}
+
+package "支撑层（基础设施）" as infra {
+  [日志系统(spdlog)] as log
+  [监控接口] as monitor
+  [信号处理器] as signal
+  [配置加载器] as config
+}
+
+client --> master : Protobuf协议\n（节点请求/元数据查询）[1,6](@ref)
+client --> storage : HTTP/Asio协议\n（文件直接传输）[2,9](@ref)
+
+master --> storage : RPC指令\n（状态同步/负载指令）[6,11](@ref)
+storage --> master : 心跳包/性能数据\n（JSON格式）[3,7](@ref)
+
+storage --> storage : 增量同步协议\n（基于Raft简化版）[3,13](@ref)
+
+infra --> client : 日志记录\n配置加载[8,12](@ref)
+infra --> master : 集群监控\n动态配置[7,12](@ref)
+infra --> storage : 信号触发\n冷热迁移[11,13](@ref)
+
+@enduml
+
+@startuml
+
+title 系统模块划分
+
+actor "系统用户\n(System User)" as User #AliceBlue
+database "操作系统\n(Operating System)" as OS #lightgray
+
+component "客户端模块\n(Client Module)" as Client #LightGreen
+component "主控服务器模块\n(Master Server Module)" as Master #LightYellow
+component "存储节点模块\n(Storage Node Module)" as Storage #Orange
+component "基础设施模块\n(Infrastructure Module)" as Infra #lightblue
+
+
+User --> Client : 操作指令\n(上传/下载等)
+
+Client --> Master : 查询/获取节点信息
+Client --> Storage : 文件数据传输\n(上传/下载/删除)
+
+Master --> Storage : 节点状态监控\n指标轮询\n(可能包含管理指令)
+Storage --> Master : 注册/注销\n上报状态/指标
+
+' 其他模块依赖基础设施提供的服务
+Client --|> Infra : 依赖网络通信
+Master --|> Infra : 依赖网络通信,\n性能监控等
+Storage --|> Infra : 依赖网络通信,\n性能监控等
+' 如果日志管理等现在归属于基础设施模块，且其他模块使用日志服务，则保留此依赖
+Master --|> Infra : 依赖日志
+Storage --|> Infra : 依赖日志
+Client --|> Infra : 依赖日志
+
+Storage <--> Storage : (同组节点间)\n数据同步/迁移
+
+Infra --> OS : (如网络I/O,\n文件系统访问,\n系统信息采集)
+
+' 模块职责简要说明
+note right of Client
+  用户接口
+  协调文件操作
+end note
+
+note right of Master
+  集群协调
+  节点管理
+  负载均衡决策
+end note
+
+note right of Storage
+  文件存储/管理
+  数据传输
+  节点间协作
+end note
+
+note right of Infra
+  通用基础服务:
+  协议, 网络通信,
+  性能监控, 日志, 工具
+end note
+
+
+@enduml

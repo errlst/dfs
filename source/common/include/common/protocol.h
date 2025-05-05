@@ -3,7 +3,8 @@
 #include <memory>
 #include <utility>
 
-namespace common {
+namespace common
+{
 
   /**
    * @brief xx_??? 的命令为通用命令
@@ -13,7 +14,8 @@ namespace common {
    *
    *        如果后面的注释没有提及 request 或 response，则代表 request 或 resposne 无需 payload
    */
-  enum class proto_cmd : uint16_t {
+  enum class proto_cmd : uint16_t
+  {
     /**
      * @brief 建立心跳，由服务端发起
      *
@@ -122,7 +124,8 @@ namespace common {
    * @brief frame 类型
    *
    */
-  enum class frame_type : uint8_t {
+  enum class frame_type : uint8_t
+  {
     request,
     response,
     sentinel,
@@ -134,7 +137,8 @@ namespace common {
    * @param timeout   心跳超时时长，单位毫秒
    * @param interval  心跳发送间隔，单位毫秒
    */
-  struct xx_heart_establish_request {
+  struct xx_heart_establish_request
+  {
     uint32_t timeout;
     uint32_t interval;
   };
@@ -154,7 +158,8 @@ namespace common {
    * @param data_len  payload 长度
    * @param data      payload
    */
-  struct proto_frame {
+  struct proto_frame
+  {
     uint16_t magic = FRAME_MAGIC;
     uint16_t id;
     proto_cmd cmd;
@@ -187,7 +192,8 @@ namespace common {
 /************************************************************** */
 
 template <auto value>
-static constexpr auto enum_name() {
+static constexpr auto enum_name()
+{
   auto name = std::string_view{__PRETTY_FUNCTION__};
   auto start = name.find('=') + 2;
   auto end = name.size() - 1;
@@ -198,8 +204,10 @@ static constexpr auto enum_name() {
 
 template <typename Enum>
   requires std::is_enum_v<Enum>
-static constexpr auto enum_name(Enum value) -> std::string_view {
-  constexpr static auto names = []<std::size_t... Is>(std::index_sequence<Is...>) {
+static constexpr auto enum_name(Enum value) -> std::string_view
+{
+  constexpr static auto names = []<std::size_t... Is>(std::index_sequence<Is...>)
+  {
     return std::array<std::string_view, std::to_underlying(Enum::sentinel)>{
         enum_name<static_cast<Enum>(Is)>()...};
   }(std::make_index_sequence<std::to_underlying(Enum::sentinel)>{});
@@ -211,12 +219,15 @@ static constexpr auto enum_name(Enum value) -> std::string_view {
 }
 
 template <>
-struct std::formatter<common::proto_frame> {
-  constexpr auto parse(std::format_parse_context &ctx) {
+struct std::formatter<common::proto_frame>
+{
+  constexpr auto parse(std::format_parse_context &ctx)
+  {
     return ctx.begin();
   }
 
-  auto format(const common::proto_frame &frame, std::format_context &ctx) const {
+  auto format(const common::proto_frame &frame, std::format_context &ctx) const
+  {
     return std::format_to(
         ctx.out(),
         "{{ magic: {:x}, id: {}, cmd: {}({}), type: {}, stat: {}, data_len: {} }}",

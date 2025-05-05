@@ -4,9 +4,11 @@
 #include <string>
 #include <vector>
 
-namespace common {
+namespace common
+{
 
-  struct signal_t {
+  struct signal_t
+  {
     int signo;
     std::string name;
     void (*handler)(int signo, siginfo_t *siginfo, void *ucontext);

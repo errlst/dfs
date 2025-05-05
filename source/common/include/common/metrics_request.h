@@ -1,10 +1,10 @@
 #pragma once
 
+#include "json.h"
 #include <array>
 #include <asio.hpp>
 #include <atomic>
 #include <chrono>
-#include "json.h"
 
 namespace common_detail
 {

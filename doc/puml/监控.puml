@@ -1,0 +1,107 @@
+@startuml
+
+title 性能监控模块内部结构
+
+component [性能监控核心\n(common/metrics)] as MetricsCore #LightYellow {
+  component [指标聚合器\n与导出器] as AggregatorExporter
+  component [指标扩展点\n(metrics_extensions)] as Extensions
+}
+
+component [CPU指标采集器\n(common/metrics_cpu)] as CPUCollector #lightblue
+component [内存指标采集器\n(common/metrics_mem)] as MemCollector #lightblue
+component [网络指标采集器\n(common/metrics_net)] as NetCollector #lightblue
+component [请求指标采集器\n(common/metrics_request)] as RequestCollector #lightblue
+
+[操作系统/proc文件系统] as ProcFS #grey
+[系统代码 (如请求处理器,\n连接管理器)] as InstrumentedCode #grey
+[其他模块 (如 Storage)\n提供扩展] as CustomMetricsSource #grey
+[监控数据输出文件\n(JSON格式)] as MetricsFile #orange
+[**外部性能可视化程序\n(Web UI)**] as WebUIVisualizer #Green
+
+AggregatorExporter --> CPUCollector : 调用 get_cpu_metrics()
+AggregatorExporter --> MemCollector : 调用 get_mem_metrics()
+AggregatorExporter --> NetCollector : 调用 get_net_metrics()
+AggregatorExporter --> RequestCollector : 调用 get_request_metrics()
+AggregatorExporter --> Extensions : 调用注册的扩展函数()
+AggregatorExporter --> MetricsFile : 写入 JSON 数据
+
+CPUCollector --> ProcFS : 读取 /proc/stat,\n/proc/loadavg
+MemCollector --> ProcFS : 读取 /proc/meminfo
+NetCollector --> ProcFS : 读取 /proc/net/dev
+
+RequestCollector <-- InstrumentedCode : 调用 push/pop_one_request,\npush/pop_one_connection
+
+Extensions <-- CustomMetricsSource : 注册 add_metrics_extension()
+
+WebUIVisualizer <.. MetricsFile : 读取 JSON 数据\n(主要数据源)
+
+' 可以选择是否保留 get_metrics 接口，如果 web UI 也可以通过这个接口获取数据
+' WebUIVisualizer --> MetricsCore : (可选) 调用 get_metrics()\n获取实时数据
+
+@enduml
+
+
+@startuml
+
+title 指标采集与导出流程 (common/metrics)
+
+participant "metrics 协程\n(do_metrics)" as MetricAggregator #LightYellow
+participant "请求指标采集器\n(common/metrics_request)" as RequestCollector #lightblue
+participant "CPU指标采集器\n(common/metrics_cpu)" as CPUCollector #lightblue
+participant "内存指标采集器\n(common/metrics_mem)" as MemCollector #lightblue
+participant "网络指标采集器\n(common/metrics_net)" as NetCollector #lightblue
+participant "指标扩展\n(metrics_extensions)" as Extensions #LightGreen
+participant "全局指标 JSON\n(common_detail::metrics)" as GlobalMetrics #Pink
+participant "输出文件\n(JSON)" as OutFile #orange
+participant "定时器" as Timer
+
+MetricAggregator -> Timer : 1. 设置 1s 定时器
+activate Timer
+Timer --> MetricAggregator : 2. 定时器到期
+deactivate Timer
+
+MetricAggregator -> RequestCollector : 3. 调用 get_request_metrics()
+activate RequestCollector
+RequestCollector --> MetricAggregator : 4. 返回请求指标 JSON
+deactivate RequestCollector
+
+MetricAggregator -> CPUCollector : 5. 调用 get_cpu_metrics()
+activate CPUCollector
+CPUCollector --> MetricAggregator : 6. 返回 CPU 指标 JSON
+deactivate CPUCollector
+
+MetricAggregator -> MemCollector : 7. 调用 get_mem_metrics()
+activate MemCollector
+MemCollector --> MetricAggregator : 8. 返回内存指标 JSON
+deactivate MemCollector
+
+MetricAggregator -> NetCollector : 9. 调用 get_net_metrics()
+activate NetCollector
+NetCollector --> MetricAggregator : 10. 返回网络指标 JSON
+deactivate NetCollector
+
+MetricAggregator -> Extensions : 11. 遍历并调用注册的扩展函数
+activate Extensions
+Extensions --> MetricAggregator : 12. 返回扩展指标 JSON
+deactivate Extensions
+
+MetricAggregator -> GlobalMetrics : 13. 加锁并更新全局指标 JSON
+activate GlobalMetrics
+deactivate GlobalMetrics
+
+MetricAggregator -> OutFile : 14. 打开输出文件
+activate OutFile
+OutFile --> MetricAggregator : 文件句柄
+deactivate OutFile
+
+MetricAggregator -> OutFile : 15. 将全局指标 JSON 写入文件 (格式化)
+activate OutFile
+deactivate OutFile
+
+MetricAggregator -> OutFile : 16. 关闭文件
+activate OutFile
+deactivate OutFile
+
+MetricAggregator -> MetricAggregator : 继续循环 (返回步骤 1)
+
+@enduml

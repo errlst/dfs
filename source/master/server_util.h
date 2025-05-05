@@ -3,9 +3,11 @@
 #include <common/connection.h>
 #include <common/protocol.h>
 
-namespace master {
+namespace master
+{
 
-  enum conn_data : uint64_t {
+  enum conn_data : uint64_t
+  {
     conn_type,
     storage_id,
     storage_ip,
@@ -14,7 +16,8 @@ namespace master {
     storage_max_free_space,
   };
 
-  enum class conn_type_t {
+  enum class conn_type_t
+  {
     client,
     storage,
   };

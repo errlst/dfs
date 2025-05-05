@@ -34,7 +34,7 @@ namespace storage_detail
    * @brief 迁移单个冷数据
    *
    */
-  auto migrate_to_cold_once(std::string_view abs_path) -> asio::awaitable<void>;
+  auto migrate_to_cold_once(const std::string &abs_path) -> asio::awaitable<void>;
 
   /**
    * @brief 初始化热数据迁移
@@ -52,7 +52,7 @@ namespace storage_detail
    * @brief 迁移单个热数据
    *
    */
-  auto migrate_to_hot_once(std::string_view abs_path) -> asio::awaitable<void>;
+  auto migrate_to_hot_once(const std::string &abs_path) -> asio::awaitable<void>;
 
 } // namespace storage_detail
 
@@ -94,5 +94,17 @@ namespace storage
    *
    */
   auto access_cold_file(const std::string &abs_path) -> void;
+
+  /**
+   * @brief 热数据迁移到冷数据后调用
+   *
+   */
+  auto after_hot_to_cold(const std::string &abs_path) -> void;
+
+  /**
+   * @brief 冷数据迁移到热数据后调用
+   *
+   */
+  auto after_cold_to_hot(const std::string &abs_path) -> void;
 
 } // namespace storage
