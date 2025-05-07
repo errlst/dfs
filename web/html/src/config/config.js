@@ -1,7 +1,7 @@
 export const config = {
   // API配置
   api: {
-    baseURL: 'http://localhost:8888'
+    baseURL: 'http://localhost:3000'
   },
   
   // 数据更新间隔（毫秒）

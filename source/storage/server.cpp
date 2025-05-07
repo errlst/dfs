@@ -24,7 +24,6 @@ namespace storage_detail
       {
         auto info = nlohmann::json::object();
         info["root_path"] = store->root_path();
-        LOG_DEBUG("store root path {}", store->root_path());
         info["total_space"] = store->total_space();
         info["free_space"] = store->free_space();
         infos.push_back(info);
@@ -51,12 +50,17 @@ namespace storage_detail
 
   auto request_from_connection(std::shared_ptr<common::proto_frame> request, std::shared_ptr<common::connection> conn) -> asio::awaitable<void>
   {
-    auto conn_type = conn->get_data<conn_type_t>(conn_data::conn_type).value();
+    auto conn_type = conn->get_data<conn_type_t>(conn_data::conn_type);
+    if (!conn_type)
+    {
+      LOG_CRITICAL("connection {} has no conn_type", conn->address());
+      co_return;
+    }
 
     if (request == nullptr)
     {
       common::pop_one_connection();
-      switch (conn_type)
+      switch (*conn_type)
       {
         case conn_type_t::client:
           co_await on_client_disconnect(conn);
@@ -73,7 +77,7 @@ namespace storage_detail
 
     auto bt = common::push_one_request();
     auto ok = true;
-    switch (conn_type)
+    switch (*conn_type)
     {
       case conn_type_t::client:
         ok = co_await request_from_client(request, conn);
@@ -85,7 +89,7 @@ namespace storage_detail
         ok = co_await request_from_master(request, conn);
         break;
       default:
-        LOG_CRITICAL("unknown connection type {} of connection {}", static_cast<int>(conn_type), conn->address());
+        LOG_CRITICAL("unknown connection type {} of connection {}", static_cast<int>(*conn_type), conn->address());
         break;
     }
     common::pop_one_request(bt, {.success = ok});

@@ -85,7 +85,7 @@ auto main(int argc, char *argv[]) -> int {
     return -1;
   }
 
-  spdlog::set_level(spdlog::level::debug);
+  spdlog::set_level(spdlog::level::info);
   spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] %^[%l] [%s:%#]%$ %v");
 
   auto fork_times = std::stoll(argv[1]) - 1;

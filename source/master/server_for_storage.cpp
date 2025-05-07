@@ -25,7 +25,7 @@ namespace master_detail
       conn->set_data<storage_max_free_space_t>(conn_data::storage_max_free_space, free_space);
       LOG_DEBUG(std::format("get storage free space {}", free_space));
 
-      timer.expires_after(std::chrono::seconds{1});
+      timer.expires_after(std::chrono::seconds{1000});
       co_await timer.async_wait(asio::use_awaitable);
     }
   }
@@ -59,7 +59,7 @@ namespace master_detail
         storage_metricses[conn] = metrics;
       }
 
-      timer.expires_after(std::chrono::seconds{1});
+      timer.expires_after(std::chrono::seconds{1000});
       co_await timer.async_wait(asio::use_awaitable);
     }
   }

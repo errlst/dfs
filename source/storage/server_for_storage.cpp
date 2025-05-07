@@ -136,10 +136,10 @@ namespace storage_detail
                   s_info.ip(), s_info.port(), response ? response->stat : -1, storage_config.server.master_magic,
                   s_info.magic());
         continue;
-
-        regist_storage(s_conn);
-        LOG_INFO(std::format("regist to storage {}:{} suc", s_info.ip(), s_info.port()));
       }
+
+      regist_storage(s_conn);
+      LOG_INFO(std::format("regist to storage {}:{} suc", s_info.ip(), s_info.port()));
     }
   }
 

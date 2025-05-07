@@ -29,7 +29,7 @@
     "to_cold_rule": 1,
 
     // 超时时间，单位为秒
-    "to_cold_timeout": 120,
+    "to_cold_timeout": 5,
 
     // 迁移行为
     // 0 只迁移本机数据
@@ -47,7 +47,7 @@
     "to_hot_rule": 1,
 
     // 访问次数
-    "to_hot_times": 10,
+    "to_hot_times": 1,
 
     // 迁移行为
     // 0 只迁移本机数据

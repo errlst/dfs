@@ -84,6 +84,8 @@ namespace storage
       LOG_ERROR("failed to parse sm_regist_response");
       exit(-1);
     }
+    storage_config.server.internal.group_id = response_data.group_id();
+    LOG_INFO("regist to master suc, group id {}", response_data.group_id());
 
     co_await regist_to_storages(response_data);
   }

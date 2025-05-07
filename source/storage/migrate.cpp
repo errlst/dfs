@@ -51,37 +51,6 @@ namespace storage_detail
     LOG_INFO("to cold migrate init suc");
   }
 
-  auto migrate_to_cold_once(const std::string &abs_path) -> asio::awaitable<void>
-  {
-    LOG_INFO(std::format("migrate to cold {}", abs_path));
-    cold_store_group()->copy_from_another_store(abs_path);
-    std::filesystem::remove(abs_path);
-    after_hot_to_cold(abs_path);
-    co_return;
-  }
-
-  auto migrate_to_cold_service() -> asio::awaitable<void>
-  {
-    if (storage_config.migrate.to_cold_action == SMS_TO_COLD_DISABLE)
-    {
-      co_return;
-    }
-
-    auto to_cold_files = std::vector<std::string>{};
-    for (const auto &[abs_path, time] : hot_file_atime_or_ctime)
-    {
-      if ((int64_t)time + storage_config.migrate.to_cold_timeout < std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count())
-      {
-        to_cold_files.push_back(abs_path);
-      }
-    }
-
-    for (const auto &file : to_cold_files)
-    {
-      co_await migrate_to_cold_once(file);
-    }
-  }
-
   auto init_migrate_to_hot() -> void
   {
     if (storage_config.migrate.to_hot_rule == SMS_TO_HOT_DISABLE)
@@ -101,13 +70,36 @@ namespace storage_detail
     LOG_INFO("to hot migrate init suc");
   }
 
-  auto migrate_to_hot_once(const std::string &abs_path) -> asio::awaitable<void>
+  auto migrate_to_cold_once(const std::string &abs_path) -> asio::awaitable<void>
   {
-    LOG_INFO(std::format("migrate to hot {}", abs_path));
-    hot_store_group()->copy_from_another_store(abs_path);
+    LOG_INFO(std::format("migrate to cold {}", abs_path));
+    cold_store_group()->copy_from_another_store(abs_path);
     std::filesystem::remove(abs_path);
-    after_cold_to_hot(abs_path);
+    after_hot_to_cold(abs_path);
     co_return;
+  }
+
+  auto migrate_to_cold_service() -> asio::awaitable<void>
+  {
+    if (storage_config.migrate.to_cold_action == SMS_TO_COLD_DISABLE)
+    {
+      co_return;
+    }
+
+    auto to_cold_files = std::vector<std::string>{};
+    for (const auto &[abs_path, time] : hot_file_atime_or_ctime)
+    {
+      if ((int64_t)time + storage_config.migrate.to_cold_timeout <
+          std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count())
+      {
+        to_cold_files.push_back(abs_path);
+      }
+    }
+
+    for (const auto &file : to_cold_files)
+    {
+      co_await migrate_to_cold_once(file);
+    }
   }
 
   auto migrate_to_hot_service() -> asio::awaitable<void>
@@ -130,6 +122,15 @@ namespace storage_detail
     {
       co_await migrate_to_hot_once(file);
     }
+  }
+
+  auto migrate_to_hot_once(const std::string &abs_path) -> asio::awaitable<void>
+  {
+    LOG_INFO(std::format("migrate to hot {}", abs_path));
+    hot_store_group()->copy_from_another_store(abs_path);
+    std::filesystem::remove(abs_path);
+    after_cold_to_hot(abs_path);
+    co_return;
   }
 
   auto migrate_service() -> asio::awaitable<void>

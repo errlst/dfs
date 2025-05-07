@@ -2,12 +2,12 @@
   // base configure
   "common": {
     "base_path": "/home/errlst/dfs/build/base_path/storage_3",
-    "log_level": 1,
+    "log_level": 2,
     "thread_count": 3
   },
 
   "server": {
-    "id": 4, // 从1开始计数
+    "id": 1, // 从1开始计数
     "ip": "0.0.0.0",
     "port": 9003,
     "master_ip": "127.0.0.1",
