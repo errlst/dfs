@@ -54,17 +54,17 @@ class "store_ctx" <<(C,lightblue) Context>> {
 store_ctx_group --o store_ctx : 包含 1..*
 
 note right of store_ctx_group::m_stores
-  文件操作分发至
-  m_stores[file_id % size]
+文件操作分发至
+m_stores[file_id % size]
 end note
 
 note right of store_ctx::m_ofstreams
-  管理打开的写流
-  (以 file_id 为键)
+管理打开的写流
+(以 file_id 为键)
 end note
- note right of store_ctx::m_ifstreams
-  管理打开的读流
-  (以 file_id 为键)
+note right of store_ctx::m_ifstreams
+管理打开的读流
+(以 file_id 为键)
 end note
 
 @enduml
@@ -118,6 +118,11 @@ note right of File1 : 实际存储文件名\n包含 用户文件名 + 随机后�
 
 @startuml
 
+' skinparam SequenceParticipantFontSize 22
+' skinparam SequenceArrowFontSize 20
+' skinparam SequenceBoxFontSize 20
+' skinparam TitleFontSize 28
+
 title 文件下载查找流程 (存储节点内部，store_ctx_group)
 
 participant "客户端请求处理函数\n(如 cs_download_start_handle)" as Handler
@@ -131,52 +136,52 @@ activate Group
 
 Group -> Group : 2. 遍历内部 store_ctx 列表\n(StoreA, StoreB, ...)
 
-loop 遍历每个 store_ctx 直到找到文件或遍历结束
+  loop 遍历每个 store_ctx 直到找到文件或遍历结束
     Group -> StoreA : 3a. open_read_file(candidate_file_id, rel_path)\n// candidate_file_id 由 group 生成
-    activate StoreA
-    StoreA -> OS : 4a. 尝试在 StoreA 的 root_path 下打开文件:\n root_path_A/rel_path
-    activate OS
-    alt 文件存在于 StoreA
+      activate StoreA
+      StoreA -> OS : 4a. 尝试在 StoreA 的 root_path 下打开文件:\n root_path_A/rel_path
+      activate OS
+      alt 文件存在于 StoreA
         OS --> StoreA : 5a. 成功打开, 返回文件句柄
         deactivate OS
         StoreA -> StoreA : 6a. 获取文件大小,\n关联 candidate_file_id 与 ifstream
         StoreA --> Group : 7a. 返回 Optional(文件大小 value)\n(表示文件找到)
         deactivate StoreA
         Group --> Handler : 8. 返回 tuple(\n  candidate_file_id, \n  文件大小, \n  StoreA 绝对路径\n)
-        deactivate Group
-        
-    else 文件不存在于 StoreA 或打开失败
-        OS --> StoreA : 5b. 文件不存在/打开失败
-        deactivate OS
-        StoreA --> Group : 7b. 返回 Optional(nullopt)\n(表示文件未找到于此 store_ctx)
-        deactivate StoreA
-    end alt
+          deactivate Group
 
-    Group -> StoreB : 3b. open_read_file(another_candidate_file_id, rel_path)\n// 继续尝试 StoreB
-    activate StoreB
-    StoreB -> OS : 4b. 尝试在 StoreB 的 root_path 下打开文件:\n root_path_B/rel_path
-    activate OS
-    alt 文件存在于 StoreB
-        OS --> StoreB : 5c. 成功打开...
-        deactivate OS
-        StoreB -> StoreB : 6c. 获取文件大小...
-        StoreB --> Group : 7c. 返回 Optional(文件大小 value)
-        deactivate StoreB
-        Group --> Handler : 8. 返回 tuple(\n another_candidate_file_id, \n 文件大小, \n StoreB 绝对路径\n)
-        deactivate Group
-         
-    else 文件不存在于 StoreB 或打开失败
-        OS --> StoreB : 5d. 文件不存在...
-        deactivate OS
-        StoreB --> Group : 7d. 返回 Optional(nullopt)
-        deactivate StoreB
-    end alt
+        else 文件不存在于 StoreA 或打开失败
+          OS --> StoreA : 5b. 文件不存在/打开失败
+          deactivate OS
+          StoreA --> Group : 7b. 返回 Optional(nullopt)\n(表示文件未找到于此 store_ctx)
+          deactivate StoreA
+          end alt
 
-    ... 继续遍历组内其他 store_ctx ...
+          Group -> StoreB : 3b. open_read_file(another_candidate_file_id, rel_path)\n// 继续尝试 StoreB
+            activate StoreB
+            StoreB -> OS : 4b. 尝试在 StoreB 的 root_path 下打开文件:\n root_path_B/rel_path
+            activate OS
+            alt 文件存在于 StoreB
+              OS --> StoreB : 5c. 成功打开...
+              deactivate OS
+              StoreB -> StoreB : 6c. 获取文件大小...
+              StoreB --> Group : 7c. 返回 Optional(文件大小 value)
+              deactivate StoreB
+              Group --> Handler : 8. 返回 tuple(\n another_candidate_file_id, \n 文件大小, \n StoreB 绝对路径\n)
+                deactivate Group
 
-end loop
+              else 文件不存在于 StoreB 或打开失败
+                OS --> StoreB : 5d. 文件不存在...
+                deactivate OS
+                StoreB --> Group : 7d. 返回 Optional(nullopt)
+                deactivate StoreB
+                end alt
 
-Group --> Handler : 9. 返回 Optional(nullopt)\n(所有 store_ctx 均未找到)
-deactivate Group
+                ... 继续遍历组内其他 store_ctx ...
 
-@enduml
+                end loop
+
+                Group --> Handler : 9. 返回 Optional(nullopt)\n(所有 store_ctx 均未找到)
+                  deactivate Group
+
+                  @enduml

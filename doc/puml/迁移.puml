@@ -1,123 +1,89 @@
 @startuml
 
-title 冷热数据迁移过程概览 (简化版)
+title 冷热数据迁移过程概览 (极简版)
 
 box "存储节点内部模块" #LightBlue
-  participant "Migration Service\n(迁移服务)" as MigrateSvc #LightYellow
-  participant "Migration Timer\n(迁移定时器)" as Timer #lightblue
-  participant "To Cold Service\n(热->冷判定)" as ToColdSvc #orange
-  participant "To Hot Service\n(冷->热判定)" as ToHotSvc #pink
-  participant "Migration State\n(文件状态:时间/次数 Map)" as State #orchid
-  participant "Storage Groups\n(冷热数据组)\n(store_ctx_group)" as StoreGroups #palegreen
-  participant "File Access Logic\n(数据访问)" as FileAccess #skyblue
+participant "Migration Service\n(迁移服务)" as MigrateSvc #LightYellow
+participant "Migration Timer\n(定时器)" as Timer #lightblue
+participant "To Cold Service\n(热->冷判定)" as ToColdSvc #orange
+participant "To Hot Service\n(冷->热判定)" as ToHotSvc #pink
+participant "Migration State\n(文件状态Map)" as State #orchid
+participant "Storage Groups\n(冷热数据组)" as StoreGroups #palegreen
+participant "File Access Logic\n(数据访问)" as FileAccess #skyblue
 end box
 
 actor "外部触发\n(用户/管理)" as External #AliceBlue
-database "操作系统文件系统\n(std::filesystem, stat)" as OSFS #lightgray
 
 
 == 初始化 ==
-"存储节点启动" -> MigrateSvc : start_migrate_service()
+"存储节点启动" -> MigrateSvc : 启动服务并扫描文件
 activate MigrateSvc
-MigrateSvc -> MigrateSvc : 初始化迁移状态 (init_migrate_to_cold/hot)
-activate MigrateSvc
-MigrateSvc -> OSFS : 扫描文件系统以获取初始信息
-activate OSFS
-OSFS --> MigrateSvc : 文件信息 (路径, stat)
-deactivate OSFS
-MigrateSvc -> State : 填充初始状态 Map
-activate State
-State --> MigrateSvc : 初始状态填充完成
-deactivate State
+MigrateSvc -> State : 填充初始文件状态
+State --> MigrateSvc : 状态填充完成
 deactivate MigrateSvc
-MigrateSvc -> MigrateSvc : 启动周期服务协程 (co_spawn migrate_service)
+MigrateSvc -> MigrateSvc : 启动周期协程
 
 == 周期检查与迁移 ==
-loop 周期性循环 (由定时器触发)
-  MigrateSvc -> Timer : 设置定时器并等待
+loop 周期性执行 (由定时器触发)
+  MigrateSvc -> Timer : 等待定时器到期
   activate Timer
   deactivate MigrateSvc
-  Timer --> MigrateSvc : 定时器到期 或 被取消
+  Timer --> MigrateSvc : 定时器到期
   activate MigrateSvc
 
-  ' --- 热到冷判定与触发 ---
-  MigrateSvc -> ToColdSvc : 运行热->冷判定服务 (migrate_to_cold_service)
+  ' --- 热到冷处理 ---
+  MigrateSvc -> ToColdSvc : 运行热->冷判定
   activate ToColdSvc
-  ToColdSvc -> State : 查询热文件状态 Map (读取时间戳)
-  activate State
-  State --> ToColdSvc : 热文件列表及时间
-  deactivate State
-  loop 遍历热文件并检查条件
-    ToColdSvc -> ToColdSvc : 判定是否需迁冷 (时间+超时 < now)
-    alt [需迁冷]
-      ToColdSvc -> ToColdSvc : 调用 migrate_to_cold_once(abs_path)\n// 对单个文件执行迁移
-      activate ToColdSvc #orange
-      ToColdSvc -> StoreGroups : 复制文件到冷存储
+  ToColdSvc -> State : 查询热文件状态
+  State --> ToColdSvc : 返回热文件列表
+  loop 遍历每个热文件
+    alt
+      ToColdSvc -> StoreGroups : 执行文件从热到冷迁移
       activate StoreGroups
-      StoreGroups --> ToColdSvc #orange : 复制结果
+      StoreGroups --> ToColdSvc : 迁移完成
       deactivate StoreGroups
-      ToColdSvc -> OSFS : 删除热存储原文件
-      activate OSFS
-      OSFS --> ToColdSvc #orange : 删除结果
-      deactivate OSFS
-      ToColdSvc -> State : 更新状态 Map (热 Map 移除, 冷 Map 新增/重置计数)
-      activate State
-      State --> ToColdSvc #orange : Map 更新完成
-      deactivate State
-      deactivate ToColdSvc #orange
+      ToColdSvc -> State : 更新文件状态为冷
+      State --> ToColdSvc : 状态更新完成
     end
   end
   deactivate ToColdSvc
 
-  ' --- 冷到热判定与触发 ---
-  MigrateSvc -> ToHotSvc : 运行冷->热判定服务 (migrate_to_hot_service)
+  ' --- 冷到热处理 ---
+  MigrateSvc -> ToHotSvc : 运行冷->热判定
   activate ToHotSvc
-  ToHotSvc -> State : 查询冷文件状态 Map (读取访问次数)
-  activate State
-  State --> ToHotSvc : 冷文件列表及次数
-  deactivate State
-  loop 遍历冷文件并检查条件
-    ToHotSvc -> ToHotSvc : 判定是否需迁热 (访问次数 >= 阈值)
-    alt [需迁热]
-      ToHotSvc -> ToHotSvc : 调用 migrate_to_hot_once(abs_path)\n// 对单个文件执行迁移
-      activate ToHotSvc #pink
-      ToHotSvc -> StoreGroups : 复制文件到热存储
+  ToHotSvc -> State : 查询冷文件状态
+  State --> ToHotSvc : 返回冷文件列表
+  loop 遍历每个冷文件
+    alt
+      ToHotSvc -> StoreGroups : 执行文件从冷到热迁移
       activate StoreGroups
-      StoreGroups --> ToHotSvc #pink : 复制结果
+      StoreGroups --> ToHotSvc : 迁移完成
       deactivate StoreGroups
-      ToHotSvc -> OSFS : 删除冷存储原文件
-      activate OSFS
-      OSFS --> ToHotSvc #pink : 删除结果
-      deactivate OSFS
-      ToHotSvc -> State : 更新状态 Map (冷 Map 移除, 热 Map 新增/更新时间)
-      activate State
-      State --> ToHotSvc #pink : Map 更新完成
-      deactivate State
-      deactivate ToHotSvc #pink
+      ToHotSvc -> State : 更新文件状态为热
+      State --> ToHotSvc : 状态更新完成
     end
   end
   deactivate ToHotSvc
 
-  MigrateSvc -> MigrateSvc : 迁移周期结束
+  MigrateSvc --> Timer : 等待下一次周期
   deactivate MigrateSvc
 end
 
-== 文件访问更新状态 (异步) ==
-FileAccess -> State : 触发状态更新\n(new/access_hot/cold_file)\n// <size:14> (其他模块调用)
-activate FileAccess #skyblue
-activate State #orchid
-State --> FileAccess #skyblue : 更新状态 Map\n// <size:14> (获取/释放 Mutex)
+== 文件访问状态更新 (异步) ==
+FileAccess -> State : 更新文件访问状态
+activate FileAccess
+activate State
+State --> FileAccess : 状态更新确认
 deactivate State
-deactivate FileAccess #skyblue
+deactivate FileAccess
 
 == 手动触发 ==
-External -> MigrateSvc : trigger_migrate_service()\n// <size:14> (如管理界面调用)
-activate External #AliceBlue
+External -> MigrateSvc : 手动触发迁移
+activate External
 activate MigrateSvc
-MigrateSvc -> Timer : cancel()\n// <size:14> 取消定时器
+MigrateSvc -> Timer : 取消当前定时器等待
 deactivate MigrateSvc
-deactivate External #AliceBlue
-Timer --> MigrateSvc : 定时器取消事件 (唤醒 migrate_service)
-
+deactivate External
+Timer --> MigrateSvc : 定时器取消事件
 
 @enduml

@@ -103,3 +103,59 @@ end note
 
 
 @enduml
+
+
+@startuml
+!theme toy
+' 隐藏不必要的细节，让图更简洁
+hide members
+hide methods
+
+' 角色
+actor User as "用户" #LightBlue
+
+' 前端和管理平台
+package "Web管理平台" #LightGreen {
+    [Web界面\n(Vue.js)] as WebUI
+    [Web API服务\n(Node.js)] as WebAPI
+}
+
+' 核心分布式文件系统
+package "分布式文件系统核心" #LightYellow {
+    [客户端] as Client
+    [主控服务器] as Master
+    rectangle "存储节点组" as StorageCluster {
+        [存储节点0] as Storage_0
+        [存储节点1] as Storage_1
+    }
+}
+
+' 外部网络（可选，增加情境感）
+cloud "互联网" as Internet #AliceBlue
+
+' 连接关系
+User --> Internet
+Internet --> WebUI : 访问
+WebUI --> WebAPI : 管理请求
+WebAPI --> Master : 监控/管理指令
+
+Client --> Master : 获取 Storage 信息
+
+Client --> Storage_0: 文件操作请求
+Client --> Storage_1: 文件操作请求
+
+
+Master --> StorageCluster : 控制/调度
+
+
+
+' 简要说明关键交互
+note top of WebUI : 直观操作与监控
+note bottom of StorageCluster : 实际数据存储与迁移执行
+
+' 添加一些颜色说明
+legend right
+
+end legend
+
+@enduml

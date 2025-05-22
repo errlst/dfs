@@ -39,6 +39,8 @@ namespace master_detail
       auto response = co_await conn->send_request_and_wait_response(common::proto_frame{.cmd = common::proto_cmd::ms_get_metrics});
       if (!response)
       {
+        auto lock = std::unique_lock{storage_metricses_lock};
+        storage_metricses.erase(conn);
         co_return;
       }
       else if (response->stat != common::FRAME_STAT_OK)
@@ -59,7 +61,7 @@ namespace master_detail
         storage_metricses[conn] = metrics;
       }
 
-      timer.expires_after(std::chrono::seconds{1000});
+      timer.expires_after(std::chrono::seconds{1});
       co_await timer.async_wait(asio::use_awaitable);
     }
   }

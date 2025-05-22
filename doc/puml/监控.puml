@@ -1,5 +1,9 @@
 @startuml
 
+skinparam TitleFontSize 28
+skinparam ComponentFontSize 22
+skinparam ArrowFontSize 20
+
 title 性能监控模块内部结构
 
 component [性能监控核心\n(common/metrics)] as MetricsCore #LightYellow {
@@ -35,13 +39,14 @@ Extensions <-- CustomMetricsSource : 注册 add_metrics_extension()
 
 WebUIVisualizer <.. MetricsFile : 读取 JSON 数据\n(主要数据源)
 
-' 可以选择是否保留 get_metrics 接口，如果 web UI 也可以通过这个接口获取数据
-' WebUIVisualizer --> MetricsCore : (可选) 调用 get_metrics()\n获取实时数据
-
 @enduml
 
 
 @startuml
+skinparam TitleFontSize 28
+skinparam ParticipantFontSize 22
+skinparam ArrowFontSize 20
+skinparam BoxFontSize 20 ' In case there are any implicit boxes or frames
 
 title 指标采集与导出流程 (common/metrics)
 

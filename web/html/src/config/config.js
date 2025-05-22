@@ -5,7 +5,7 @@ export const config = {
   },
   
   // 数据更新间隔（毫秒）
-  updateInterval: 5000,
+  updateInterval: 1000,
   
   // 性能指标阈值配置
   thresholds: {
